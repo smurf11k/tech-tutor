@@ -136,6 +136,99 @@ RESTful API for all core features.
 
 ---
 
+## Current Implementation Snapshot
+
+### Backend (implemented)
+
+- PostgreSQL-backed Laravel API with migrations
+- Domain models and relations:
+	- User, Course, Module, Lesson, Enrollment, Progress, Quiz, QuizAttempt, Review, Payment
+- CRUD and flow endpoints for:
+	- Courses, modules, lessons
+	- Enrollment and lesson progress
+	- Quizzes and quiz attempts
+	- Reviews and payments
+- Role-aware access checks (student, instructor, admin)
+- Sanctum-protected routes for private actions
+- Feature tests for core flows
+
+### Frontend (minimal integration shell)
+
+- Course list from backend
+- Course detail (modules + lessons)
+- Token input (Sanctum bearer token)
+- Enroll action wired to backend
+
+---
+
+## Local Quick Start
+
+### 1) Start database (from project root)
+
+```bash
+docker compose up -d
+```
+
+### 2) Run backend (from backend/)
+
+```bash
+composer install
+php artisan migrate:fresh --seed
+php artisan serve
+```
+
+### 3) Run frontend (from frontend/)
+
+```bash
+npm install
+npm run dev
+```
+
+### 4) Run docs (from docs/)
+
+```bash
+npm install
+npm run docs:dev
+```
+
+---
+
+## Local Dev Token Helper (Sanctum)
+
+To speed up local testing, a dev-only endpoint exists:
+
+- `POST /api/dev/token`
+
+It works only in local debug context and returns a Sanctum token for an existing user by email.
+
+Example request body:
+
+```json
+{
+	"email": "student@example.com",
+	"token_name": "frontend-dev-student",
+	"abilities": ["*"]
+}
+```
+
+Optional hardening:
+
+- set `DEV_TOKEN_KEY` in `backend/.env`
+- send `X-Dev-Key` header
+
+---
+
+## Docs Map
+
+Project docs live in `docs/` (VitePress):
+
+- `docs/backend-overview.md`
+- `docs/backend-setup.md`
+- `docs/backend-api.md`
+- `docs/backend-testing.md`
+
+---
+
 ## Roadmap
 
 ### Infrastructure & Auth

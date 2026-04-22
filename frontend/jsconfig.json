@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "baseUrl": "." /*TODO: fix*/,
+    "ignoreDeprecations": "6.0",
+    "paths": { "@/*": ["./src/*"] }
+  }
+}
