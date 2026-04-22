@@ -6,6 +6,35 @@ outline: deep
 
 This page contains copy-paste testing examples for the current backend.
 
+## Get Sanctum Token Quickly (Local Dev)
+
+Use this endpoint to mint a token for an existing user in local debug environment.
+
+Endpoint:
+
+- `POST /api/dev/token`
+
+Example:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/dev/token" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "student@example.com",
+    "token_name": "frontend-dev-student",
+    "abilities": ["*"]
+  }'
+```
+
+If you set `DEV_TOKEN_KEY` in backend env, include:
+
+```bash
+-H "X-Dev-Key: your-dev-key"
+```
+
+Response contains a `token` value. Use it as bearer token in requests below.
+
 ## Base Variables
 
 Use these in your shell before running commands.

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\DevTokenController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\ModuleController;
@@ -12,6 +13,8 @@ use App\Http\Controllers\ReviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::apiResource('courses', CourseController::class)->only(['index', 'show']);
+
+Route::post('dev/token', DevTokenController::class);
 
 Route::middleware('auth:sanctum')->group(function () {
 	Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
