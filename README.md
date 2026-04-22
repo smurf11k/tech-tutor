@@ -161,71 +161,16 @@ RESTful API for all core features.
 
 ---
 
-## Local Quick Start
+## Documentation
 
-### 1) Start database (from project root)
+Detailed setup, API, and testing notes live in `docs/`:
 
-```bash
-docker compose up -d
-```
+- [Backend Overview](docs/backend-overview.md)
+- [Backend Setup](docs/backend-setup.md)
+- [API Reference](docs/backend-api.md)
+- [API Testing](docs/backend-testing.md)
 
-### 2) Run backend (from backend/)
-
-```bash
-composer install
-php artisan migrate:fresh --seed
-php artisan serve
-```
-
-### 3) Run frontend (from frontend/)
-
-```bash
-npm install
-npm run dev
-```
-
-### 4) Run docs (from docs/)
-
-```bash
-npm install
-npm run docs:dev
-```
-
----
-
-## Local Dev Token Helper (Sanctum)
-
-To speed up local testing, a dev-only endpoint exists:
-
-- `POST /api/dev/token`
-
-It works only in local debug context and returns a Sanctum token for an existing user by email.
-
-Example request body:
-
-```json
-{
-	"email": "student@example.com",
-	"token_name": "frontend-dev-student",
-	"abilities": ["*"]
-}
-```
-
-Optional hardening:
-
-- set `DEV_TOKEN_KEY` in `backend/.env`
-- send `X-Dev-Key` header
-
----
-
-## Docs Map
-
-Project docs live in `docs/` (VitePress):
-
-- `docs/backend-overview.md`
-- `docs/backend-setup.md`
-- `docs/backend-api.md`
-- `docs/backend-testing.md`
+For local development commands and token helper details, see the docs pages above.
 
 ---
 
