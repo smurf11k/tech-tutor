@@ -12,11 +12,19 @@ use Illuminate\Http\Response;
 
 class ReviewController extends Controller
 {
-    public function index(Course $course): JsonResponse
+    public function index(Request $request, Course $course): JsonResponse
     {
         $this->authorize('view', $course);
 
-        return response()->json($course->reviews()->with('user')->latest()->get());
+        $reviews = $course->reviews()
+            ->with('user')
+            ->latest();
+
+        if (! $request->user()->isAdmin()) {
+            $reviews->where('is_published', true);
+        }
+
+        return response()->json($reviews->get());
     }
 
     public function store(StoreReviewRequest $request, Course $course): JsonResponse
@@ -33,7 +41,7 @@ class ReviewController extends Controller
             [
                 'rating' => $validated['rating'],
                 'comment' => $validated['comment'] ?? null,
-                'is_published' => true,
+                'is_published' => false,
             ]
         );
 
@@ -45,6 +53,10 @@ class ReviewController extends Controller
         $this->authorizeOwnerOrAdmin($request, $course, $review);
 
         $validated = $request->validated();
+
+        if (! $request->user()->isAdmin()) {
+            unset($validated['is_published']);
+        }
 
         $review->update($validated);
 

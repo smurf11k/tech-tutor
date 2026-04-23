@@ -21,4 +21,9 @@ export function withAuth(token) {
   });
 }
 
+export async function createDevToken(credentials) {
+  const response = await api.post("/dev/token", credentials);
+  return response.data;
+}
+
 export default api;

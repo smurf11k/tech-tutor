@@ -9,9 +9,13 @@ use Illuminate\Http\Request;
 
 class EnrollmentController extends Controller
 {
-    public function index(Course $course)
+    public function index(Request $request, Course $course)
     {
-        $this->authorize('view', $course);
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
+
+        $canViewRoster = $user->isAdmin() || $user->id === $course->instructor_id;
+        abort_unless($canViewRoster, 403);
 
         return response()->json($course->enrollments()->with('user')->latest()->get());
     }
@@ -32,15 +36,18 @@ class EnrollmentController extends Controller
         return response()->json($enrollment->load(['user', 'course']), 201);
     }
 
-    public function destroy(Request $request, Course $course)
+    public function destroy(Request $request, Course $course, Enrollment $enrollment)
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
 
-        $enrollment = Enrollment::query()
-            ->where('user_id', $user->id)
-            ->where('course_id', $course->id)
-            ->firstOrFail();
+        abort_unless($enrollment->course_id === $course->id, 404);
+
+        $canDelete = $user->isAdmin()
+            || $user->id === $enrollment->user_id
+            || $user->id === $course->instructor_id;
+
+        abort_unless($canDelete, 403);
 
         $enrollment->delete();
 

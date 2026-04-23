@@ -12,8 +12,18 @@ Base URL during local backend development:
 
 - `GET /courses`
 - `GET /courses/{course}`
+- `POST /dev/token` (local debug helper for seeded demo accounts)
 
 ## Protected Routes (Sanctum)
+
+Banned users are blocked from protected routes.
+
+### Admin
+
+- `GET /admin/users`
+- `PATCH /admin/users/{user}`
+- `GET /admin/moderation-queue`
+- `PATCH /admin/moderation-queue/reviews/{review}`
 
 ### Courses
 
@@ -81,5 +91,8 @@ Base URL during local backend development:
 ## Notes
 
 - Access control is role-aware for student/instructor/admin.
+- Admin endpoints handle role changes, bans, and queued review moderation.
+- Local dev token creation expects seeded `email` and `password` credentials.
 - Progress and quiz attempt actions include enrollment/instructor checks.
+- Newly submitted course reviews enter the moderation queue unpublished until an admin approves them.
 - Request validation is handled with FormRequest classes.

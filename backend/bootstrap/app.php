@@ -1,8 +1,11 @@
 <?php
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,8 +16,22 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->redirectGuestsTo(function (Request $request): ?string {
+            if ($request->is('api/*')) {
+                return null;
+            }
+
+            return '/';
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (AuthenticationException $exception, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'message' => 'Unauthenticated.',
+                ], JsonResponse::HTTP_UNAUTHORIZED);
+            }
+
+            return null;
+        });
     })->create();

@@ -48,6 +48,12 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
+        "db:fresh": [
+            "@php artisan migrate:fresh --seed"
+        ],
+        "db:reset-hard": [
+            "powershell -ExecutionPolicy Bypass -File ..\\scripts\\reset-db.ps1 -Hard"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

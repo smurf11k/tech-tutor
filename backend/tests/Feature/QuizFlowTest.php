@@ -62,4 +62,95 @@ class QuizFlowTest extends TestCase
             'passed' => 1,
         ]);
     }
+
+    public function test_student_cannot_attempt_unpublished_quiz(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        Sanctum::actingAs($instructor);
+
+        $this->postJson('/api/courses', [
+            'title' => 'Unpublished Quiz Course',
+            'slug' => 'unpublished-quiz-course',
+            'description' => 'Draft quiz access test',
+            'price' => 10,
+            'is_published' => true,
+        ])->assertCreated();
+
+        $course = Course::query()->firstOrFail();
+
+        $this->postJson("/api/courses/{$course->id}/quizzes", [
+            'title' => 'Draft Quiz',
+            'description' => 'Not available yet',
+            'pass_score' => 60,
+            'is_published' => false,
+        ])->assertCreated();
+
+        $quiz = Quiz::query()->firstOrFail();
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => ['q1' => 'a'],
+            'score' => 80,
+        ])->assertForbidden();
+
+        $this->assertDatabaseCount('quiz_attempts', 0);
+    }
+
+    public function test_student_cannot_exceed_quiz_attempt_limit(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        Sanctum::actingAs($instructor);
+
+        $this->postJson('/api/courses', [
+            'title' => 'Attempt Limit Course',
+            'slug' => 'attempt-limit-course',
+            'description' => 'Attempt cap test',
+            'price' => 10,
+            'is_published' => true,
+        ])->assertCreated();
+
+        $course = Course::query()->firstOrFail();
+
+        $this->postJson("/api/courses/{$course->id}/quizzes", [
+            'title' => 'Limited Quiz',
+            'description' => 'Three tries only',
+            'pass_score' => 60,
+            'is_published' => true,
+        ])->assertCreated();
+
+        $quiz = Quiz::query()->firstOrFail();
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => ['q1' => 'a1'],
+            'score' => 20,
+        ])->assertCreated();
+
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => ['q1' => 'a2'],
+            'score' => 40,
+        ])->assertCreated();
+
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => ['q1' => 'a3'],
+            'score' => 60,
+        ])->assertCreated();
+
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => ['q1' => 'a4'],
+            'score' => 80,
+        ])->assertStatus(422);
+
+        $this->assertDatabaseCount('quiz_attempts', 3);
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class DevTokenController extends Controller
 {
@@ -21,13 +22,17 @@ class DevTokenController extends Controller
 
         $validated = $request->validate([
             'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
             'token_name' => ['sometimes', 'string', 'max:120'],
             'abilities' => ['sometimes', 'array'],
             'abilities.*' => ['string'],
         ]);
 
-        /** @var User $user */
-        $user = User::query()->where('email', $validated['email'])->firstOrFail();
+        /** @var User|null $user */
+        $user = User::query()->where('email', $validated['email'])->first();
+        abort_unless($user !== null, 403, 'Invalid credentials.');
+        abort_unless(Hash::check($validated['password'], $user->password), 403, 'Invalid credentials.');
+        abort_if($user->isBanned(), 403, 'User account is banned.');
 
         $tokenName = $validated['token_name'] ?? 'frontend-dev';
         $abilities = $validated['abilities'] ?? ['*'];

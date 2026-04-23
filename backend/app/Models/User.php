@@ -16,6 +16,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $email_verified_at
  * @property string $password
  * @property string $role
+ * @property bool $is_banned
+ * @property string|null $banned_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Course> $taughtCourses
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Enrollment> $enrollments
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Progress> $progressEntries
@@ -38,6 +40,8 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_banned',
+        'banned_at',
     ];
 
     /**
@@ -61,6 +65,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => 'string',
+            'is_banned' => 'boolean',
+            'banned_at' => 'datetime',
         ];
     }
 
@@ -102,5 +108,10 @@ class User extends Authenticatable
     public function isInstructor(): bool
     {
         return in_array($this->role, ['admin', 'instructor'], true);
+    }
+
+    public function isBanned(): bool
+    {
+        return (bool) $this->is_banned;
     }
 }

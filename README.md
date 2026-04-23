@@ -147,16 +147,21 @@ RESTful API for all core features.
 	- Courses, modules, lessons
 	- Enrollment and lesson progress
 	- Quizzes and quiz attempts
-	- Reviews and payments
+	- Reviews, moderation queue, and payments
+- Admin endpoints for:
+	- User listing, role changes, and ban management
+	- Content moderation queue and review approval
 - Role-aware access checks (student, instructor, admin)
+- Ban enforcement for protected API access
+- Rich demo seed data for users, courses, lessons, enrollments, progress, payments, quizzes, and moderation queue items
 - Sanctum-protected routes for private actions
 - Feature tests for core flows
 
-### Frontend (minimal integration shell)
+### Frontend (demo integration shell)
 
-- Course list from backend
-- Course detail (modules + lessons)
-- Token input (Sanctum bearer token)
+- Course list and course detail from backend
+- Quick seeded login for student, instructor, admin, and banned-user testing
+- Role-aware demo panels for payments, admin users, and moderation queue
 - Enroll action wired to backend
 
 ---
@@ -178,7 +183,7 @@ For local development commands and token helper details, see the docs pages abov
 
 ### Infrastructure & Auth
 
-- [ ] Project setup (Laravel + React + PostgreSQL + Docker)
+- [x] Project setup (Laravel + React + PostgreSQL + Docker)
 - [ ] JWT / session-based authentication
 - [ ] Email + OAuth login (Google, GitHub)
 - [ ] Email verification
@@ -229,7 +234,7 @@ For local development commands and token helper details, see the docs pages abov
 - [x] Course reviews & star ratings
 - [ ] Lesson comments
 - [ ] Comment moderation (admin)
-- [ ] Review moderation (admin)
+- [x] Review moderation (admin)
 
 ### Notifications
 
@@ -246,8 +251,8 @@ For local development commands and token helper details, see the docs pages abov
 
 ### Admin Panel
 
-- [ ] User management (view, ban, role change)
-- [ ] Content moderation queue
+- [x] User management (view, ban, role change)
+- [x] Content moderation queue
 - [ ] Platform activity monitor
 - [ ] Payment & revenue overview
 
@@ -271,7 +276,7 @@ For local development commands and token helper details, see the docs pages abov
 - [ ] Dark / light mode
 - [ ] Multi-language support
 - [ ] Accessibility (WCAG compliance)
-- [ ] API documentation
+- [x] API documentation
 - [x] Tests (unit + feature)
 - [x] Seed / mock data
 - [ ] CI/CD pipeline

@@ -57,6 +57,22 @@ php artisan db:seed
 php artisan serve
 ```
 
+## Seeded Demo Accounts
+
+After `php artisan migrate --seed` or `composer db:fresh`, these local demo accounts are available:
+
+- `admin@techtutor.test`
+- `instructor@techtutor.test`
+- `student@techtutor.test`
+- `student2@techtutor.test`
+- `banned@techtutor.test`
+
+Shared password for all demo accounts:
+
+```txt
+password
+```
+
 ## Useful Commands
 
 ```bash
@@ -64,3 +80,23 @@ php artisan migrate:fresh --seed
 php artisan test
 vendor/bin/pint
 ```
+
+## Reset Database Quickly
+
+Soft reset from `backend`:
+
+```bash
+composer db:fresh
+```
+
+This recreates all tables and reseeds the database, but keeps the Postgres data directory/container in place.
+
+Hard reset from `backend`:
+
+```bash
+composer db:reset-hard
+```
+
+This stops Docker Compose, deletes `backend/database/data`, starts the Postgres service again, and runs `php artisan migrate:fresh --seed`.
+
+Important: in this project, `docker compose down -v` alone does not fully wipe Postgres data because the database is stored in a bind-mounted folder at `backend/database/data`, not a named Docker volume.
