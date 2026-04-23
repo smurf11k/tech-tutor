@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Comment;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Lesson;
@@ -271,6 +272,20 @@ class DatabaseSeeder extends Seeder
             'rating' => 5,
             'comment' => 'Exactly the kind of course I wanted for API practice.',
             'is_published' => true,
+        ]);
+
+        Comment::create([
+            'lesson_id' => $welcomeLesson->id,
+            'user_id' => $student->id,
+            'body' => 'The setup checklist was super clear. I got the project running fast.',
+            'is_published' => true,
+        ]);
+
+        Comment::create([
+            'lesson_id' => $authLesson->id,
+            'user_id' => $secondStudent->id,
+            'body' => 'Leaving this unpublished so admins can test comment moderation too.',
+            'is_published' => false,
         ]);
 
         QuizAttempt::create([

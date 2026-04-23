@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $position
  * @property bool $is_preview
  * @property-read Module $module
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Comment> $comments
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Progress> $progressEntries
  */
 class Lesson extends Model
@@ -53,5 +54,10 @@ class Lesson extends Model
     public function progressEntries(): HasMany
     {
         return $this->hasMany(Progress::class);
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class)->latest();
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminModerationQueueController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DevTokenController;
 use App\Http\Controllers\EnrollmentController;
@@ -24,10 +25,12 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
 	Route::patch('admin/users/{user}', [AdminUserController::class, 'update']);
 	Route::get('admin/moderation-queue', [AdminModerationQueueController::class, 'index']);
 	Route::patch('admin/moderation-queue/reviews/{review}', [AdminModerationQueueController::class, 'updateReview']);
+	Route::patch('admin/moderation-queue/comments/{comment}', [AdminModerationQueueController::class, 'updateComment']);
 	Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
 	Route::apiResource('courses.enrollments', EnrollmentController::class)->only(['index', 'store', 'destroy']);
 	Route::apiResource('courses.modules', ModuleController::class);
 	Route::apiResource('modules.lessons', LessonController::class);
+	Route::apiResource('lessons.comments', CommentController::class)->only(['index', 'store', 'update', 'destroy']);
 	Route::apiResource('courses.quizzes', QuizController::class);
 	Route::apiResource('quizzes.attempts', QuizAttemptController::class)->only(['index', 'store']);
 	Route::apiResource('courses.reviews', ReviewController::class)->only(['index', 'store', 'update', 'destroy']);

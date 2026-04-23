@@ -23,6 +23,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Progress> $progressEntries
  * @property-read \Illuminate\Database\Eloquent\Collection<int, QuizAttempt> $quizAttempts
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Review> $reviews
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Comment> $comments
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Payment> $payments
  */
 class User extends Authenticatable
@@ -93,6 +94,11 @@ class User extends Authenticatable
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class);
     }
 
     public function payments(): HasMany

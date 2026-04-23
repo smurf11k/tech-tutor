@@ -24,6 +24,7 @@ Banned users are blocked from protected routes.
 - `PATCH /admin/users/{user}`
 - `GET /admin/moderation-queue`
 - `PATCH /admin/moderation-queue/reviews/{review}`
+- `PATCH /admin/moderation-queue/comments/{comment}`
 
 ### Courses
 
@@ -83,6 +84,14 @@ Banned users are blocked from protected routes.
 - `PATCH /courses/{course}/reviews/{review}`
 - `DELETE /courses/{course}/reviews/{review}`
 
+### Lesson Comments
+
+- `GET /lessons/{lesson}/comments`
+- `POST /lessons/{lesson}/comments`
+- `PUT /lessons/{lesson}/comments/{comment}`
+- `PATCH /lessons/{lesson}/comments/{comment}`
+- `DELETE /lessons/{lesson}/comments/{comment}`
+
 ### Payments
 
 - `GET /payments`
@@ -92,7 +101,9 @@ Banned users are blocked from protected routes.
 
 - Access control is role-aware for student/instructor/admin.
 - Admin endpoints handle role changes, bans, and queued review moderation.
+- Admin moderation queue handles both review and lesson comment approval.
 - Local dev token creation expects seeded `email` and `password` credentials.
 - Progress and quiz attempt actions include enrollment/instructor checks.
 - Newly submitted course reviews enter the moderation queue unpublished until an admin approves them.
+- Newly submitted lesson comments also enter the moderation queue unpublished until an admin approves them.
 - Request validation is handled with FormRequest classes.

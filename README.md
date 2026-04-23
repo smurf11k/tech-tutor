@@ -13,43 +13,43 @@ It supports course management, payments, quizzes, and progress tracking.
 
 ## Tech Stack
 
-| Layer    | Technology        |
-| -------- | ----------------- |
-| Backend  | Laravel (PHP)     |
-| Frontend | React (SPA + SSR) |
-| Database | PostgreSQL        |
-| Search   | MeiliSearch       |
-| API      | REST              |
+| Layer    | Technology                                  |
+| -------- | ------------------------------------------- |
+| Backend  | [Laravel (PHP)](https://laravel.com/)       |
+| Frontend | [React (SPA + SSR)](https://react.dev/)     |
+| Database | [PostgreSQL](https://www.postgresql.org/)   |
+| Search   | [MeiliSearch](https://www.meilisearch.com/) |
+| API      | [REST](https://restfulapi.net/)             |
 
 ### Additional packages
 
 #### Frontend
 
-- Vite
-- Tailwind CSS
-- shadcn/ui
-- Radix UI
-- class-variance-authority
-- clsx
-- tailwind-merge
-- tw-animate-css
-- lucide-react
-- @fontsource-variable/geist
-- axios
-- @dnd-kit/core
-- @dnd-kit/sortable
-- @dnd-kit/utilities
-- ESLint
-- eslint-plugin-react-hooks
-- eslint-plugin-react-refresh
-- @types/react
-- @types/react-dom
-- globals
+- [Vite](https://vitejs.dev/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [Radix UI](https://www.radix-ui.com/)
+- [class-variance-authority](https://cva.style/docs)
+- [clsx](https://github.com/lukeed/clsx)
+- [tailwind-merge](https://github.com/dcastil/tailwind-merge)
+- [tw-animate-css](https://github.com/jamiebuilds/tailwindcss-animate)
+- [lucide-react](https://lucide.dev/)
+- [@fontsource-variable/geist](https://fontsource.org/fonts/geist)
+- [axios](https://axios-http.com/)
+- [@dnd-kit/core](https://docs.dndkit.com/)
+- [@dnd-kit/sortable](https://dndkit.com/concepts/sortable/)
+- [@dnd-kit/utilities](https://github.com/clauderic/dnd-kit)
+- [ESLint](https://eslint.org/)
+- [eslint-plugin-react-hooks](https://www.npmjs.com/package/eslint-plugin-react-hooks)
+- [eslint-plugin-react-refresh](https://www.npmjs.com/package/eslint-plugin-react-refresh)
+- [@types/react](https://www.npmjs.com/package/@types/react)
+- [@types/react-dom](https://www.npmjs.com/package/@types/react-dom)
+- [globals](https://www.npmjs.com/package/globals)
 
 #### Build tooling
 
-- laravel-vite-plugin
-- concurrently
+- [laravel-vite-plugin](https://laravel.com/docs/vite)
+- [concurrently](https://www.npmjs.com/package/concurrently)
 
 ---
 
@@ -142,18 +142,18 @@ RESTful API for all core features.
 
 - PostgreSQL-backed Laravel API with migrations
 - Domain models and relations:
-	- User, Course, Module, Lesson, Enrollment, Progress, Quiz, QuizAttempt, Review, Payment
+  - User, Course, Module, Lesson, Enrollment, Progress, Quiz, QuizAttempt, Review, Comment, Payment
 - CRUD and flow endpoints for:
-	- Courses, modules, lessons
-	- Enrollment and lesson progress
-	- Quizzes and quiz attempts
-	- Reviews, moderation queue, and payments
+  - Courses, modules, lessons
+  - Enrollment and lesson progress
+  - Quizzes and quiz attempts
+  - Reviews, lesson comments, moderation queue, and payments
 - Admin endpoints for:
-	- User listing, role changes, and ban management
-	- Content moderation queue and review approval
+  - User listing, role changes, and ban management
+  - Content moderation queue plus review and comment approval
 - Role-aware access checks (student, instructor, admin)
 - Ban enforcement for protected API access
-- Rich demo seed data for users, courses, lessons, enrollments, progress, payments, quizzes, and moderation queue items
+- Rich demo seed data for users, courses, lessons, enrollments, progress, payments, quizzes, reviews, lesson comments, and moderation queue items
 - Sanctum-protected routes for private actions
 - Feature tests for core flows
 
@@ -232,8 +232,8 @@ For local development commands and token helper details, see the docs pages abov
 ### Reviews & Community
 
 - [x] Course reviews & star ratings
-- [ ] Lesson comments
-- [ ] Comment moderation (admin)
+- [x] Lesson comments
+- [x] Comment moderation (admin)
 - [x] Review moderation (admin)
 
 ### Notifications
