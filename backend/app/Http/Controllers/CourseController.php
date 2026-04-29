@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCourseRequest;
 use App\Http\Requests\UpdateCourseRequest;
 use App\Models\Course;
+use App\Models\PublishRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -39,10 +40,27 @@ class CourseController extends Controller
         $validated = $request->validated();
         $payload = $this->normalizePublicationPayload($validated);
 
+        // Only admins can set the published flag via API
+        if (($payload['is_published'] ?? false) && !$request->user()->isAdmin()) {
+            abort(403);
+        }
+
+        // If an instructor requests publishing, we'll create a PublishRequest record
+        $requestPublish = $payload['request_publish'] ?? false;
+        unset($payload['request_publish']);
+
         $course = $request->user()->taughtCourses()->create([
             ...$payload,
             'is_published' => $payload['is_published'] ?? false,
         ]);
+
+        if ($requestPublish && !$request->user()->isAdmin()) {
+            PublishRequest::create([
+                'course_id' => $course->id,
+                'requester_id' => $request->user()->id,
+                'status' => 'pending',
+            ]);
+        }
 
         return response()->json($course->load('instructor'), 201);
     }
@@ -67,7 +85,63 @@ class CourseController extends Controller
         $validated = $request->validated();
         $payload = $this->normalizePublicationPayload($validated, $course);
 
+        // Only admins can change the published flag via API
+        if (array_key_exists('is_published', $payload) && !$request->user()->isAdmin()) {
+            abort(403);
+        }
+
+        // Handle instructor publish request flag
+        $requestPublish = $payload['request_publish'] ?? null;
+        if ($requestPublish !== null) {
+            unset($payload['request_publish']);
+        }
+
+        // Admin decline handling: admin may decline a pending publish request
+        $declinePublish = $payload['decline_publish'] ?? null;
+        $declineReason = $payload['publish_request_declined_reason'] ?? null;
+        if ($declinePublish !== null) {
+            unset($payload['decline_publish']);
+            unset($payload['publish_request_declined_reason']);
+        }
+
         $course->update($payload);
+
+        // After update: process request/accept/decline
+        if ($requestPublish && !$request->user()->isAdmin()) {
+            // Create a new pending PublishRequest
+            PublishRequest::create([
+                'course_id' => $course->id,
+                'requester_id' => $request->user()->id,
+                'status' => 'pending',
+            ]);
+        }
+
+        if (array_key_exists('is_published', $payload) && $payload['is_published'] === true && $request->user()->isAdmin()) {
+            // Admin accepted publishing — mark any pending request as accepted
+            $pending = PublishRequest::where('course_id', $course->id)->where('status', 'pending')->first();
+            if ($pending) {
+                $pending->update([
+                    'status' => 'accepted',
+                    'handled_by' => $request->user()->id,
+                    'handled_at' => now(),
+                ]);
+            }
+        }
+
+        if ($declinePublish && $request->user()->isAdmin()) {
+            // Admin declines the publish request
+            $pending = PublishRequest::where('course_id', $course->id)->where('status', 'pending')->first();
+            if ($pending) {
+                $pending->update([
+                    'status' => 'declined',
+                    'declined_reason' => $declineReason,
+                    'handled_by' => $request->user()->id,
+                    'handled_at' => now(),
+                ]);
+
+                // TODO: add notification/email for requester about decline and include a message.
+            }
+        }
 
         return response()->json($course->fresh()->load('instructor'));
     }

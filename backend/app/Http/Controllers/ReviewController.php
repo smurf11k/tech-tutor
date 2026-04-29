@@ -6,6 +6,7 @@ use App\Http\Requests\StoreReviewRequest;
 use App\Http\Requests\UpdateReviewRequest;
 use App\Models\Course;
 use App\Models\Review;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -20,7 +21,10 @@ class ReviewController extends Controller
             ->with('user')
             ->latest();
 
-        if (! $request->user()->isAdmin()) {
+        $user = $request->user();
+
+        // If the requester is not an admin (or unauthenticated), only show published reviews
+        if (!($user instanceof User) || !$user->isAdmin()) {
             $reviews->where('is_published', true);
         }
 
@@ -54,7 +58,7 @@ class ReviewController extends Controller
 
         $validated = $request->validated();
 
-        if (! $request->user()->isAdmin()) {
+        if (!$request->user()->isAdmin()) {
             unset($validated['is_published']);
         }
 
@@ -74,18 +78,34 @@ class ReviewController extends Controller
 
     private function ensureAccess(Request $request, Course $course): void
     {
-        $isInstructor = $request->user()->isAdmin() || $request->user()->id === $course->instructor_id;
-        $isEnrolled = $course->enrollments()->where('user_id', $request->user()->id)->exists();
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
 
-        abort_unless($isInstructor || $isEnrolled, 403);
+        $isAdmin = $user->isAdmin();
+        $isInstructorOwner = $user->id === $course->instructor_id;
+        $isEnrolled = $course->enrollments()->where('user_id', $user->id)->exists();
+
+        // Instructors may not review their own course unless they are admin
+        if ($isInstructorOwner && !$isAdmin) {
+            abort(403);
+        }
+
+        abort_unless($isAdmin || $isEnrolled, 403);
     }
 
     private function authorizeOwnerOrAdmin(Request $request, Course $course, Review $review): void
     {
         abort_unless($review->course_id === $course->id, 404);
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
 
-        $isAdmin = $request->user()->isAdmin();
-        $isOwner = $request->user()->id === $review->user_id;
+        $isAdmin = $user->isAdmin();
+        $isOwner = $user->id === $review->user_id;
+
+        // Allow owners to update their reviews, but only admins may delete reviews
+        if ($request->isMethod('delete')) {
+            abort_unless($isAdmin, 403);
+        }
 
         abort_unless($isAdmin || $isOwner, 403);
     }

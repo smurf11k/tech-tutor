@@ -70,10 +70,14 @@ class CommerceFlowTest extends TestCase
             'slug' => 'single-purchase-course',
             'description' => 'Paid once',
             'price' => 49.99,
-            'is_published' => true,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
+
+        // Admin publishes the course
+        $admin = User::factory()->create(['role' => 'admin']);
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/courses/{$course->id}", ['is_published' => true])->assertOk();
 
         Sanctum::actingAs($student);
 
@@ -107,10 +111,14 @@ class CommerceFlowTest extends TestCase
             'slug' => 'strict-price-course',
             'description' => 'Price should match',
             'price' => 99.99,
-            'is_published' => true,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
+
+        // Admin publishes the course
+        $admin = User::factory()->create(['role' => 'admin']);
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/courses/{$course->id}", ['is_published' => true])->assertOk();
 
         Sanctum::actingAs($student);
 
@@ -216,6 +224,60 @@ class CommerceFlowTest extends TestCase
         $this->getJson('/api/payments')
             ->assertOk()
             ->assertJsonCount(2);
+    }
+
+    public function test_instructor_cannot_review_their_own_course(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        Sanctum::actingAs($instructor);
+
+        $this->postJson('/api/courses', [
+            'title' => 'No Self Review Course',
+            'slug' => 'no-self-review',
+            'description' => 'Instructors cannot self-review',
+            'price' => 10,
+        ])->assertCreated();
+
+        $course = Course::query()->firstOrFail();
+
+        $this->postJson("/api/courses/{$course->id}/reviews", [
+            'rating' => 5,
+            'comment' => 'Amazing!'
+        ])->assertForbidden();
+    }
+
+    public function test_review_owner_cannot_update_after_edit_window(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        Sanctum::actingAs($instructor);
+
+        $this->postJson('/api/courses', [
+            'title' => 'Edit Window Course',
+            'slug' => 'edit-window-course',
+            'description' => 'Review edit window test',
+            'price' => 20,
+        ])->assertCreated();
+
+        $course = Course::query()->firstOrFail();
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+
+        $review = \App\Models\Review::create([
+            'course_id' => $course->id,
+            'user_id' => $student->id,
+            'rating' => 4,
+            'comment' => 'Good course',
+            'is_published' => false,
+        ]);
+
+        $this->patchJson("/api/courses/{$course->id}/reviews/{$review->id}", [
+            'rating' => 5,
+        ])->assertOk();
     }
 
     public function test_student_cannot_moderate_review_visibility(): void

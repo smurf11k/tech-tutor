@@ -192,6 +192,66 @@ curl -X POST "$BASE_URL/courses/1/payments" \
   }'
 ```
 
+## Publish-request workflow (testing)
+
+Use this to test the instructor→admin publish request flow.
+
+Prereqs:
+
+- Run migrations/seeds so users exist and DB is ready (`php artisan migrate --seed`).
+- The dev token helper is available only in local debug: `app()->isLocal()` and `config('app.debug')` must be true.
+- If `DEV_TOKEN_KEY` is set, include header `X-Dev-Key: <key>` when requesting a dev token.
+
+1. Mint a dev token for the instructor (use seeded instructor email/password):
+
+```bash
+curl -s -X POST "$BASE_URL/dev/token" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -H "X-Dev-Key: $DEV_TOKEN_KEY" \
+  -d '{"email":"instructor@example.com","password":"secret","token_name":"dev-instructor"}'
+```
+
+2. Instructor creates a draft and requests publishing:
+
+```bash
+curl -X POST "$BASE_URL/courses" \
+  -H "Authorization: Bearer $INSTRUCTOR_TOKEN" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Draft Course","price":10.0,"request_publish":true}'
+```
+
+3. Admin mints a token and accepts the publish request by publishing the course:
+
+```bash
+curl -s -X POST "$BASE_URL/dev/token" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"secret","token_name":"dev-admin"}'
+
+curl -X PATCH "$BASE_URL/courses/{courseId}" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"is_published":true}'
+```
+
+4. Admin declines a pending publish request (optional reason):
+
+```bash
+curl -X PATCH "$BASE_URL/courses/{courseId}" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"decline_publish":true,"publish_request_declined_reason":"Needs more content"}'
+```
+
+Notes:
+
+- The dev token endpoint returns `user` and `role` in the response so you can mint tokens for different roles.
+- The publish-request records are stored in the `publish_requests` table and can be inspected directly in the DB for test assertions.
+
 ## Postman Testing
 
 ## Environment Variables

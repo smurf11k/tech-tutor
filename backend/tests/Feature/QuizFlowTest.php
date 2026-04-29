@@ -75,10 +75,16 @@ class QuizFlowTest extends TestCase
             'slug' => 'unpublished-quiz-course',
             'description' => 'Draft quiz access test',
             'price' => 10,
-            'is_published' => true,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
+
+        // Admin publishes the course
+        $admin = User::factory()->create(['role' => 'admin']);
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/courses/{$course->id}", ['is_published' => true])->assertOk();
+
+        Sanctum::actingAs($instructor);
 
         $this->postJson("/api/courses/{$course->id}/quizzes", [
             'title' => 'Draft Quiz',
@@ -113,10 +119,15 @@ class QuizFlowTest extends TestCase
             'slug' => 'attempt-limit-course',
             'description' => 'Attempt cap test',
             'price' => 10,
-            'is_published' => true,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/courses/{$course->id}", ['is_published' => true])->assertOk();
+
+        Sanctum::actingAs($instructor);
 
         $this->postJson("/api/courses/{$course->id}/quizzes", [
             'title' => 'Limited Quiz',

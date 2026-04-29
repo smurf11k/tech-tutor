@@ -157,6 +157,8 @@ RESTful API for all core features.
 - Sanctum-protected routes for private actions
 - Feature tests for core flows
 
+- Publish-request workflow (instructors request publishing; admins approve/decline). See `docs/backend-api.md` for details.
+
 ### Frontend (demo integration shell)
 
 - Course list and course detail from backend

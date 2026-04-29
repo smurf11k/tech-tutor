@@ -121,20 +121,23 @@ class CourseFlowTest extends TestCase
             'title' => 'Publish Rule Course',
             'slug' => 'publish-rule-course',
             'price' => 15,
-            'is_published' => true,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
 
+        // Admin publishes the course
+        $admin = User::factory()->create(['role' => 'admin']);
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/courses/{$course->id}", ['is_published' => true])->assertOk();
+
+        $course->refresh();
         $this->assertTrue($course->is_published);
         $this->assertNotNull($course->published_at);
 
-        $this->patchJson("/api/courses/{$course->id}", [
-            'is_published' => false,
-        ])->assertOk();
+        // Admin unpublishes
+        $this->patchJson("/api/courses/{$course->id}", ['is_published' => false])->assertOk();
 
         $course->refresh();
-
         $this->assertFalse($course->is_published);
         $this->assertNull($course->published_at);
     }
@@ -150,7 +153,6 @@ class CourseFlowTest extends TestCase
             'title' => 'Enrollment Delete Course',
             'slug' => 'enrollment-delete-course',
             'price' => 5,
-            'is_published' => true,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
@@ -180,7 +182,6 @@ class CourseFlowTest extends TestCase
             'title' => 'Roster Privacy Course',
             'slug' => 'roster-privacy-course',
             'price' => 10,
-            'is_published' => true,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
@@ -206,7 +207,6 @@ class CourseFlowTest extends TestCase
             'title' => 'Roster Owner Course',
             'slug' => 'roster-owner-course',
             'price' => 12,
-            'is_published' => true,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();

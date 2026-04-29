@@ -39,6 +39,11 @@ class Course extends Model
         'published_at',
     ];
 
+    public function publishRequests()
+    {
+        return $this->hasMany(PublishRequest::class);
+    }
+
     protected function casts(): array
     {
         return [

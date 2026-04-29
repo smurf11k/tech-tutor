@@ -97,6 +97,22 @@ Banned users are blocked from protected routes.
 - `GET /payments`
 - `POST /courses/{course}/payments`
 
+### Publish-request workflow
+
+Instructors may create courses as drafts and request publishing. The backend tracks these requests in a `publish_requests` table and exposes publish controls via the existing course endpoints.
+
+- Instructor request (create/update course): include `request_publish: true` in the JSON payload to create a pending publish request.
+- Admin accept: admin publishes the course using `PATCH /courses/{course}` with `{ "is_published": true }`. Any pending request for the course is marked `accepted`.
+- Admin decline: admin may decline a pending request using `PATCH /courses/{course}` with `{ "decline_publish": true, "publish_request_declined_reason": "optional reason" }`. The request is marked `declined` and the decline reason is stored.
+
+Data model & files:
+
+- Migration: `database/migrations/2026_04_29_000000_create_publish_requests_table.php`
+- Model: `app/Models/PublishRequest.php`
+- Controller handling: `app/Http/Controllers/CourseController.php`
+
+TODO: send notification/email to the requester when a request is declined.
+
 ## Notes
 
 - Access control is role-aware for student/instructor/admin.
