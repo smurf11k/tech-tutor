@@ -145,6 +145,7 @@ RESTful API for all core features.
   - User, Course, Module, Lesson, Enrollment, Progress, Quiz, QuizAttempt, Review, Comment, Payment
 - CRUD and flow endpoints for:
   - Courses, modules, lessons
+  - Course catalog search, filters, sorting, and catalog metadata
   - Enrollment and lesson progress
   - Quizzes and quiz attempts
   - Reviews, lesson comments, moderation queue, and payments
@@ -201,12 +202,13 @@ For local development commands and token helper details, see the docs pages abov
 - [x] Module CRUD (instructor)
 - [x] Lesson CRUD — text, video, file uploads (instructor)
 - [x] Course publish / draft logic
-- [ ] Course thumbnail & metadata
+- [x] Course thumbnail & metadata
 - [x] Modular structure (Course → Modules → Lessons)
 
 ### Student Experience
 
-- [ ] Course catalog with search & filtering (MeiliSearch)
+- [x] Course catalog with database-backed search & filtering
+- [ ] MeiliSearch-powered catalog indexing/search
 - [ ] Course detail / preview page
 - [x] Enrollment flow
 - [ ] Lesson viewer (video player, text renderer, file downloads)

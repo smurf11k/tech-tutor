@@ -12,6 +12,13 @@ import api, { createDevToken, withAuth } from "@/lib/api";
 const STORAGE_TOKEN_KEY = "techtutor_token";
 const STORAGE_USER_KEY = "techtutor_user";
 const DEFAULT_PASSWORD = "password";
+const defaultCatalogFilters = {
+  q: "",
+  category: "",
+  level: "",
+  price_type: "",
+  sort: "newest",
+};
 
 const demoAccounts = [
   { role: "student", label: "Student", email: "student@techtutor.test", password: DEFAULT_PASSWORD },
@@ -58,6 +65,7 @@ function App() {
   const [payments, setPayments] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
   const [moderationQueue, setModerationQueue] = useState([]);
+  const [catalogFilters, setCatalogFilters] = useState(defaultCatalogFilters);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState(null);
 
@@ -83,7 +91,10 @@ function App() {
   }
 
   async function loadCourses(client = catalogClient) {
-    const response = await client.get("/courses");
+    const params = Object.fromEntries(
+      Object.entries(catalogFilters).filter(([, value]) => value !== null && value !== undefined && value !== ""),
+    );
+    const response = await client.get("/courses", { params });
     const nextCourses = response.data?.data ?? response.data ?? [];
     const normalizedCourses = Array.isArray(nextCourses) ? nextCourses : [];
     setCourses(normalizedCourses);
@@ -97,6 +108,51 @@ function App() {
     const preferredCourseId = selectedCourse?.id ?? normalizedCourses[0].id;
     const courseToLoad = normalizedCourses.find((course) => course.id === preferredCourseId) ?? normalizedCourses[0];
     await loadCourseDetails(courseToLoad.id, client);
+  }
+
+  async function handleCatalogFiltersSubmit(event) {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      await loadCourses();
+      setNotice(null);
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Catalog filter failed",
+        description: error?.response?.data?.message || "Could not apply catalog filters.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function clearCatalogFilters() {
+    setCatalogFilters(defaultCatalogFilters);
+    setLoading(true);
+    try {
+      const response = await catalogClient.get("/courses", { params: { sort: defaultCatalogFilters.sort } });
+      const nextCourses = response.data?.data ?? response.data ?? [];
+      const normalizedCourses = Array.isArray(nextCourses) ? nextCourses : [];
+      setCourses(normalizedCourses);
+
+      if (normalizedCourses.length === 0) {
+        setSelectedCourse(null);
+        setReviews([]);
+        return;
+      }
+
+      await loadCourseDetails(normalizedCourses[0].id, catalogClient);
+      setNotice(null);
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Catalog reset failed",
+        description: error?.response?.data?.message || "Could not reset catalog filters.",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function loadRoleData() {
@@ -210,23 +266,30 @@ function App() {
     }
   }
 
-  async function handleModeration(reviewId, isPublished) {
+  async function handleModeration(item, isPublished) {
+    const content = item.review ?? item.comment;
+    const moderationType = item.content_type === "comment" ? "comments" : "reviews";
+
+    if (!content?.id) {
+      return;
+    }
+
     setLoading(true);
     try {
-      await authenticatedClient.patch(`/admin/moderation-queue/reviews/${reviewId}`, {
+      await authenticatedClient.patch(`/admin/moderation-queue/${moderationType}/${content.id}`, {
         is_published: isPublished,
       });
       await Promise.all([loadRoleData(), selectedCourse ? loadCourseDetails(selectedCourse.id) : Promise.resolve()]);
       setNotice({
         variant: "default",
-        title: isPublished ? "Review approved" : "Review hidden",
+        title: isPublished ? "Content approved" : "Content hidden",
         description: "Moderation queue updated.",
       });
     } catch (error) {
       setNotice({
         variant: "destructive",
         title: "Moderation failed",
-        description: error?.response?.data?.message || "Could not update review visibility.",
+        description: error?.response?.data?.message || "Could not update content visibility.",
       });
     } finally {
       setLoading(false);
@@ -352,33 +415,100 @@ function App() {
                   {courses.length} courses
                 </Badge>
               </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-2">
-                {courses.map((course) => (
-                  <button
-                    key={course.id}
-                    type="button"
-                    onClick={() => loadCourseDetails(course.id)}
-                    className={`rounded-2xl border p-4 text-left transition ${
-                      selectedCourse?.id === course.id
-                        ? "border-amber-300/60 bg-amber-300/10"
-                        : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-white">{course.title}</p>
-                        <p className="mt-1 text-xs text-slate-400">/{course.slug}</p>
+              <CardContent className="space-y-4">
+                <form className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleCatalogFiltersSubmit}>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <Input
+                      value={catalogFilters.q}
+                      onChange={(event) => setCatalogFilters((prev) => ({ ...prev, q: event.target.value }))}
+                      placeholder="Search catalog"
+                      className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                    />
+                    <Input
+                      value={catalogFilters.category}
+                      onChange={(event) => setCatalogFilters((prev) => ({ ...prev, category: event.target.value }))}
+                      placeholder="Category"
+                      className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                    />
+                    <select
+                      value={catalogFilters.level}
+                      onChange={(event) => setCatalogFilters((prev) => ({ ...prev, level: event.target.value }))}
+                      className="h-10 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white"
+                    >
+                      <option value="">Any level</option>
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                    <select
+                      value={catalogFilters.price_type}
+                      onChange={(event) => setCatalogFilters((prev) => ({ ...prev, price_type: event.target.value }))}
+                      className="h-10 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white"
+                    >
+                      <option value="">Any price</option>
+                      <option value="free">Free</option>
+                      <option value="paid">Paid</option>
+                    </select>
+                    <select
+                      value={catalogFilters.sort}
+                      onChange={(event) => setCatalogFilters((prev) => ({ ...prev, sort: event.target.value }))}
+                      className="h-10 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white"
+                    >
+                      <option value="newest">Newest</option>
+                      <option value="oldest">Oldest</option>
+                      <option value="title">Title</option>
+                      <option value="price_asc">Price low</option>
+                      <option value="price_desc">Price high</option>
+                      <option value="rating">Rating</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="submit" disabled={loading}>
+                      Apply filters
+                    </Button>
+                    <Button type="button" variant="outline" onClick={clearCatalogFilters} disabled={loading}>
+                      Clear
+                    </Button>
+                  </div>
+                </form>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  {courses.map((course) => (
+                    <button
+                      key={course.id}
+                      type="button"
+                      onClick={() => loadCourseDetails(course.id)}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        selectedCourse?.id === course.id
+                          ? "border-amber-300/60 bg-amber-300/10"
+                          : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-white">{course.title}</p>
+                          <p className="mt-1 text-xs text-slate-400">/{course.slug}</p>
+                        </div>
+                        <Badge variant={course.is_published ? "secondary" : "outline"}>
+                          {course.is_published ? "Published" : "Draft"}
+                        </Badge>
                       </div>
-                      <Badge variant={course.is_published ? "secondary" : "outline"}>
-                        {course.is_published ? "Published" : "Draft"}
-                      </Badge>
-                    </div>
-                    <p className="mt-3 text-sm text-slate-300">
-                      {course.description || "No description yet."}
-                    </p>
-                    <p className="mt-3 text-xs text-slate-400">${course.price}</p>
-                  </button>
-                ))}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {course.category && <Badge variant="outline">{course.category}</Badge>}
+                        {course.level && <Badge variant="outline">{course.level}</Badge>}
+                        {course.duration_minutes && <Badge variant="outline">{course.duration_minutes} min</Badge>}
+                      </div>
+                      <p className="mt-3 text-sm text-slate-300">
+                        {course.subtitle || course.description || "No description yet."}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                        <span>${course.price}</span>
+                        {course.average_rating && <span>{Number(course.average_rating).toFixed(1)}/5 rating</span>}
+                        <span>{course.enrollments_count ?? 0} enrollments</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
@@ -541,29 +671,38 @@ function App() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {moderationQueue.length === 0 && <p className="text-sm text-slate-400">Queue is empty.</p>}
-                    {moderationQueue.map((item) => (
-                      <div key={item.review.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <Badge variant="outline">{item.content_type}</Badge>
-                          <p className="text-xs text-slate-500">{item.review.course?.title}</p>
+                    {moderationQueue.map((item, index) => {
+                      const content = item.review ?? item.comment;
+                      const courseTitle =
+                        item.review?.course?.title ?? item.comment?.lesson?.module?.course?.title ?? "Unknown course";
+                      const body = item.review?.comment ?? item.comment?.body ?? "No content.";
+                      const authorName = content?.user?.name ?? "Unknown user";
+                      const key = `${item.content_type}-${content?.id ?? index}`;
+
+                      return (
+                        <div key={key} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <Badge variant="outline">{item.content_type}</Badge>
+                            <p className="text-xs text-slate-500">{courseTitle}</p>
+                          </div>
+                          <p className="mt-3 font-medium text-white">{authorName}</p>
+                          <p className="mt-1 text-sm text-slate-300">{body}</p>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <Button size="sm" onClick={() => handleModeration(item, true)} disabled={loading}>
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleModeration(item, false)}
+                              disabled={loading}
+                            >
+                              Keep hidden
+                            </Button>
+                          </div>
                         </div>
-                        <p className="mt-3 font-medium text-white">{item.review.user?.name}</p>
-                        <p className="mt-1 text-sm text-slate-300">{item.review.comment}</p>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Button size="sm" onClick={() => handleModeration(item.review.id, true)} disabled={loading}>
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleModeration(item.review.id, false)}
-                            disabled={loading}
-                          >
-                            Keep hidden
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </Card>
               </>

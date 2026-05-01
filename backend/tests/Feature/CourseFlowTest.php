@@ -6,7 +6,6 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Lesson;
 use App\Models\Module;
-use App\Models\Progress;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -109,6 +108,108 @@ class CourseFlowTest extends TestCase
         $this->getJson('/api/courses')
             ->assertOk()
             ->assertJsonCount(2, 'data');
+    }
+
+    public function test_public_courses_index_supports_catalog_search_filters_and_sorting(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Laravel API Bootcamp',
+            'slug' => 'laravel-api-bootcamp',
+            'description' => 'Backend APIs with policies and Sanctum.',
+            'subtitle' => 'REST API practice',
+            'category' => 'backend',
+            'level' => 'beginner',
+            'language' => 'en',
+            'thumbnail_path' => '/courses/laravel.png',
+            'duration_minutes' => 420,
+            'price' => 79,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'React Learning UI',
+            'slug' => 'react-learning-ui',
+            'description' => 'Frontend interfaces for students.',
+            'subtitle' => 'Interface systems',
+            'category' => 'frontend',
+            'level' => 'intermediate',
+            'language' => 'en',
+            'thumbnail_path' => '/courses/react.png',
+            'duration_minutes' => 300,
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Advanced Laravel Draft',
+            'slug' => 'advanced-laravel-draft',
+            'description' => 'Hidden backend draft.',
+            'category' => 'backend',
+            'level' => 'advanced',
+            'language' => 'en',
+            'price' => 120,
+            'is_published' => false,
+            'published_at' => null,
+        ]);
+
+        $this->getJson('/api/courses?q=laravel&category=backend&price_type=paid&sort=price_desc')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.slug', 'laravel-api-bootcamp')
+            ->assertJsonPath('data.0.category', 'backend')
+            ->assertJsonPath('data.0.level', 'beginner')
+            ->assertJsonPath('data.0.duration_minutes', 420);
+
+        $this->getJson('/api/courses?price_type=free')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.slug', 'react-learning-ui');
+    }
+
+    public function test_instructor_can_manage_course_catalog_metadata(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        Sanctum::actingAs($instructor);
+
+        $response = $this->postJson('/api/courses', [
+            'title' => 'Metadata Course',
+            'slug' => 'metadata-course',
+            'description' => 'Course with catalog metadata.',
+            'subtitle' => 'Catalog-ready API course',
+            'category' => 'backend',
+            'level' => 'intermediate',
+            'language' => 'en',
+            'thumbnail_path' => '/courses/metadata.png',
+            'duration_minutes' => 180,
+            'price' => 25,
+        ])->assertCreated();
+
+        $courseId = $response->json('id');
+
+        $this->patchJson("/api/courses/{$courseId}", [
+            'level' => 'advanced',
+            'duration_minutes' => 210,
+        ])->assertOk()
+            ->assertJsonPath('level', 'advanced')
+            ->assertJsonPath('duration_minutes', 210);
+
+        $this->assertDatabaseHas('courses', [
+            'id' => $courseId,
+            'subtitle' => 'Catalog-ready API course',
+            'category' => 'backend',
+            'level' => 'advanced',
+            'language' => 'en',
+            'thumbnail_path' => '/courses/metadata.png',
+            'duration_minutes' => 210,
+        ]);
     }
 
     public function test_publishing_rules_set_and_clear_published_at(): void

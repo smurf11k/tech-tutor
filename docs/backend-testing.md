@@ -21,7 +21,7 @@ curl -X POST "http://127.0.0.1:8000/api/dev/token" \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "student@example.com",
+    "email": "student@techtutor.test",
     "token_name": "frontend-dev-student",
     "abilities": ["*"]
   }'
@@ -59,6 +59,12 @@ List courses:
 curl -X GET "$BASE_URL/courses"
 ```
 
+Search/filter the catalog:
+
+```bash
+curl -X GET "$BASE_URL/courses?q=laravel&category=backend&price_type=paid&sort=price_desc"
+```
+
 Get one course:
 
 ```bash
@@ -78,6 +84,12 @@ curl -X POST "$BASE_URL/courses" \
     "title": "Laravel API Basics",
     "slug": "laravel-api-basics",
     "description": "Intro backend course",
+    "subtitle": "Build REST APIs with Laravel",
+    "category": "backend",
+    "level": "beginner",
+    "language": "en",
+    "thumbnail_path": "/courses/laravel-api-basics.png",
+    "duration_minutes": 180,
     "price": 49.99,
     "is_published": true
   }'
@@ -209,7 +221,7 @@ curl -s -X POST "$BASE_URL/dev/token" \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -H "X-Dev-Key: $DEV_TOKEN_KEY" \
-  -d '{"email":"instructor@example.com","password":"secret","token_name":"dev-instructor"}'
+  -d '{"email":"instructor@techtutor.test","password":"password","token_name":"dev-instructor"}'
 ```
 
 2. Instructor creates a draft and requests publishing:
@@ -228,7 +240,7 @@ curl -X POST "$BASE_URL/courses" \
 curl -s -X POST "$BASE_URL/dev/token" \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"secret","token_name":"dev-admin"}'
+  -d '{"email":"admin@techtutor.test","password":"password","token_name":"dev-admin"}'
 
 curl -X PATCH "$BASE_URL/courses/{courseId}" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \

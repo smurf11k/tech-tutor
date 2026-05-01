@@ -14,6 +14,29 @@ Base URL during local backend development:
 - `GET /courses/{course}`
 - `POST /dev/token` (local debug helper for seeded demo accounts)
 
+### Course Catalog Query Parameters
+
+`GET /courses` supports database-backed catalog filters:
+
+- `q`: search title, subtitle, description, category, and slug
+- `category`
+- `level`
+- `language`
+- `instructor_id`
+- `price_type`: `free` or `paid`
+- `min_price`
+- `max_price`
+- `sort`: `newest`, `oldest`, `title`, `price_asc`, `price_desc`, or `rating`
+- `per_page`: 1-50
+
+Example:
+
+```bash
+curl -X GET "$BASE_URL/courses?q=laravel&category=backend&price_type=paid&sort=price_desc"
+```
+
+TODO: replace the relational `q` search fallback with MeiliSearch-backed indexing once the search service is introduced.
+
 ## Protected Routes (Sanctum)
 
 Banned users are blocked from protected routes.
@@ -32,6 +55,15 @@ Banned users are blocked from protected routes.
 - `PUT /courses/{course}`
 - `PATCH /courses/{course}`
 - `DELETE /courses/{course}`
+
+Course create/update payloads support catalog metadata:
+
+- `subtitle`
+- `category`
+- `level`
+- `language`
+- `thumbnail_path`
+- `duration_minutes`
 
 ### Enrollments
 

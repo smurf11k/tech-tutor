@@ -40,6 +40,10 @@ This documentation describes the backend logic currently implemented for TechTut
 - Module CRUD nested under course
 - Lesson CRUD nested under module
 - Publish/draft flags and metadata fields on course and quiz
+- Course catalog metadata: subtitle, category, level, language, thumbnail path, and duration
+- Database-backed course catalog search, filtering, sorting, rating average, review count, and enrollment count
+
+TODO: move free-text catalog search and ranking to MeiliSearch when search infrastructure is added.
 
 ### Student Learning Flow
 
@@ -62,15 +66,18 @@ This documentation describes the backend logic currently implemented for TechTut
 
 Database seeding includes role-based users:
 
-- `student@example.com`
-- `instructor@example.com`
-- `admin@example.com`
+- `admin@techtutor.test`
+- `instructor@techtutor.test`
+- `student@techtutor.test`
+- `student2@techtutor.test`
+- `banned@techtutor.test`
 
 ## Test Coverage
 
 Feature tests currently cover:
 
 - Course creation, enrollment, and lesson progress
+- Course catalog search/filtering and metadata
 - Quiz creation and student attempt submission
 - Review and payment flow
 
