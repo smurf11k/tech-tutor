@@ -23,7 +23,8 @@ It supports course management, payments, quizzes, and progress tracking.
 
 ### Additional packages
 
-#### Frontend
+<details>
+<summary>Frontend</summary>
 
 - [Vite](https://vitejs.dev/)
 - [Tailwind CSS](https://tailwindcss.com/)
@@ -46,10 +47,15 @@ It supports course management, payments, quizzes, and progress tracking.
 - [@types/react-dom](https://www.npmjs.com/package/@types/react-dom)
 - [globals](https://www.npmjs.com/package/globals)
 
-#### Build tooling
+</details>
+
+<details>
+<summary>Build tooling</summary>
 
 - [laravel-vite-plugin](https://laravel.com/docs/vite)
 - [concurrently](https://www.npmjs.com/package/concurrently)
+
+</details>
 
 ---
 
