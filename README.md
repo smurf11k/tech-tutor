@@ -66,7 +66,9 @@ It supports course management, payments, quizzes, and progress tracking.
 
 ### Students
 
-- Sign up / Login (Email + OAuth)
+- Sign up / login with email
+- Email verification and password reset
+- OAuth login (planned)
 - Purchase courses
 - Watch lessons (video, text, files)
 - Pass quizzes & get results
@@ -96,9 +98,10 @@ It supports course management, payments, quizzes, and progress tracking.
 
 ## Authentication & Security
 
-- JWT / Session-based auth
-- Email verification
-- Password reset
+- Sanctum token authentication
+- Email/password login
+- Email verification and password reset
+- OAuth login (planned)
 - Optional 2FA
 - Rate limiting & CAPTCHA
 - Protection against XSS / SQL Injection
@@ -147,6 +150,12 @@ RESTful API for all core features.
 
 ## Current Implementation Snapshot
 
+### Progress Summary
+
+- Backend readiness: about 90%
+- Frontend/demo readiness: partial integration shell for presenting backend flows
+- Current priority: finish payment/purchase flow before advanced integrations such as OAuth, 2FA, MeiliSearch, and CI/CD
+
 ### Backend (implemented)
 
 - PostgreSQL-backed Laravel API with migrations
@@ -164,6 +173,7 @@ RESTful API for all core features.
 - Admin endpoints for:
   - User listing, role changes, and ban management
   - Content moderation queue plus review and comment approval
+  - Live platform activity and payment monitoring
 - Role-aware access checks (student, instructor, admin)
 - Ban enforcement for protected API access
 - Rich demo seed data for users, courses, lessons, enrollments, progress, payments, quizzes, reviews, lesson comments, and moderation queue items
@@ -205,21 +215,28 @@ For local development commands and token helper details, see the docs pages abov
 
 - [x] Project setup (Laravel + React + PostgreSQL + Docker)
 - [x] Sanctum token authentication
-- [ ] JWT / session-based authentication
-- [ ] Email + OAuth login (Google, GitHub)
 - [x] Email/password login
+- [x] Registration flow
+- [x] Current-user profile endpoint
+- [x] Logout / token revocation
 - [x] Email verification
 - [x] Password reset flow
+- [ ] OAuth login with Google
+- [ ] OAuth login with GitHub
 - [ ] Optional 2FA
-- [ ] Rate limiting & CAPTCHA
-- [ ] XSS / SQL injection protection
+- [ ] Rate limiting
+- [ ] CAPTCHA
+- [ ] Production security hardening
 - [x] Role-based access control (student, instructor, admin)
+- [x] Ban enforcement for protected API routes
 
 ### Core Course Structure
 
 - [x] Course CRUD (instructor)
 - [x] Module CRUD (instructor)
-- [x] Lesson CRUD — text, video, file uploads (instructor)
+- [x] Lesson CRUD (instructor)
+- [x] Lesson content fields for text/video/file metadata
+- [ ] Production-ready lesson file upload/storage pipeline
 - [x] Course publish / draft logic
 - [x] Course thumbnail & metadata
 - [x] Modular structure (Course → Modules → Lessons)
@@ -245,12 +262,19 @@ For local development commands and token helper details, see the docs pages abov
 
 ### Payments
 
-- [ ] Payment integration (Stripe / LiqPay)
-- [ ] Course pricing (free / paid / subscription)
-- [ ] Purchase flow & receipts
+- [x] Internal payment records
+- [x] Course pricing for free/paid courses
+- [x] Instructor/admin revenue reporting from internal paid records
+- [x] Admin payment monitoring dashboard
+- [ ] Verified purchase state and paid-course access gating
+- [ ] Purchase flow
+- [ ] Receipts
+- [ ] Stripe checkout integration
+- [ ] LiqPay checkout integration
+- [ ] Payment provider webhooks
 - [ ] Refund handling
 - [ ] Instructor payouts
-- [ ] Admin payment monitoring
+- [ ] Subscription pricing
 
 ### Reviews & Community
 
@@ -262,6 +286,7 @@ For local development commands and token helper details, see the docs pages abov
 ### Notifications
 
 - [x] Email notifications (enrollment, quiz results, certificates, publish requests)
+- [x] Auth email notifications (verification, password reset)
 - [ ] New content email notifications
 - [ ] In-app notifications
 - [ ] Push notifications
@@ -283,7 +308,7 @@ For local development commands and token helper details, see the docs pages abov
 ### Analytics
 
 - [ ] Student engagement metrics
-- [ ] Course completion rates
+- [x] Course completion rates in instructor dashboard
 - [x] Revenue reports
 - [ ] Search analytics (popular queries, zero results)
 
