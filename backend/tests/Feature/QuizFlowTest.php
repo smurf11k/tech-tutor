@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Course;
-use App\Models\Module;
 use App\Models\Quiz;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,37 +29,123 @@ class QuizFlowTest extends TestCase
 
         $course = Course::query()->firstOrFail();
 
-        $this->postJson("/api/courses/{$course->id}/quizzes", [
+        $quizResponse = $this->postJson("/api/courses/{$course->id}/quizzes", [
             'title' => 'Final Quiz',
             'description' => 'End of course quiz',
             'pass_score' => 60,
             'is_published' => true,
+            'questions' => [
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Which framework powers this API?',
+                    'points' => 1,
+                    'options' => [
+                        ['key' => 'laravel', 'text' => 'Laravel', 'is_correct' => true],
+                        ['key' => 'react', 'text' => 'React'],
+                    ],
+                ],
+                [
+                    'type' => 'multiple_choice',
+                    'prompt' => 'Which features are backend responsibilities?',
+                    'points' => 2,
+                    'options' => [
+                        ['key' => 'policies', 'text' => 'Policies', 'is_correct' => true],
+                        ['key' => 'migrations', 'text' => 'Migrations', 'is_correct' => true],
+                        ['key' => 'tailwind', 'text' => 'Tailwind classes'],
+                    ],
+                ],
+            ],
         ])->assertCreated();
 
         $quiz = Quiz::query()->firstOrFail();
+        $questionIds = $quiz->questions()->pluck('id')->values();
 
-        $module = Module::create([
-            'course_id' => $course->id,
-            'title' => 'Core',
-            'slug' => 'core',
-            'position' => 1,
-        ]);
+        $quizResponse->assertJsonMissingPath('questions.0.correct_answers');
 
         Sanctum::actingAs($student);
 
         $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
 
         $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
-            'answers' => ['q1' => 'a'],
-            'score' => 80,
-        ])->assertCreated();
+            'answers' => [
+                (string) $questionIds[0] => 'laravel',
+                (string) $questionIds[1] => ['migrations', 'policies'],
+            ],
+        ])->assertCreated()
+            ->assertJsonPath('score', 100)
+            ->assertJsonPath('passed', true);
 
         $this->assertDatabaseHas('quiz_attempts', [
             'quiz_id' => $quiz->id,
             'user_id' => $student->id,
-            'score' => 80,
+            'score' => 100,
             'passed' => 1,
         ]);
+    }
+
+    public function test_quiz_attempt_score_is_calculated_by_backend(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Scored Quiz Course',
+            'slug' => 'scored-quiz-course',
+            'description' => 'Backend scoring test',
+            'price' => 10,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($instructor);
+
+        $this->postJson("/api/courses/{$course->id}/quizzes", [
+            'title' => 'Scored Quiz',
+            'pass_score' => 70,
+            'is_published' => true,
+            'questions' => [
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Pick A',
+                    'options' => [
+                        ['key' => 'a', 'text' => 'A', 'is_correct' => true],
+                        ['key' => 'b', 'text' => 'B'],
+                    ],
+                ],
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Pick C',
+                    'options' => [
+                        ['key' => 'c', 'text' => 'C', 'is_correct' => true],
+                        ['key' => 'd', 'text' => 'D'],
+                    ],
+                ],
+            ],
+        ])->assertCreated();
+
+        $quiz = Quiz::query()->firstOrFail();
+        $questionIds = $quiz->questions()->pluck('id')->values();
+
+        Sanctum::actingAs($student);
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => [
+                (string) $questionIds[0] => 'a',
+                (string) $questionIds[1] => 'd',
+            ],
+        ])->assertCreated()
+            ->assertJsonPath('score', 50)
+            ->assertJsonPath('passed', false);
+
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => [
+                (string) $questionIds[0] => 'a',
+                (string) $questionIds[1] => 'c',
+            ],
+            'score' => 100,
+        ])->assertJsonValidationErrors('score');
     }
 
     public function test_student_cannot_attempt_unpublished_quiz(): void
@@ -91,17 +176,27 @@ class QuizFlowTest extends TestCase
             'description' => 'Not available yet',
             'pass_score' => 60,
             'is_published' => false,
+            'questions' => [
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Draft question',
+                    'options' => [
+                        ['key' => 'a', 'text' => 'A', 'is_correct' => true],
+                        ['key' => 'b', 'text' => 'B'],
+                    ],
+                ],
+            ],
         ])->assertCreated();
 
         $quiz = Quiz::query()->firstOrFail();
+        $questionId = $quiz->questions()->value('id');
 
         Sanctum::actingAs($student);
 
         $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
 
         $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
-            'answers' => ['q1' => 'a'],
-            'score' => 80,
+            'answers' => [(string) $questionId => 'a'],
         ])->assertForbidden();
 
         $this->assertDatabaseCount('quiz_attempts', 0);
@@ -134,32 +229,39 @@ class QuizFlowTest extends TestCase
             'description' => 'Three tries only',
             'pass_score' => 60,
             'is_published' => true,
+            'questions' => [
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Limited question',
+                    'options' => [
+                        ['key' => 'a', 'text' => 'A', 'is_correct' => true],
+                        ['key' => 'b', 'text' => 'B'],
+                    ],
+                ],
+            ],
         ])->assertCreated();
 
         $quiz = Quiz::query()->firstOrFail();
+        $questionId = $quiz->questions()->value('id');
 
         Sanctum::actingAs($student);
 
         $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
 
         $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
-            'answers' => ['q1' => 'a1'],
-            'score' => 20,
+            'answers' => [(string) $questionId => 'b'],
         ])->assertCreated();
 
         $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
-            'answers' => ['q1' => 'a2'],
-            'score' => 40,
+            'answers' => [(string) $questionId => 'b'],
         ])->assertCreated();
 
         $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
-            'answers' => ['q1' => 'a3'],
-            'score' => 60,
+            'answers' => [(string) $questionId => 'a'],
         ])->assertCreated();
 
         $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
-            'answers' => ['q1' => 'a4'],
-            'score' => 80,
+            'answers' => [(string) $questionId => 'a'],
         ])->assertStatus(422);
 
         $this->assertDatabaseCount('quiz_attempts', 3);

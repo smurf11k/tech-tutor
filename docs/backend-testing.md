@@ -157,11 +157,31 @@ curl -X POST "$BASE_URL/courses/1/quizzes" \
     "title": "Final Quiz",
     "description": "Module checkpoint",
     "pass_score": 60,
-    "is_published": true
+    "is_published": true,
+    "questions": [
+      {
+        "type": "single_choice",
+        "prompt": "Which package protects API routes?",
+        "options": [
+          { "key": "sanctum", "text": "Laravel Sanctum", "is_correct": true },
+          { "key": "vite", "text": "Vite" }
+        ]
+      },
+      {
+        "type": "multiple_choice",
+        "prompt": "Which items are backend responsibilities?",
+        "points": 2,
+        "options": [
+          { "key": "policies", "text": "Policies", "is_correct": true },
+          { "key": "middleware", "text": "Middleware", "is_correct": true },
+          { "key": "tailwind", "text": "Tailwind classes" }
+        ]
+      }
+    ]
   }'
 ```
 
-Submit quiz attempt:
+Submit quiz attempt. Use question IDs from the quiz response as answer keys:
 
 ```bash
 curl -X POST "$BASE_URL/quizzes/1/attempts" \
@@ -170,11 +190,13 @@ curl -X POST "$BASE_URL/quizzes/1/attempts" \
   -H "Content-Type: application/json" \
   -d '{
     "answers": {
-      "q1": "a"
-    },
-    "score": 80
+      "1": "sanctum",
+      "2": ["middleware", "policies"]
+    }
   }'
 ```
+
+The backend calculates `score` and `passed`; clients cannot submit their own `score`.
 
 Create review:
 

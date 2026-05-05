@@ -6,6 +6,7 @@ use App\Http\Requests\StoreQuizAttemptRequest;
 use App\Models\Course;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\QuizQuestion;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,8 +28,7 @@ class QuizAttemptController extends Controller
         $this->ensureAttemptRules($user, $quiz);
 
         $validated = $request->validated();
-
-        $score = $validated['score'] ?? 0;
+        $score = $this->calculateScore($quiz, $validated['answers']);
 
         $attempt = QuizAttempt::create([
             'quiz_id' => $quiz->id,
@@ -76,5 +76,58 @@ class QuizAttemptController extends Controller
         if ($attemptCount >= self::MAX_STUDENT_ATTEMPTS) {
             abort(422, 'Attempt limit reached for this quiz.');
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $answers
+     */
+    private function calculateScore(Quiz $quiz, array $answers): int
+    {
+        $questions = $quiz->questions()->get();
+
+        if ($questions->isEmpty()) {
+            abort(422, 'Quiz has no questions to score.');
+        }
+
+        $earnedPoints = 0;
+        $totalPoints = $questions->sum('points');
+
+        $questions->each(function (QuizQuestion $question) use ($answers, &$earnedPoints): void {
+            $submittedAnswer = $answers[(string) $question->id] ?? $answers[$question->id] ?? null;
+
+            if ($submittedAnswer === null) {
+                return;
+            }
+
+            $submittedAnswers = $this->normalizeAnswerSet($submittedAnswer);
+            $correctAnswers = $this->normalizeAnswerSet($question->correct_answers);
+
+            if ($submittedAnswers === $correctAnswers) {
+                $earnedPoints += $question->points;
+            }
+        });
+
+        return (int) round(($earnedPoints / max($totalPoints, 1)) * 100);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizeAnswerSet(mixed $answer): array
+    {
+        $answers = is_array($answer) ? $answer : [$answer];
+
+        $normalized = collect($answers)
+            ->filter(fn (mixed $value): bool => is_string($value) || is_numeric($value))
+            ->map(fn (mixed $value): string => (string) $value)
+            ->map(fn (string $value): string => trim($value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        sort($normalized);
+
+        return $normalized;
     }
 }

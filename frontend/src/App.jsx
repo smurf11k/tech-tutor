@@ -62,6 +62,7 @@ function App() {
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [quizAnswers, setQuizAnswers] = useState({});
   const [payments, setPayments] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
   const [moderationQueue, setModerationQueue] = useState([]);
@@ -76,6 +77,7 @@ function App() {
   async function loadCourseDetails(courseId, client = catalogClient) {
     const response = await client.get(`/courses/${courseId}`);
     setSelectedCourse(response.data);
+    setQuizAnswers({});
 
     if (!authToken) {
       setReviews([]);
@@ -260,6 +262,63 @@ function App() {
         variant: "destructive",
         title: "Enrollment failed",
         description: error?.response?.data?.message || "Could not enroll in this course.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleQuizAnswerChange(quizId, question, optionKey, checked = true) {
+    setQuizAnswers((prev) => {
+      const quizState = prev[quizId] ?? {};
+
+      if (question.type === "multiple_choice") {
+        const currentAnswers = Array.isArray(quizState[question.id]) ? quizState[question.id] : [];
+        const nextAnswers = checked
+          ? [...new Set([...currentAnswers, optionKey])]
+          : currentAnswers.filter((key) => key !== optionKey);
+
+        return {
+          ...prev,
+          [quizId]: {
+            ...quizState,
+            [question.id]: nextAnswers,
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        [quizId]: {
+          ...quizState,
+          [question.id]: optionKey,
+        },
+      };
+    });
+  }
+
+  async function handleQuizAttempt(quiz) {
+    if (!currentUser || !selectedCourse) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authenticatedClient.post(`/quizzes/${quiz.id}/attempts`, {
+        answers: quizAnswers[quiz.id] ?? {},
+      });
+
+      setNotice({
+        variant: "default",
+        title: response.data.passed ? "Quiz passed" : "Quiz submitted",
+        description: `Backend calculated score: ${response.data.score}%.`,
+      });
+      await loadCourseDetails(selectedCourse.id);
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Quiz submission failed",
+        description: error?.response?.data?.message || "Could not submit quiz attempt.",
       });
     } finally {
       setLoading(false);
@@ -569,6 +628,83 @@ function App() {
                         </div>
                       ))}
                     </div>
+
+                    {(selectedCourse.quizzes || []).length > 0 && (
+                      <>
+                        <Separator className="bg-white/10" />
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Quizzes</h3>
+                          {selectedCourse.quizzes.map((quiz) => (
+                            <div key={quiz.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-white">{quiz.title}</p>
+                                  <p className="text-xs text-slate-500">{quiz.pass_score}% pass score</p>
+                                </div>
+                                <Badge variant={quiz.is_published ? "secondary" : "outline"}>
+                                  {quiz.is_published ? "Published" : "Draft"}
+                                </Badge>
+                              </div>
+
+                              <div className="mt-4 space-y-4">
+                                {(quiz.questions || []).map((question) => (
+                                  <div key={question.id} className="rounded-xl border border-white/10 p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <p className="text-sm font-medium text-white">{question.prompt}</p>
+                                      <Badge variant="outline">{question.type.replace("_", " ")}</Badge>
+                                    </div>
+                                    <div className="mt-3 grid gap-2">
+                                      {(question.options || []).map((option) => {
+                                        const selectedAnswer = quizAnswers[quiz.id]?.[question.id];
+                                        const isChecked =
+                                          question.type === "multiple_choice"
+                                            ? Array.isArray(selectedAnswer) && selectedAnswer.includes(option.key)
+                                            : selectedAnswer === option.key;
+
+                                        return (
+                                          <label
+                                            key={option.key}
+                                            className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200"
+                                          >
+                                            <input
+                                              type={question.type === "multiple_choice" ? "checkbox" : "radio"}
+                                              name={`quiz-${quiz.id}-question-${question.id}`}
+                                              checked={isChecked}
+                                              onChange={(event) =>
+                                                handleQuizAnswerChange(
+                                                  quiz.id,
+                                                  question,
+                                                  option.key,
+                                                  event.target.checked,
+                                                )
+                                              }
+                                              disabled={!authToken || loading}
+                                            />
+                                            <span>{option.text}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {currentUser?.role === "student" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="mt-4"
+                                  onClick={() => handleQuizAttempt(quiz)}
+                                  disabled={loading || !quiz.is_published}
+                                >
+                                  Submit attempt
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
 
                     {authToken && (
                       <>

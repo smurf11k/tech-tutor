@@ -190,6 +190,31 @@ class DatabaseSeeder extends Seeder
             'is_published' => true,
         ]);
 
+        $sanctumQuestion = $laravelQuiz->questions()->create([
+            'type' => 'single_choice',
+            'prompt' => 'Which Laravel package protects the API demo routes?',
+            'options' => [
+                ['key' => 'sanctum', 'text' => 'Laravel Sanctum'],
+                ['key' => 'vite', 'text' => 'Vite'],
+            ],
+            'correct_answers' => ['sanctum'],
+            'points' => 1,
+            'position' => 1,
+        ]);
+
+        $backendQuestion = $laravelQuiz->questions()->create([
+            'type' => 'multiple_choice',
+            'prompt' => 'Which pieces belong to the backend flow?',
+            'options' => [
+                ['key' => 'policies', 'text' => 'Policies'],
+                ['key' => 'middleware', 'text' => 'Middleware'],
+                ['key' => 'tailwind', 'text' => 'Tailwind utility classes'],
+            ],
+            'correct_answers' => ['policies', 'middleware'],
+            'points' => 2,
+            'position' => 2,
+        ]);
+
         Enrollment::create([
             'user_id' => $student->id,
             'course_id' => $laravelCourse->id,
@@ -306,11 +331,11 @@ class DatabaseSeeder extends Seeder
         QuizAttempt::create([
             'quiz_id' => $laravelQuiz->id,
             'user_id' => $student->id,
-            'score' => 88,
+            'score' => 100,
             'passed' => true,
             'answers' => [
-                'q1' => 'sanctum',
-                'q2' => 'policy',
+                (string) $sanctumQuestion->id => 'sanctum',
+                (string) $backendQuestion->id => ['middleware', 'policies'],
             ],
             'started_at' => now()->subDays(4),
             'completed_at' => now()->subDays(4),
@@ -319,11 +344,11 @@ class DatabaseSeeder extends Seeder
         QuizAttempt::create([
             'quiz_id' => $laravelQuiz->id,
             'user_id' => $secondStudent->id,
-            'score' => 72,
-            'passed' => true,
+            'score' => 33,
+            'passed' => false,
             'answers' => [
-                'q1' => 'sanctum',
-                'q2' => 'middleware',
+                (string) $sanctumQuestion->id => 'sanctum',
+                (string) $backendQuestion->id => ['middleware'],
             ],
             'started_at' => now()->subDay(),
             'completed_at' => now()->subDay(),

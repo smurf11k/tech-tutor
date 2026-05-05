@@ -96,7 +96,7 @@ class CourseController extends Controller
     {
         $this->authorize('view', $course);
 
-        return response()->json($course->load(['instructor', 'modules.lessons']));
+        return response()->json($course->load(['instructor', 'modules.lessons', 'quizzes.questions']));
     }
 
     /**

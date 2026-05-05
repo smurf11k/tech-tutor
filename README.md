@@ -156,7 +156,7 @@ RESTful API for all core features.
   - Courses, modules, lessons
   - Course catalog search, filters, sorting, and catalog metadata
   - Enrollment and lesson progress
-  - Quizzes and quiz attempts
+  - Quizzes, single-choice/multiple-choice questions, and backend-scored quiz attempts
   - Reviews, lesson comments, moderation queue, and payments
 - Admin endpoints for:
   - User listing, role changes, and ban management
@@ -175,6 +175,7 @@ RESTful API for all core features.
 - Quick seeded login for student, instructor, admin, and banned-user testing
 - Role-aware demo panels for payments, admin users, and moderation queue
 - Enroll action wired to backend
+- Catalog filters and quiz attempt submission wired to backend
 
 ---
 
@@ -227,8 +228,8 @@ For local development commands and token helper details, see the docs pages abov
 ### Quizzes
 
 - [x] Quiz CRUD (instructor)
-- [ ] Question types (single choice, multiple choice)
-- [x] Quiz attempts & scoring
+- [x] Question types (single choice, multiple choice)
+- [x] Quiz attempts & backend-calculated scoring
 - [x] Pass threshold logic
 - [x] Attempt history for students
 - [ ] Quiz analytics for instructors

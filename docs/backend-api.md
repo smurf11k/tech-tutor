@@ -103,10 +103,47 @@ Course create/update payloads support catalog metadata:
 - `PATCH /courses/{course}/quizzes/{quiz}`
 - `DELETE /courses/{course}/quizzes/{quiz}`
 
+Quiz create/update payloads may include `questions`.
+
+Supported question types:
+
+- `single_choice`: exactly one option must have `is_correct: true`
+- `multiple_choice`: one or more options may have `is_correct: true`
+
+Example question payload:
+
+```json
+{
+  "type": "multiple_choice",
+  "prompt": "Which pieces belong to the backend flow?",
+  "points": 2,
+  "options": [
+    { "key": "policies", "text": "Policies", "is_correct": true },
+    { "key": "middleware", "text": "Middleware", "is_correct": true },
+    { "key": "tailwind", "text": "Tailwind utility classes" }
+  ]
+}
+```
+
+Question responses hide `correct_answers` so students can view available options without receiving the answer key.
+
 ### Quiz Attempts
 
 - `GET /quizzes/{quiz}/attempts`
 - `POST /quizzes/{quiz}/attempts`
+
+Quiz attempts accept `answers` only. The backend calculates `score` and `passed`.
+
+Example:
+
+```json
+{
+  "answers": {
+    "1": "sanctum",
+    "2": ["middleware", "policies"]
+  }
+}
+```
 
 ### Reviews
 

@@ -54,8 +54,10 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 ### Quiz Flow
 
 - Quiz CRUD under course
+- Single-choice and multiple-choice quiz questions
 - Quiz attempts under quiz
-- Automatic `passed` computation from score and pass threshold
+- Backend-calculated attempt score from submitted answers
+- Automatic `passed` computation from calculated score and pass threshold
 
 ### Commerce and Community
 

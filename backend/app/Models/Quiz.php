@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $pass_score
  * @property bool $is_published
  * @property-read Course $course
- * @property-read \Illuminate\Database\Eloquent\Collection<int, QuizAttempt> $attempts
+ * @property-read Collection<int, QuizQuestion> $questions
+ * @property-read Collection<int, QuizAttempt> $attempts
  */
 class Quiz extends Model
 {
@@ -45,5 +47,10 @@ class Quiz extends Model
     public function attempts(): HasMany
     {
         return $this->hasMany(QuizAttempt::class);
+    }
+
+    public function questions(): HasMany
+    {
+        return $this->hasMany(QuizQuestion::class)->orderBy('position');
     }
 }

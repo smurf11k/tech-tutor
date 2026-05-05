@@ -16,7 +16,7 @@ Backend env file: `backend/.env`
 
 Required database values for Laravel:
 
-```env
+```
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
@@ -27,7 +27,7 @@ DB_PASSWORD=techtutor_pass
 
 Required values for Docker Postgres service (read through Compose env file):
 
-```env
+```
 POSTGRES_DB=techtutor
 POSTGRES_USER=techtutor_user
 POSTGRES_PASSWORD=techtutor_pass

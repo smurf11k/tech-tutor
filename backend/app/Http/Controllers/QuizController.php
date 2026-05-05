@@ -15,7 +15,7 @@ class QuizController extends Controller
     {
         $this->authorize('view', $course);
 
-        return response()->json($course->quizzes()->latest()->get());
+        return response()->json($course->quizzes()->with('questions')->latest()->get());
     }
 
     public function store(StoreQuizRequest $request, Course $course): JsonResponse
@@ -24,13 +24,18 @@ class QuizController extends Controller
 
         $validated = $request->validated();
 
+        $questions = $validated['questions'] ?? [];
+        unset($validated['questions']);
+
         $quiz = $course->quizzes()->create([
             ...$validated,
             'pass_score' => $validated['pass_score'] ?? 70,
             'is_published' => $validated['is_published'] ?? false,
         ]);
 
-        return response()->json($quiz, 201);
+        $this->syncQuestions($quiz, $questions);
+
+        return response()->json($quiz->load('questions'), 201);
     }
 
     public function show(Course $course, Quiz $quiz): JsonResponse
@@ -39,7 +44,7 @@ class QuizController extends Controller
 
         abort_unless($quiz->course_id === $course->id, 404);
 
-        return response()->json($quiz);
+        return response()->json($quiz->load('questions'));
     }
 
     public function update(UpdateQuizRequest $request, Course $course, Quiz $quiz): JsonResponse
@@ -50,9 +55,17 @@ class QuizController extends Controller
 
         $validated = $request->validated();
 
+        $questions = $validated['questions'] ?? null;
+        unset($validated['questions']);
+
         $quiz->update($validated);
 
-        return response()->json($quiz->fresh());
+        if ($questions !== null) {
+            $quiz->questions()->delete();
+            $this->syncQuestions($quiz, $questions);
+        }
+
+        return response()->json($quiz->fresh()->load('questions'));
     }
 
     public function destroy(Course $course, Quiz $quiz): Response
@@ -64,5 +77,56 @@ class QuizController extends Controller
         $quiz->delete();
 
         return response()->noContent();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $questions
+     */
+    private function syncQuestions(Quiz $quiz, array $questions): void
+    {
+        foreach ($questions as $index => $question) {
+            $prepared = $this->prepareQuestionPayload($question, $index + 1);
+            $quiz->questions()->create($prepared);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $question
+     * @return array<string, mixed>
+     */
+    private function prepareQuestionPayload(array $question, int $defaultPosition): array
+    {
+        $correctAnswers = collect($question['options'])
+            ->filter(fn (array $option): bool => (bool) ($option['is_correct'] ?? false))
+            ->pluck('key')
+            ->map(fn (string $key): string => trim($key))
+            ->values()
+            ->all();
+
+        abort_if($correctAnswers === [], 422, 'Each quiz question must have at least one correct option.');
+
+        if ($question['type'] === 'single_choice' && count($correctAnswers) !== 1) {
+            abort(422, 'Single choice questions must have exactly one correct option.');
+        }
+
+        $options = collect($question['options'])
+            ->map(fn (array $option): array => [
+                'key' => trim($option['key']),
+                'text' => $option['text'],
+            ])
+            ->values()
+            ->all();
+
+        $optionKeys = array_column($options, 'key');
+        abort_if(count($optionKeys) !== count(array_unique($optionKeys)), 422, 'Question option keys must be unique.');
+
+        return [
+            'type' => $question['type'],
+            'prompt' => $question['prompt'],
+            'options' => $options,
+            'correct_answers' => $correctAnswers,
+            'points' => $question['points'] ?? 1,
+            'position' => $question['position'] ?? $defaultPosition,
+        ];
     }
 }
