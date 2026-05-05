@@ -66,6 +66,7 @@ function App() {
   const [quizAnalytics, setQuizAnalytics] = useState({});
   const [payments, setPayments] = useState([]);
   const [certificates, setCertificates] = useState([]);
+  const [instructorDashboard, setInstructorDashboard] = useState(null);
   const [adminUsers, setAdminUsers] = useState([]);
   const [moderationQueue, setModerationQueue] = useState([]);
   const [catalogFilters, setCatalogFilters] = useState(defaultCatalogFilters);
@@ -181,6 +182,7 @@ function App() {
     if (!authToken) {
       setPayments([]);
       setCertificates([]);
+      setInstructorDashboard(null);
       setAdminUsers([]);
       setModerationQueue([]);
       return;
@@ -188,19 +190,25 @@ function App() {
 
     const paymentRequest = authenticatedClient.get("/payments");
     const certificateRequest = authenticatedClient.get("/certificates");
+    const dashboardRequest =
+      currentUser?.role === "instructor" || currentUser?.role === "admin"
+        ? authenticatedClient.get("/instructor/dashboard")
+        : Promise.resolve(null);
     const userRequest = currentUser?.role === "admin" ? authenticatedClient.get("/admin/users") : Promise.resolve(null);
     const moderationRequest =
       currentUser?.role === "admin" ? authenticatedClient.get("/admin/moderation-queue") : Promise.resolve(null);
 
-    const [paymentsResponse, certificatesResponse, usersResponse, moderationResponse] = await Promise.all([
+    const [paymentsResponse, certificatesResponse, dashboardResponse, usersResponse, moderationResponse] = await Promise.all([
       paymentRequest,
       certificateRequest,
+      dashboardRequest,
       userRequest,
       moderationRequest,
     ]);
 
     setPayments(Array.isArray(paymentsResponse.data) ? paymentsResponse.data : []);
     setCertificates(Array.isArray(certificatesResponse.data) ? certificatesResponse.data : []);
+    setInstructorDashboard(dashboardResponse?.data ?? null);
     setAdminUsers(usersResponse?.data?.data ?? []);
     setModerationQueue(Array.isArray(moderationResponse?.data) ? moderationResponse.data : []);
   }
@@ -260,6 +268,7 @@ function App() {
     setModerationQueue([]);
     setPayments([]);
     setCertificates([]);
+    setInstructorDashboard(null);
     setCredentials((prev) => ({ ...prev, password: DEFAULT_PASSWORD }));
     setNotice({
       variant: "default",
@@ -850,6 +859,70 @@ function App() {
           </div>
 
           <div className="grid gap-6">
+            {instructorDashboard && (
+              <Card className="border-white/10 bg-slate-950/70">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-white">
+                    <BookOpen className="size-4" />
+                    Instructor dashboard
+                  </CardTitle>
+                  <CardDescription>
+                    Live overview from courses, enrollments, progress, certificates, quizzes, and payments.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-xs text-slate-500">Courses</p>
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {instructorDashboard.summary?.courses_count ?? 0}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-xs text-slate-500">Enrollments</p>
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {instructorDashboard.summary?.enrollments_count ?? 0}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-xs text-slate-500">Certificates</p>
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {instructorDashboard.summary?.certificates_count ?? 0}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-xs text-slate-500">Revenue</p>
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        ${instructorDashboard.summary?.revenue_total ?? "0.00"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {(instructorDashboard.courses || []).map((course) => (
+                    <div key={course.course_id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-medium text-white">{course.title}</p>
+                          <p className="text-xs text-slate-500">/{course.slug}</p>
+                        </div>
+                        <Badge variant={course.is_published ? "secondary" : "outline"}>
+                          {course.is_published ? "Published" : "Draft"}
+                        </Badge>
+                      </div>
+                      <div className="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
+                        <span>{course.enrollments_count} enrollments</span>
+                        <span>{course.certificates_count} certificates</span>
+                        <span>{course.average_progress ?? "N/A"}% avg progress</span>
+                        <span>{course.average_quiz_score ?? "N/A"}% quiz avg</span>
+                        <span>{course.completion_rate ?? "N/A"}% completion</span>
+                        <span>${course.revenue_total} revenue</span>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="border-white/10 bg-slate-950/70">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white">

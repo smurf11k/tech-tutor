@@ -49,6 +49,27 @@ Banned users are blocked from protected routes.
 - `PATCH /admin/moderation-queue/reviews/{review}`
 - `PATCH /admin/moderation-queue/comments/{comment}`
 
+### Instructor Dashboard
+
+- `GET /instructor/dashboard`
+
+Available to instructors and admins. The response is calculated live from current courses, enrollments, lesson progress, certificates, quiz attempts, and paid payment records.
+
+Returned summary metrics include:
+
+- `courses_count`
+- `published_courses_count`
+- `draft_courses_count`
+- `enrollments_count`
+- `certificates_count`
+- `revenue_total`
+- `average_progress`
+- `average_quiz_score`
+
+Each course row includes lesson/module/quiz counts, enrollment count, certificate count, completion rate, average progress, average quiz score, paid payments count, and paid revenue total.
+
+Revenue currently uses internal `payments` rows with `status = paid`. When Stripe/LiqPay checkout and webhooks are added, this aggregation should be pointed at the verified provider-backed payment states.
+
 ### Courses
 
 - `POST /courses`

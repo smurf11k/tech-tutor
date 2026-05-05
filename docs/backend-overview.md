@@ -45,6 +45,15 @@ This documentation describes the backend logic currently implemented for TechTut
 
 TODO: move free-text catalog search and ranking to MeiliSearch when search infrastructure is added.
 
+### Instructor Dashboard
+
+- Live dashboard summary for instructors and admins
+- Course management overview with published/draft counts
+- Student progress per course from lesson completion records
+- Enrollment, completion, certificate, quiz score, and revenue aggregates
+- No dashboard statistics tables are stored
+- Revenue currently reads internal paid payment records and can be refined when real payment provider webhooks are introduced
+
 ### Student Learning Flow
 
 - Enroll into course

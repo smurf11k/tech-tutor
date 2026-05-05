@@ -175,6 +175,7 @@ RESTful API for all core features.
 - Course list and course detail from backend
 - Quick seeded login for student, instructor, admin, and banned-user testing
 - Role-aware demo panels for payments, admin users, and moderation queue
+- Instructor dashboard summary from live backend aggregates
 - Enroll, lesson completion, and certificate issuance actions wired to backend
 - Catalog filters and quiz attempt submission wired to backend
 - Instructor/admin quiz analytics displayed from live backend aggregates
@@ -260,9 +261,9 @@ For local development commands and token helper details, see the docs pages abov
 
 ### Instructor Dashboard
 
-- [ ] Course management overview
-- [ ] Student progress per course
-- [ ] Revenue & enrollment analytics
+- [x] Course management overview
+- [x] Student progress per course
+- [x] Revenue & enrollment analytics
 - [ ] Content upload & management
 
 ### Admin Panel

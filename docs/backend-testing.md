@@ -73,6 +73,16 @@ curl -X GET "$BASE_URL/courses/1"
 
 ## Authenticated Endpoints (Sanctum)
 
+Fetch instructor dashboard metrics:
+
+```bash
+curl -X GET "$BASE_URL/instructor/dashboard" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
+Dashboard metrics are calculated live. Revenue currently comes from internal paid payment records.
+
 Create course:
 
 ```bash
