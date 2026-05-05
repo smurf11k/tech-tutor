@@ -12,7 +12,56 @@ Base URL during local backend development:
 
 - `GET /courses`
 - `GET /courses/{course}`
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
+- `GET /auth/email/verify/{id}/{hash}`
 - `POST /dev/token` (local debug helper for seeded demo accounts)
+
+### Auth
+
+`POST /auth/register` creates a student or instructor account, sends an email verification notification, and returns a Sanctum bearer token.
+
+```json
+{
+  "name": "New Student",
+  "email": "student@example.com",
+  "password": "password123",
+  "password_confirmation": "password123",
+  "role": "student",
+  "token_name": "frontend"
+}
+```
+
+Allowed self-registration roles are `student` and `instructor`; admins are still managed by seed data or admin tools.
+
+`POST /auth/login` accepts `email`, `password`, and optional `token_name`, then returns:
+
+```json
+{
+  "token": "1|...",
+  "token_type": "Bearer",
+  "user": {
+    "id": 1,
+    "email": "student@example.com",
+    "role": "student"
+  }
+}
+```
+
+Banned users cannot log in.
+
+Password reset flow:
+
+- `POST /auth/forgot-password` with `{ "email": "student@example.com" }` sends a reset email.
+- `POST /auth/reset-password` with `email`, `token`, `password`, and `password_confirmation` updates the password and revokes existing Sanctum tokens.
+
+Email verification flow:
+
+- Registration sends a signed verification URL.
+- `GET /auth/email/verify/{id}/{hash}` marks the address as verified when the URL signature is valid.
+- `POST /auth/email/resend` resends the verification email for the authenticated user.
 
 ### Course Catalog Query Parameters
 
@@ -40,6 +89,14 @@ TODO: replace the relational `q` search fallback with MeiliSearch-backed indexin
 ## Protected Routes (Sanctum)
 
 Banned users are blocked from protected routes.
+
+### Authenticated User
+
+- `GET /auth/me`
+- `POST /auth/logout`
+- `POST /auth/email/resend`
+
+`POST /auth/logout` deletes the current Sanctum access token.
 
 ### Admin
 
@@ -279,6 +336,8 @@ Email delivery uses Laravel notifications and the mailer configured in backend `
 
 Current triggers:
 
+- Registration verification
+- Password reset
 - Enrollment confirmation after a new enrollment is created
 - Quiz result after a quiz attempt is completed
 - Certificate issued after full course completion

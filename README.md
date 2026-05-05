@@ -153,6 +153,7 @@ RESTful API for all core features.
 - Domain models and relations:
   - User, Course, Module, Lesson, Enrollment, Progress, Quiz, QuizQuestion, QuizAttempt, Review, Comment, Payment, CourseCertificate, PublishRequest
 - CRUD and flow endpoints for:
+  - Registration, login, logout, current-user profile, email verification, and password reset
   - Courses, modules, lessons
   - Course catalog search, filters, sorting, and catalog metadata
   - Enrollment and lesson progress
@@ -174,7 +175,7 @@ RESTful API for all core features.
 ### Frontend (demo integration shell)
 
 - Course list and course detail from backend
-- Quick seeded login for student, instructor, admin, and banned-user testing
+- Quick seeded login through the real auth API for student, instructor, admin, and banned-user testing
 - Role-aware demo panels for payments, admin users, and moderation queue
 - Instructor dashboard summary from live backend aggregates
 - Admin platform activity and payment monitor from live backend aggregates
@@ -203,10 +204,12 @@ For local development commands and token helper details, see the docs pages abov
 ### Infrastructure & Auth
 
 - [x] Project setup (Laravel + React + PostgreSQL + Docker)
+- [x] Sanctum token authentication
 - [ ] JWT / session-based authentication
 - [ ] Email + OAuth login (Google, GitHub)
-- [ ] Email verification
-- [ ] Password reset flow
+- [x] Email/password login
+- [x] Email verification
+- [x] Password reset flow
 - [ ] Optional 2FA
 - [ ] Rate limiting & CAPTCHA
 - [ ] XSS / SQL injection protection

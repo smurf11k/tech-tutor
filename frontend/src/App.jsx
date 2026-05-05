@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import api, { createDevToken, withAuth } from "@/lib/api";
+import api, { loginUser, withAuth } from "@/lib/api";
 
 const STORAGE_TOKEN_KEY = "techtutor_token";
 const STORAGE_USER_KEY = "techtutor_user";
@@ -240,7 +240,7 @@ function App() {
     event?.preventDefault();
     setLoading(true);
     try {
-      const response = await createDevToken({
+      const response = await loginUser({
         email: credentials.email,
         password: credentials.password,
         token_name: "frontend-demo",
@@ -259,7 +259,7 @@ function App() {
       setNotice({
         variant: "destructive",
         title: "Login failed",
-        description: error?.response?.data?.message || "Unable to create a local dev token.",
+        description: error?.response?.data?.message || "Unable to sign in with these credentials.",
       });
     } finally {
       setLoading(false);
@@ -470,7 +470,7 @@ function App() {
               <CardHeader>
                 <CardTitle className="text-white">Quick login</CardTitle>
                 <CardDescription>
-                  Use seeded accounts to test different views. The frontend creates a local dev token behind the scenes.
+                  Use seeded accounts to test different views. The frontend signs in through the real auth API.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

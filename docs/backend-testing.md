@@ -71,7 +71,74 @@ Get one course:
 curl -X GET "$BASE_URL/courses/1"
 ```
 
+Register a new user:
+
+```bash
+curl -X POST "$BASE_URL/auth/register" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Student",
+    "email": "new.student@example.com",
+    "password": "password123",
+    "password_confirmation": "password123",
+    "role": "student",
+    "token_name": "manual-test"
+  }'
+```
+
+Login with email/password:
+
+```bash
+curl -X POST "$BASE_URL/auth/login" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"student@techtutor.test","password":"password","token_name":"manual-test"}'
+```
+
+Forgot/reset password:
+
+```bash
+curl -X POST "$BASE_URL/auth/forgot-password" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"student@techtutor.test"}'
+```
+
+Use the token from the reset email:
+
+```bash
+curl -X POST "$BASE_URL/auth/reset-password" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"student@techtutor.test","token":"RESET_TOKEN","password":"new-password123","password_confirmation":"new-password123"}'
+```
+
 ## Authenticated Endpoints (Sanctum)
+
+Fetch the current authenticated user:
+
+```bash
+curl -X GET "$BASE_URL/auth/me" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
+Resend email verification:
+
+```bash
+curl -X POST "$BASE_URL/auth/email/resend" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
+Logout the current token:
+
+```bash
+curl -X POST "$BASE_URL/auth/logout" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
 
 Fetch instructor dashboard metrics:
 
@@ -367,15 +434,17 @@ For public endpoints, set Auth to `No Auth` per request.
 ## Suggested Request Order
 
 1. <code v-pre>GET {{baseUrl}}/courses</code>
-2. <code v-pre>POST {{baseUrl}}/courses</code>
-3. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/modules</code>
-4. <code v-pre>POST {{baseUrl}}/modules/{{moduleId}}/lessons</code>
-5. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/enrollments</code>
-6. <code v-pre>POST {{baseUrl}}/lessons/{{lessonId}}/progress</code>
-7. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/quizzes</code>
-8. <code v-pre>POST {{baseUrl}}/quizzes/{{quizId}}/attempts</code>
-9. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/reviews</code>
-10. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/payments</code>
+2. <code v-pre>POST {{baseUrl}}/auth/login</code>
+3. <code v-pre>GET {{baseUrl}}/auth/me</code>
+4. <code v-pre>POST {{baseUrl}}/courses</code>
+5. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/modules</code>
+6. <code v-pre>POST {{baseUrl}}/modules/{{moduleId}}/lessons</code>
+7. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/enrollments</code>
+8. <code v-pre>POST {{baseUrl}}/lessons/{{lessonId}}/progress</code>
+9. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/quizzes</code>
+10. <code v-pre>POST {{baseUrl}}/quizzes/{{quizId}}/attempts</code>
+11. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/reviews</code>
+12. <code v-pre>POST {{baseUrl}}/courses/{{courseId}}/payments</code>
 
 ## Quick Troubleshooting
 

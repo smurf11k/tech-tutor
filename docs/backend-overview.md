@@ -35,6 +35,9 @@ This documentation describes the backend logic currently implemented for TechTut
 - Role field on users (`student`, `instructor`, `admin`)
 - Role-aware checks in business logic and policies
 - Sanctum middleware for protected routes
+- Public registration and login issue Sanctum bearer tokens
+- Current-user, logout, verification resend, email verification, forgot-password, and reset-password endpoints are available
+- Banned users cannot sign in and are blocked from protected routes
 
 ### Course Structure
 
@@ -87,7 +90,7 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 ### Notifications
 
 - Laravel mail notifications use the configured mailer from `.env`
-- Current email triggers: new enrollment, completed quiz attempt, issued certificate, and admin-handled publish request
+- Current email triggers: registration verification, password reset, new enrollment, completed quiz attempt, issued certificate, and admin-handled publish request
 - Notification tests fake the notification channel so SMTP credentials are never used by the automated suite
 
 ### Commerce and Community
@@ -111,6 +114,7 @@ Database seeding includes role-based users:
 Feature tests currently cover:
 
 - Course creation, enrollment, and lesson progress
+- Registration, login/logout, email verification, and password reset
 - Course catalog search/filtering and metadata
 - Quiz creation and student attempt submission
 - Email notification trigger assertions

@@ -21,8 +21,8 @@ export function withAuth(token) {
   });
 }
 
-export async function createDevToken(credentials) {
-  const response = await api.post("/dev/token", credentials);
+export async function loginUser(credentials) {
+  const response = await api.post("/auth/login", credentials);
   return response.data;
 }
 
