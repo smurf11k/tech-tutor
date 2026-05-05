@@ -36,6 +36,9 @@ class UpdateCourseRequest extends FormRequest
             'price' => ['nullable', 'numeric', 'min:0'],
             'is_published' => ['sometimes', 'boolean'],
             'published_at' => ['nullable', 'date'],
+            'request_publish' => ['sometimes', 'boolean'],
+            'decline_publish' => ['sometimes', 'boolean'],
+            'publish_request_declined_reason' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }

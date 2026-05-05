@@ -151,7 +151,7 @@ RESTful API for all core features.
 
 - PostgreSQL-backed Laravel API with migrations
 - Domain models and relations:
-  - User, Course, Module, Lesson, Enrollment, Progress, Quiz, QuizAttempt, Review, Comment, Payment
+  - User, Course, Module, Lesson, Enrollment, Progress, Quiz, QuizQuestion, QuizAttempt, Review, Comment, Payment, CourseCertificate, PublishRequest
 - CRUD and flow endpoints for:
   - Courses, modules, lessons
   - Course catalog search, filters, sorting, and catalog metadata
@@ -159,6 +159,7 @@ RESTful API for all core features.
   - Course completion certificates
   - Quizzes, single-choice/multiple-choice questions, backend-scored quiz attempts, and live quiz analytics
   - Reviews, lesson comments, moderation queue, and payments
+  - Email notifications for enrollment, quiz results, certificate issuance, and handled publish requests
 - Admin endpoints for:
   - User listing, role changes, and ban management
   - Content moderation queue plus review and comment approval
@@ -180,6 +181,7 @@ RESTful API for all core features.
 - Enroll, lesson completion, and certificate issuance actions wired to backend
 - Catalog filters and quiz attempt submission wired to backend
 - Instructor/admin quiz analytics displayed from live backend aggregates
+- Demo actions for enrollment, quiz attempts, and certificate issuance trigger backend email notifications when the mailer is configured
 
 ---
 
@@ -256,7 +258,8 @@ For local development commands and token helper details, see the docs pages abov
 
 ### Notifications
 
-- [ ] Email notifications (enrollment, quiz results, new content)
+- [x] Email notifications (enrollment, quiz results, certificates, publish requests)
+- [ ] New content email notifications
 - [ ] In-app notifications
 - [ ] Push notifications
 

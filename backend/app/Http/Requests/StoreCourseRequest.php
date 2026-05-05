@@ -34,6 +34,7 @@ class StoreCourseRequest extends FormRequest
             'price' => ['nullable', 'numeric', 'min:0'],
             'is_published' => ['sometimes', 'boolean'],
             'published_at' => ['nullable', 'date'],
+            'request_publish' => ['sometimes', 'boolean'],
         ];
     }
 }

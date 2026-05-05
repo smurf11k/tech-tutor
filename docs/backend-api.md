@@ -106,6 +106,8 @@ Course create/update payloads support catalog metadata:
 - `POST /courses/{course}/enrollments`
 - `DELETE /courses/{course}/enrollments/{enrollment}`
 
+Creating a new enrollment sends an email notification to the enrolled student through the configured Laravel mailer. Re-enrolling into an existing enrollment does not send a duplicate notification.
+
 ### Modules
 
 - `GET /courses/{course}/modules`
@@ -162,6 +164,8 @@ Certificate access is role-aware:
 
 `POST /courses/{course}/certificate` manually checks completion eligibility for the authenticated student and returns the existing certificate if one was already issued. Certificates are stored because they are stable issued artifacts, not transient statistics.
 
+When a certificate is first issued, the backend emails the student with the course title and certificate number.
+
 ### Quizzes
 
 - `GET /courses/{course}/quizzes`
@@ -213,6 +217,8 @@ Example:
 }
 ```
 
+After an attempt is created, the backend emails the student with the quiz title, calculated score, pass threshold, and pass/fail status.
+
 ### Quiz Analytics
 
 - `GET /quizzes/{quiz}/analytics`
@@ -258,8 +264,8 @@ Returned metrics include:
 Instructors may create courses as drafts and request publishing. The backend tracks these requests in a `publish_requests` table and exposes publish controls via the existing course endpoints.
 
 - Instructor request (create/update course): include `request_publish: true` in the JSON payload to create a pending publish request.
-- Admin accept: admin publishes the course using `PATCH /courses/{course}` with `{ "is_published": true }`. Any pending request for the course is marked `accepted`.
-- Admin decline: admin may decline a pending request using `PATCH /courses/{course}` with `{ "decline_publish": true, "publish_request_declined_reason": "optional reason" }`. The request is marked `declined` and the decline reason is stored.
+- Admin accept: admin publishes the course using `PATCH /courses/{course}` with `{ "is_published": true }`. Any pending request for the course is marked `accepted`, and the requester is emailed.
+- Admin decline: admin may decline a pending request using `PATCH /courses/{course}` with `{ "decline_publish": true, "publish_request_declined_reason": "optional reason" }`. The request is marked `declined`, the decline reason is stored, and the requester is emailed.
 
 Data model & files:
 
@@ -267,7 +273,18 @@ Data model & files:
 - Model: `app/Models/PublishRequest.php`
 - Controller handling: `app/Http/Controllers/CourseController.php`
 
-TODO: send notification/email to the requester when a request is declined.
+### Email notifications
+
+Email delivery uses Laravel notifications and the mailer configured in backend `.env`.
+
+Current triggers:
+
+- Enrollment confirmation after a new enrollment is created
+- Quiz result after a quiz attempt is completed
+- Certificate issued after full course completion
+- Publish request approved or declined by an admin
+
+For local demos with SMTP/Gmail configured, these emails are sent by the same API actions listed above. Automated tests fake notifications and use the array mailer from `phpunit.xml`, so the test suite does not send real emails.
 
 ## Notes
 

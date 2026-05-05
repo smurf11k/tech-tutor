@@ -33,6 +33,21 @@ POSTGRES_USER=techtutor_user
 POSTGRES_PASSWORD=techtutor_pass
 ```
 
+Optional mail values for email notifications:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_ENCRYPTION=tls
+MAIL_USERNAME=your-mailbox@example.com
+MAIL_PASSWORD=your-app-password
+MAIL_FROM_ADDRESS=your-mailbox@example.com
+MAIL_FROM_NAME=TechTutor
+```
+
+Use an app password for Gmail SMTP. Do not commit real mail credentials.
+
 ## Start Database
 
 From project root:

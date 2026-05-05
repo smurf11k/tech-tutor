@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Course;
 use App\Models\CourseCertificate;
 use App\Models\User;
+use App\Notifications\CourseCertificateIssuedNotification;
 use Illuminate\Support\Str;
 
 class CourseCertificateIssuer
@@ -15,7 +16,7 @@ class CourseCertificateIssuer
             return null;
         }
 
-        return CourseCertificate::firstOrCreate(
+        $certificate = CourseCertificate::firstOrCreate(
             [
                 'course_id' => $course->id,
                 'user_id' => $user->id,
@@ -25,6 +26,12 @@ class CourseCertificateIssuer
                 'issued_at' => now(),
             ]
         )->load(['course.instructor', 'user']);
+
+        if ($certificate->wasRecentlyCreated) {
+            $user->notify(new CourseCertificateIssuedNotification($certificate));
+        }
+
+        return $certificate;
     }
 
     public function isEligible(Course $course, User $user): bool

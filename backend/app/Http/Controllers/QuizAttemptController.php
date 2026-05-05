@@ -8,6 +8,7 @@ use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\QuizQuestion;
 use App\Models\User;
+use App\Notifications\QuizAttemptCompletedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -40,7 +41,10 @@ class QuizAttemptController extends Controller
             'completed_at' => $validated['completed_at'] ?? now(),
         ]);
 
-        return response()->json($attempt->load(['quiz', 'user']), 201);
+        $attempt->load(['quiz', 'user']);
+        $user->notify(new QuizAttemptCompletedNotification($attempt));
+
+        return response()->json($attempt, 201);
     }
 
     private function ensureAccess(Request $request, Quiz $quiz): User

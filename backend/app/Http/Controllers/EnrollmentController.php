@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\User;
+use App\Notifications\EnrollmentCreatedNotification;
 use Illuminate\Http\Request;
 
 class EnrollmentController extends Controller
@@ -32,6 +33,10 @@ class EnrollmentController extends Controller
             'status' => 'active',
             'enrolled_at' => now(),
         ]);
+
+        if ($enrollment->wasRecentlyCreated) {
+            $user->notify(new EnrollmentCreatedNotification($enrollment->load('course')));
+        }
 
         return response()->json($enrollment->load(['user', 'course']), 201);
     }

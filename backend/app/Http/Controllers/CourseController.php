@@ -6,6 +6,7 @@ use App\Http\Requests\StoreCourseRequest;
 use App\Http\Requests\UpdateCourseRequest;
 use App\Models\Course;
 use App\Models\PublishRequest;
+use App\Notifications\PublishRequestHandledNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -149,6 +150,9 @@ class CourseController extends Controller
                     'handled_by' => $request->user()->id,
                     'handled_at' => now(),
                 ]);
+
+                $pending->load(['course', 'requester']);
+                $pending->requester?->notify(new PublishRequestHandledNotification($pending));
             }
         }
 
@@ -163,7 +167,8 @@ class CourseController extends Controller
                     'handled_at' => now(),
                 ]);
 
-                // TODO: add notification/email for requester about decline and include a message.
+                $pending->load(['course', 'requester']);
+                $pending->requester?->notify(new PublishRequestHandledNotification($pending));
             }
         }
 

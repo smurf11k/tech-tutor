@@ -8,7 +8,11 @@ use App\Models\Enrollment;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\User;
+use App\Notifications\CourseCertificateIssuedNotification;
+use App\Notifications\EnrollmentCreatedNotification;
+use App\Notifications\PublishRequestHandledNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -18,6 +22,8 @@ class CourseFlowTest extends TestCase
 
     public function test_instructor_can_create_course_and_student_can_enroll_and_track_progress(): void
     {
+        Notification::fake();
+
         $instructor = User::factory()->create(['role' => 'instructor']);
         $student = User::factory()->create(['role' => 'student']);
 
@@ -55,6 +61,8 @@ class CourseFlowTest extends TestCase
         $this->postJson("/api/courses/{$course->id}/enrollments")
             ->assertCreated();
 
+        Notification::assertSentTo($student, EnrollmentCreatedNotification::class);
+
         $this->postJson("/api/lessons/{$lesson->id}/progress", [
             'progress_percent' => 100,
         ])->assertCreated();
@@ -74,6 +82,8 @@ class CourseFlowTest extends TestCase
 
     public function test_student_receives_certificate_after_completing_all_course_lessons(): void
     {
+        Notification::fake();
+
         $instructor = User::factory()->create(['role' => 'instructor']);
         $student = User::factory()->create(['role' => 'student']);
 
@@ -120,6 +130,7 @@ class CourseFlowTest extends TestCase
             ->assertJsonPath('certificate', null);
 
         $this->assertDatabaseCount('course_certificates', 0);
+        Notification::assertNotSentTo($student, CourseCertificateIssuedNotification::class);
 
         $certificateResponse = $this->postJson("/api/lessons/{$secondLesson->id}/progress", [
             'progress_percent' => 100,
@@ -128,6 +139,8 @@ class CourseFlowTest extends TestCase
             ->assertJsonPath('certificate.user_id', $student->id);
 
         $certificateId = $certificateResponse->json('certificate.id');
+
+        Notification::assertSentTo($student, CourseCertificateIssuedNotification::class);
 
         $this->assertDatabaseHas('course_certificates', [
             'id' => $certificateId,
@@ -145,6 +158,50 @@ class CourseFlowTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1)
             ->assertJsonPath('0.id', $certificateId);
+    }
+
+    public function test_instructor_is_notified_when_publish_request_is_handled(): void
+    {
+        Notification::fake();
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        Sanctum::actingAs($instructor);
+
+        $acceptedCourseId = $this->postJson('/api/courses', [
+            'title' => 'Requested Publish Course',
+            'slug' => 'requested-publish-course',
+            'price' => 0,
+            'request_publish' => true,
+        ])->assertCreated()->json('id');
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/courses/{$acceptedCourseId}", [
+            'is_published' => true,
+        ])->assertOk();
+
+        Notification::assertSentTo($instructor, PublishRequestHandledNotification::class);
+
+        Notification::fake();
+        Sanctum::actingAs($instructor);
+
+        $declinedCourseId = $this->postJson('/api/courses', [
+            'title' => 'Declined Publish Course',
+            'slug' => 'declined-publish-course',
+            'price' => 0,
+            'request_publish' => true,
+        ])->assertCreated()->json('id');
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/courses/{$declinedCourseId}", [
+            'decline_publish' => true,
+            'publish_request_declined_reason' => 'Needs more lessons.',
+        ])->assertOk();
+
+        Notification::assertSentTo($instructor, PublishRequestHandledNotification::class);
     }
 
     public function test_certificate_visibility_is_role_aware(): void

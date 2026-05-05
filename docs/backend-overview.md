@@ -25,6 +25,8 @@ This documentation describes the backend logic currently implemented for TechTut
 - QuizAttempt
 - Review
 - Payment
+- CourseCertificate
+- PublishRequest
 
 ## Current Capabilities
 
@@ -69,6 +71,7 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 - Track completion timestamp when progress reaches 100
 - Issue an idempotent course certificate after every course lesson is completed
 - Certificate visibility is role-aware: students see their own, instructors see certificates for their courses, admins see all
+- Email the student when enrollment is created and when a certificate is issued
 
 ### Quiz Flow
 
@@ -79,11 +82,19 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 - Automatic `passed` computation from calculated score and pass threshold
 - Live instructor/admin quiz analytics computed from existing attempts and questions
 - No separate statistics tables are stored for quiz analytics
+- Email the student after each completed quiz attempt with score/pass status
+
+### Notifications
+
+- Laravel mail notifications use the configured mailer from `.env`
+- Current email triggers: new enrollment, completed quiz attempt, issued certificate, and admin-handled publish request
+- Notification tests fake the notification channel so SMTP credentials are never used by the automated suite
 
 ### Commerce and Community
 
 - Course review create/update/delete
 - Payment create/list with provider, amount, currency, status
+- Publish requests notify instructors when admins approve or decline them
 
 ### Seed Data
 
@@ -102,6 +113,7 @@ Feature tests currently cover:
 - Course creation, enrollment, and lesson progress
 - Course catalog search/filtering and metadata
 - Quiz creation and student attempt submission
+- Email notification trigger assertions
 - Review and payment flow
 
 Run tests:

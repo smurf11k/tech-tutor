@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Course;
 use App\Models\Quiz;
 use App\Models\User;
+use App\Notifications\QuizAttemptCompletedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -15,6 +17,8 @@ class QuizFlowTest extends TestCase
 
     public function test_instructor_can_create_quiz_and_student_can_submit_attempt(): void
     {
+        Notification::fake();
+
         $instructor = User::factory()->create(['role' => 'instructor']);
         $student = User::factory()->create(['role' => 'student']);
 
@@ -74,6 +78,8 @@ class QuizFlowTest extends TestCase
         ])->assertCreated()
             ->assertJsonPath('score', 100)
             ->assertJsonPath('passed', true);
+
+        Notification::assertSentTo($student, QuizAttemptCompletedNotification::class);
 
         $this->assertDatabaseHas('quiz_attempts', [
             'quiz_id' => $quiz->id,

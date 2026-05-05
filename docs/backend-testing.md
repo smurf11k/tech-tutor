@@ -154,6 +154,8 @@ curl -X POST "$BASE_URL/courses/1/enrollments" \
   -H "Accept: application/json"
 ```
 
+If the backend mailer is configured, a new enrollment sends the student an email confirmation.
+
 Update lesson progress:
 
 ```bash
@@ -167,6 +169,8 @@ curl -X POST "$BASE_URL/lessons/1/progress" \
 ```
 
 When the last lesson in a course is completed, the response includes an issued certificate. Until then, `certificate` is `null`.
+
+The first certificate issuance also sends the student an email notification.
 
 List certificates:
 
@@ -235,6 +239,8 @@ curl -X POST "$BASE_URL/quizzes/1/attempts" \
 ```
 
 The backend calculates `score` and `passed`; clients cannot submit their own `score`.
+
+Submitting a quiz attempt also sends the student an email with the calculated result.
 
 Fetch quiz analytics as the course instructor or admin:
 
@@ -333,6 +339,8 @@ Notes:
 
 - The dev token endpoint returns `user` and `role` in the response so you can mint tokens for different roles.
 - The publish-request records are stored in the `publish_requests` table and can be inspected directly in the DB for test assertions.
+- Accepting or declining a publish request sends an email notification to the instructor who requested publishing.
+- Automated tests use notification fakes, so local SMTP/Gmail credentials are not used by `php artisan test`.
 
 ## Postman Testing
 
