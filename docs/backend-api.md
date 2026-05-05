@@ -94,6 +94,39 @@ Course create/update payloads support catalog metadata:
 - `POST /lessons/{lesson}/progress`
 - `PUT /lessons/{lesson}/progress`
 
+When progress reaches `100`, the backend checks whether the student has completed every lesson in the course. If yes, it issues or returns the existing course certificate in the progress response.
+
+Progress response shape:
+
+```json
+{
+  "progress": {
+    "id": 1,
+    "progress_percent": 100
+  },
+  "certificate": {
+    "id": 1,
+    "certificate_number": "TT-1-3-20260505-ABC123"
+  }
+}
+```
+
+`certificate` is `null` until the full course is complete.
+
+### Certificates
+
+- `GET /certificates`
+- `GET /certificates/{certificate}`
+- `POST /courses/{course}/certificate`
+
+Certificate access is role-aware:
+
+- Students see their own certificates.
+- Instructors see certificates issued for their courses.
+- Admins see all certificates.
+
+`POST /courses/{course}/certificate` manually checks completion eligibility for the authenticated student and returns the existing certificate if one was already issued. Certificates are stored because they are stable issued artifacts, not transient statistics.
+
 ### Quizzes
 
 - `GET /courses/{course}/quizzes`

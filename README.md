@@ -156,6 +156,7 @@ RESTful API for all core features.
   - Courses, modules, lessons
   - Course catalog search, filters, sorting, and catalog metadata
   - Enrollment and lesson progress
+  - Course completion certificates
   - Quizzes, single-choice/multiple-choice questions, backend-scored quiz attempts, and live quiz analytics
   - Reviews, lesson comments, moderation queue, and payments
 - Admin endpoints for:
@@ -174,7 +175,7 @@ RESTful API for all core features.
 - Course list and course detail from backend
 - Quick seeded login for student, instructor, admin, and banned-user testing
 - Role-aware demo panels for payments, admin users, and moderation queue
-- Enroll action wired to backend
+- Enroll, lesson completion, and certificate issuance actions wired to backend
 - Catalog filters and quiz attempt submission wired to backend
 - Instructor/admin quiz analytics displayed from live backend aggregates
 
@@ -224,7 +225,7 @@ For local development commands and token helper details, see the docs pages abov
 - [x] Enrollment flow
 - [ ] Lesson viewer (video player, text renderer, file downloads)
 - [x] Progress tracking (per lesson, per module, per course)
-- [ ] Course completion certificates
+- [x] Course completion certificates
 
 ### Quizzes
 

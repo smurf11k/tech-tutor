@@ -146,6 +146,24 @@ curl -X POST "$BASE_URL/lessons/1/progress" \
   }'
 ```
 
+When the last lesson in a course is completed, the response includes an issued certificate. Until then, `certificate` is `null`.
+
+List certificates:
+
+```bash
+curl -X GET "$BASE_URL/certificates" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
+Manually check certificate eligibility for a course:
+
+```bash
+curl -X POST "$BASE_URL/courses/1/certificate" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
 Create quiz:
 
 ```bash

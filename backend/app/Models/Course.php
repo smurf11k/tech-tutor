@@ -29,6 +29,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read Collection<int, Quiz> $quizzes
  * @property-read Collection<int, Review> $reviews
  * @property-read Collection<int, Payment> $payments
+ * @property-read Collection<int, CourseCertificate> $certificates
  */
 class Course extends Model
 {
@@ -93,5 +94,10 @@ class Course extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(CourseCertificate::class);
     }
 }

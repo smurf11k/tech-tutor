@@ -3,8 +3,9 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -18,13 +19,14 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $role
  * @property bool $is_banned
  * @property string|null $banned_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Course> $taughtCourses
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Enrollment> $enrollments
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Progress> $progressEntries
- * @property-read \Illuminate\Database\Eloquent\Collection<int, QuizAttempt> $quizAttempts
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Review> $reviews
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Comment> $comments
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Payment> $payments
+ * @property-read Collection<int, Course> $taughtCourses
+ * @property-read Collection<int, Enrollment> $enrollments
+ * @property-read Collection<int, Progress> $progressEntries
+ * @property-read Collection<int, QuizAttempt> $quizAttempts
+ * @property-read Collection<int, Review> $reviews
+ * @property-read Collection<int, Comment> $comments
+ * @property-read Collection<int, Payment> $payments
+ * @property-read Collection<int, CourseCertificate> $certificates
  */
 class User extends Authenticatable
 {
@@ -104,6 +106,11 @@ class User extends Authenticatable
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(CourseCertificate::class);
     }
 
     public function isAdmin(): bool

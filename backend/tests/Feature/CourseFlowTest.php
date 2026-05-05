@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Course;
+use App\Models\CourseCertificate;
 use App\Models\Enrollment;
 use App\Models\Lesson;
 use App\Models\Module;
@@ -69,6 +70,123 @@ class CourseFlowTest extends TestCase
             'lesson_id' => $lesson->id,
             'progress_percent' => 100,
         ]);
+    }
+
+    public function test_student_receives_certificate_after_completing_all_course_lessons(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Certificate Course',
+            'slug' => 'certificate-course',
+            'description' => 'Completion certificate test',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $module = Module::create([
+            'course_id' => $course->id,
+            'title' => 'Certificate Module',
+            'slug' => 'certificate-module',
+            'position' => 1,
+        ]);
+
+        $firstLesson = Lesson::create([
+            'module_id' => $module->id,
+            'title' => 'First',
+            'slug' => 'first',
+            'type' => 'text',
+            'position' => 1,
+        ]);
+
+        $secondLesson = Lesson::create([
+            'module_id' => $module->id,
+            'title' => 'Second',
+            'slug' => 'second',
+            'type' => 'text',
+            'position' => 2,
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+
+        $this->postJson("/api/lessons/{$firstLesson->id}/progress", [
+            'progress_percent' => 100,
+        ])->assertCreated()
+            ->assertJsonPath('certificate', null);
+
+        $this->assertDatabaseCount('course_certificates', 0);
+
+        $certificateResponse = $this->postJson("/api/lessons/{$secondLesson->id}/progress", [
+            'progress_percent' => 100,
+        ])->assertCreated()
+            ->assertJsonPath('certificate.course_id', $course->id)
+            ->assertJsonPath('certificate.user_id', $student->id);
+
+        $certificateId = $certificateResponse->json('certificate.id');
+
+        $this->assertDatabaseHas('course_certificates', [
+            'id' => $certificateId,
+            'course_id' => $course->id,
+            'user_id' => $student->id,
+        ]);
+
+        $this->postJson("/api/courses/{$course->id}/certificate")
+            ->assertOk()
+            ->assertJsonPath('id', $certificateId);
+
+        $this->assertDatabaseCount('course_certificates', 1);
+
+        $this->getJson('/api/certificates')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $certificateId);
+    }
+
+    public function test_certificate_visibility_is_role_aware(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $otherInstructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+        $otherStudent = User::factory()->create(['role' => 'student']);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Visible Certificate Course',
+            'slug' => 'visible-certificate-course',
+            'description' => 'Certificate visibility test',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $certificate = CourseCertificate::create([
+            'course_id' => $course->id,
+            'user_id' => $student->id,
+            'certificate_number' => 'TT-TEST-CERT',
+            'issued_at' => now(),
+        ]);
+
+        Sanctum::actingAs($otherStudent);
+        $this->getJson("/api/certificates/{$certificate->id}")->assertForbidden();
+        $this->getJson('/api/certificates')->assertOk()->assertJsonCount(0);
+
+        Sanctum::actingAs($otherInstructor);
+        $this->getJson("/api/certificates/{$certificate->id}")->assertForbidden();
+        $this->getJson('/api/certificates')->assertOk()->assertJsonCount(0);
+
+        Sanctum::actingAs($instructor);
+        $this->getJson("/api/certificates/{$certificate->id}")->assertOk();
+        $this->getJson('/api/certificates')->assertOk()->assertJsonCount(1);
+
+        Sanctum::actingAs($admin);
+        $this->getJson("/api/certificates/{$certificate->id}")->assertOk();
+        $this->getJson('/api/certificates')->assertOk()->assertJsonCount(1);
     }
 
     public function test_public_courses_index_only_returns_published_courses(): void

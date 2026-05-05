@@ -50,6 +50,8 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 - Enroll into course
 - Save lesson progress (0-100)
 - Track completion timestamp when progress reaches 100
+- Issue an idempotent course certificate after every course lesson is completed
+- Certificate visibility is role-aware: students see their own, instructors see certificates for their courses, admins see all
 
 ### Quiz Flow
 

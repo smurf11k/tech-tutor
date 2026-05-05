@@ -65,6 +65,7 @@ function App() {
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizAnalytics, setQuizAnalytics] = useState({});
   const [payments, setPayments] = useState([]);
+  const [certificates, setCertificates] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
   const [moderationQueue, setModerationQueue] = useState([]);
   const [catalogFilters, setCatalogFilters] = useState(defaultCatalogFilters);
@@ -179,23 +180,27 @@ function App() {
   async function loadRoleData() {
     if (!authToken) {
       setPayments([]);
+      setCertificates([]);
       setAdminUsers([]);
       setModerationQueue([]);
       return;
     }
 
     const paymentRequest = authenticatedClient.get("/payments");
+    const certificateRequest = authenticatedClient.get("/certificates");
     const userRequest = currentUser?.role === "admin" ? authenticatedClient.get("/admin/users") : Promise.resolve(null);
     const moderationRequest =
       currentUser?.role === "admin" ? authenticatedClient.get("/admin/moderation-queue") : Promise.resolve(null);
 
-    const [paymentsResponse, usersResponse, moderationResponse] = await Promise.all([
+    const [paymentsResponse, certificatesResponse, usersResponse, moderationResponse] = await Promise.all([
       paymentRequest,
+      certificateRequest,
       userRequest,
       moderationRequest,
     ]);
 
     setPayments(Array.isArray(paymentsResponse.data) ? paymentsResponse.data : []);
+    setCertificates(Array.isArray(certificatesResponse.data) ? certificatesResponse.data : []);
     setAdminUsers(usersResponse?.data?.data ?? []);
     setModerationQueue(Array.isArray(moderationResponse?.data) ? moderationResponse.data : []);
   }
@@ -254,6 +259,7 @@ function App() {
     setAdminUsers([]);
     setModerationQueue([]);
     setPayments([]);
+    setCertificates([]);
     setCredentials((prev) => ({ ...prev, password: DEFAULT_PASSWORD }));
     setNotice({
       variant: "default",
@@ -338,6 +344,37 @@ function App() {
         variant: "destructive",
         title: "Quiz submission failed",
         description: error?.response?.data?.message || "Could not submit quiz attempt.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleLessonComplete(lesson) {
+    if (!selectedCourse || currentUser?.role !== "student") {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authenticatedClient.post(`/lessons/${lesson.id}/progress`, {
+        progress_percent: 100,
+      });
+
+      await Promise.all([loadRoleData(), loadCourseDetails(selectedCourse.id)]);
+
+      setNotice({
+        variant: "default",
+        title: response.data.certificate ? "Certificate issued" : "Lesson completed",
+        description: response.data.certificate
+          ? `Certificate ${response.data.certificate.certificate_number} is ready.`
+          : `${lesson.title} marked complete.`,
+      });
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Progress update failed",
+        description: error?.response?.data?.message || "Could not mark lesson complete.",
       });
     } finally {
       setLoading(false);
@@ -635,12 +672,25 @@ function App() {
                             {(module.lessons || []).map((lesson) => (
                               <div
                                 key={lesson.id}
-                                className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2 text-sm"
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm"
                               >
                                 <span className="text-slate-200">{lesson.title}</span>
-                                <Badge variant={lesson.is_preview ? "secondary" : "outline"}>
-                                  {lesson.is_preview ? "Preview" : lesson.type}
-                                </Badge>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant={lesson.is_preview ? "secondary" : "outline"}>
+                                    {lesson.is_preview ? "Preview" : lesson.type}
+                                  </Badge>
+                                  {currentUser?.role === "student" && (
+                                    <Button
+                                      type="button"
+                                      size="xs"
+                                      variant="outline"
+                                      onClick={() => handleLessonComplete(lesson)}
+                                      disabled={loading}
+                                    >
+                                      Complete
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -823,6 +873,39 @@ function App() {
                     </div>
                     <p className="mt-2 text-xs text-slate-400">
                       {payment.provider} • {payment.user?.name || currentUser?.name}
+                    </p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="border-white/10 bg-slate-950/70">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <BookOpen className="size-4" />
+                  Certificates
+                </CardTitle>
+                <CardDescription>
+                  Certificates are issued once a student completes every lesson in a course.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!currentUser && <p className="text-sm text-slate-400">Sign in to load certificate data.</p>}
+                {currentUser && certificates.length === 0 && (
+                  <p className="text-sm text-slate-400">No certificates issued yet.</p>
+                )}
+                {certificates.map((certificate) => (
+                  <div key={certificate.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-white">{certificate.course?.title || "Course certificate"}</p>
+                        <p className="mt-1 text-xs text-slate-500">{certificate.certificate_number}</p>
+                      </div>
+                      <Badge variant="secondary">Issued</Badge>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-400">
+                      {certificate.user?.name || currentUser?.name} •{" "}
+                      {certificate.issued_at ? new Date(certificate.issued_at).toLocaleDateString() : "recently"}
                     </p>
                   </div>
                 ))}

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminModerationQueueController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\CourseCertificateController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DevTokenController;
 use App\Http\Controllers\EnrollmentController;
@@ -27,6 +28,9 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::get('admin/moderation-queue', [AdminModerationQueueController::class, 'index']);
     Route::patch('admin/moderation-queue/reviews/{review}', [AdminModerationQueueController::class, 'updateReview']);
     Route::patch('admin/moderation-queue/comments/{comment}', [AdminModerationQueueController::class, 'updateComment']);
+    Route::get('certificates', [CourseCertificateController::class, 'index']);
+    Route::get('certificates/{certificate}', [CourseCertificateController::class, 'show']);
+    Route::post('courses/{course}/certificate', [CourseCertificateController::class, 'store']);
     Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
     Route::apiResource('courses.enrollments', EnrollmentController::class)->only(['index', 'store', 'destroy']);
     Route::apiResource('courses.modules', ModuleController::class);
