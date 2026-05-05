@@ -148,6 +148,98 @@ class QuizFlowTest extends TestCase
         ])->assertJsonValidationErrors('score');
     }
 
+    public function test_instructor_can_fetch_live_quiz_analytics(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $otherInstructor = User::factory()->create(['role' => 'instructor']);
+        $studentA = User::factory()->create(['role' => 'student']);
+        $studentB = User::factory()->create(['role' => 'student']);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Analytics Quiz Course',
+            'slug' => 'analytics-quiz-course',
+            'description' => 'Quiz analytics test',
+            'price' => 10,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($instructor);
+
+        $this->postJson("/api/courses/{$course->id}/quizzes", [
+            'title' => 'Analytics Quiz',
+            'pass_score' => 70,
+            'is_published' => true,
+            'questions' => [
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Pick A',
+                    'points' => 1,
+                    'options' => [
+                        ['key' => 'a', 'text' => 'A', 'is_correct' => true],
+                        ['key' => 'b', 'text' => 'B'],
+                    ],
+                ],
+                [
+                    'type' => 'multiple_choice',
+                    'prompt' => 'Pick C and D',
+                    'points' => 1,
+                    'options' => [
+                        ['key' => 'c', 'text' => 'C', 'is_correct' => true],
+                        ['key' => 'd', 'text' => 'D', 'is_correct' => true],
+                        ['key' => 'e', 'text' => 'E'],
+                    ],
+                ],
+            ],
+        ])->assertCreated();
+
+        $quiz = Quiz::query()->firstOrFail();
+        $questionIds = $quiz->questions()->pluck('id')->values();
+
+        Sanctum::actingAs($studentA);
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => [
+                (string) $questionIds[0] => 'a',
+                (string) $questionIds[1] => ['c', 'd'],
+            ],
+        ])->assertCreated();
+
+        Sanctum::actingAs($studentB);
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => [
+                (string) $questionIds[0] => 'a',
+                (string) $questionIds[1] => ['c'],
+            ],
+        ])->assertCreated();
+
+        Sanctum::actingAs($studentA);
+        $this->getJson("/api/quizzes/{$quiz->id}/analytics")->assertForbidden();
+
+        Sanctum::actingAs($otherInstructor);
+        $this->getJson("/api/quizzes/{$quiz->id}/analytics")->assertForbidden();
+
+        Sanctum::actingAs($instructor);
+        $this->getJson("/api/quizzes/{$quiz->id}/analytics")
+            ->assertOk()
+            ->assertJsonPath('attempts_count', 2)
+            ->assertJsonPath('unique_students_count', 2)
+            ->assertJsonPath('average_score', 75)
+            ->assertJsonPath('highest_score', 100)
+            ->assertJsonPath('lowest_score', 50)
+            ->assertJsonPath('passed_count', 1)
+            ->assertJsonPath('failed_count', 1)
+            ->assertJsonPath('pass_rate', 50)
+            ->assertJsonPath('question_breakdown.0.correct_rate', 100)
+            ->assertJsonPath('question_breakdown.1.correct_rate', 50);
+
+        Sanctum::actingAs($admin);
+        $this->getJson("/api/quizzes/{$quiz->id}/analytics")->assertOk();
+    }
+
     public function test_student_cannot_attempt_unpublished_quiz(): void
     {
         $instructor = User::factory()->create(['role' => 'instructor']);

@@ -63,6 +63,7 @@ function App() {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [quizAnswers, setQuizAnswers] = useState({});
+  const [quizAnalytics, setQuizAnalytics] = useState({});
   const [payments, setPayments] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
   const [moderationQueue, setModerationQueue] = useState([]);
@@ -78,6 +79,24 @@ function App() {
     const response = await client.get(`/courses/${courseId}`);
     setSelectedCourse(response.data);
     setQuizAnswers({});
+    setQuizAnalytics({});
+
+    if (authToken && (currentUser?.role === "instructor" || currentUser?.role === "admin")) {
+      const quizzes = Array.isArray(response.data?.quizzes) ? response.data.quizzes : [];
+      const analyticsEntries = await Promise.all(
+        quizzes.map(async (quiz) => {
+          try {
+            const analyticsResponse = await authenticatedClient.get(`/quizzes/${quiz.id}/analytics`);
+
+            return [quiz.id, analyticsResponse.data];
+          } catch {
+            return [quiz.id, null];
+          }
+        }),
+      );
+
+      setQuizAnalytics(Object.fromEntries(analyticsEntries.filter(([, analytics]) => analytics !== null)));
+    }
 
     if (!authToken) {
       setReviews([]);
@@ -636,6 +655,11 @@ function App() {
                           <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Quizzes</h3>
                           {selectedCourse.quizzes.map((quiz) => (
                             <div key={quiz.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                              {(() => {
+                                const analytics = quizAnalytics[quiz.id];
+
+                                return (
+                                  <>
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                   <p className="font-medium text-white">{quiz.title}</p>
@@ -645,6 +669,29 @@ function App() {
                                   {quiz.is_published ? "Published" : "Draft"}
                                 </Badge>
                               </div>
+
+                              {analytics && (
+                                <div className="mt-4 grid gap-2 rounded-xl border border-white/10 bg-slate-950/50 p-3 text-xs text-slate-300 sm:grid-cols-4">
+                                  <div>
+                                    <p className="text-slate-500">Attempts</p>
+                                    <p className="mt-1 font-medium text-white">{analytics.attempts_count}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-slate-500">Average</p>
+                                    <p className="mt-1 font-medium text-white">
+                                      {analytics.average_score ?? "N/A"}%
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-slate-500">Pass rate</p>
+                                    <p className="mt-1 font-medium text-white">{analytics.pass_rate ?? "N/A"}%</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-slate-500">Students</p>
+                                    <p className="mt-1 font-medium text-white">{analytics.unique_students_count}</p>
+                                  </div>
+                                </div>
+                              )}
 
                               <div className="mt-4 space-y-4">
                                 {(quiz.questions || []).map((question) => (
@@ -685,6 +732,16 @@ function App() {
                                         );
                                       })}
                                     </div>
+                                    {analytics?.question_breakdown?.find((item) => item.question_id === question.id) && (
+                                      <p className="mt-2 text-xs text-slate-500">
+                                        Correct rate:{" "}
+                                        {
+                                          analytics.question_breakdown.find((item) => item.question_id === question.id)
+                                            .correct_rate
+                                        }
+                                        %
+                                      </p>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -700,6 +757,9 @@ function App() {
                                   Submit attempt
                                 </Button>
                               )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           ))}
                         </div>

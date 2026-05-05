@@ -198,6 +198,16 @@ curl -X POST "$BASE_URL/quizzes/1/attempts" \
 
 The backend calculates `score` and `passed`; clients cannot submit their own `score`.
 
+Fetch quiz analytics as the course instructor or admin:
+
+```bash
+curl -X GET "$BASE_URL/quizzes/1/analytics" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
+Quiz analytics are calculated from existing attempts and questions when requested. They are not stored as a separate statistics table.
+
 Create review:
 
 ```bash

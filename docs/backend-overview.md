@@ -58,6 +58,8 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 - Quiz attempts under quiz
 - Backend-calculated attempt score from submitted answers
 - Automatic `passed` computation from calculated score and pass threshold
+- Live instructor/admin quiz analytics computed from existing attempts and questions
+- No separate statistics tables are stored for quiz analytics
 
 ### Commerce and Community
 

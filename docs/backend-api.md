@@ -145,6 +145,25 @@ Example:
 }
 ```
 
+### Quiz Analytics
+
+- `GET /quizzes/{quiz}/analytics`
+
+Only the course instructor and admins may access quiz analytics. The response is calculated live from `quiz_attempts` and `quiz_questions`; no separate analytics/statistics entity is stored.
+
+Returned metrics include:
+
+- `attempts_count`
+- `unique_students_count`
+- `average_score`
+- `highest_score`
+- `lowest_score`
+- `passed_count`
+- `failed_count`
+- `pass_rate`
+- `question_breakdown`
+- `recent_attempts`
+
 ### Reviews
 
 - `GET /courses/{course}/reviews`
