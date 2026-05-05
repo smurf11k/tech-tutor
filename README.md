@@ -176,6 +176,7 @@ RESTful API for all core features.
 - Quick seeded login for student, instructor, admin, and banned-user testing
 - Role-aware demo panels for payments, admin users, and moderation queue
 - Instructor dashboard summary from live backend aggregates
+- Admin platform activity and payment monitor from live backend aggregates
 - Enroll, lesson completion, and certificate issuance actions wired to backend
 - Catalog filters and quiz attempt submission wired to backend
 - Instructor/admin quiz analytics displayed from live backend aggregates
@@ -270,14 +271,14 @@ For local development commands and token helper details, see the docs pages abov
 
 - [x] User management (view, ban, role change)
 - [x] Content moderation queue
-- [ ] Platform activity monitor
-- [ ] Payment & revenue overview
+- [x] Platform activity monitor
+- [x] Payment & revenue overview
 
 ### Analytics
 
 - [ ] Student engagement metrics
 - [ ] Course completion rates
-- [ ] Revenue reports
+- [x] Revenue reports
 - [ ] Search analytics (popular queries, zero results)
 
 ### SSR & Performance

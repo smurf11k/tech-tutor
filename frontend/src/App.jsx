@@ -67,6 +67,7 @@ function App() {
   const [payments, setPayments] = useState([]);
   const [certificates, setCertificates] = useState([]);
   const [instructorDashboard, setInstructorDashboard] = useState(null);
+  const [adminPlatformDashboard, setAdminPlatformDashboard] = useState(null);
   const [adminUsers, setAdminUsers] = useState([]);
   const [moderationQueue, setModerationQueue] = useState([]);
   const [catalogFilters, setCatalogFilters] = useState(defaultCatalogFilters);
@@ -183,6 +184,7 @@ function App() {
       setPayments([]);
       setCertificates([]);
       setInstructorDashboard(null);
+      setAdminPlatformDashboard(null);
       setAdminUsers([]);
       setModerationQueue([]);
       return;
@@ -195,20 +197,25 @@ function App() {
         ? authenticatedClient.get("/instructor/dashboard")
         : Promise.resolve(null);
     const userRequest = currentUser?.role === "admin" ? authenticatedClient.get("/admin/users") : Promise.resolve(null);
+    const platformDashboardRequest =
+      currentUser?.role === "admin" ? authenticatedClient.get("/admin/platform-dashboard") : Promise.resolve(null);
     const moderationRequest =
       currentUser?.role === "admin" ? authenticatedClient.get("/admin/moderation-queue") : Promise.resolve(null);
 
-    const [paymentsResponse, certificatesResponse, dashboardResponse, usersResponse, moderationResponse] = await Promise.all([
-      paymentRequest,
-      certificateRequest,
-      dashboardRequest,
-      userRequest,
-      moderationRequest,
-    ]);
+    const [paymentsResponse, certificatesResponse, dashboardResponse, usersResponse, platformDashboardResponse, moderationResponse] =
+      await Promise.all([
+        paymentRequest,
+        certificateRequest,
+        dashboardRequest,
+        userRequest,
+        platformDashboardRequest,
+        moderationRequest,
+      ]);
 
     setPayments(Array.isArray(paymentsResponse.data) ? paymentsResponse.data : []);
     setCertificates(Array.isArray(certificatesResponse.data) ? certificatesResponse.data : []);
     setInstructorDashboard(dashboardResponse?.data ?? null);
+    setAdminPlatformDashboard(platformDashboardResponse?.data ?? null);
     setAdminUsers(usersResponse?.data?.data ?? []);
     setModerationQueue(Array.isArray(moderationResponse?.data) ? moderationResponse.data : []);
   }
@@ -269,6 +276,7 @@ function App() {
     setPayments([]);
     setCertificates([]);
     setInstructorDashboard(null);
+    setAdminPlatformDashboard(null);
     setCredentials((prev) => ({ ...prev, password: DEFAULT_PASSWORD }));
     setNotice({
       variant: "default",
@@ -987,6 +995,83 @@ function App() {
 
             {currentUser?.role === "admin" && (
               <>
+                {adminPlatformDashboard && (
+                  <Card className="border-white/10 bg-slate-950/70">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-white">
+                        <ShieldCheck className="size-4" />
+                        Platform monitor
+                      </CardTitle>
+                      <CardDescription>
+                        Live admin snapshot of platform activity, moderation, and paid revenue.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                          <p className="text-xs text-slate-500">Users</p>
+                          <p className="mt-1 text-lg font-semibold text-white">
+                            {adminPlatformDashboard.summary?.users_count ?? 0}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                          <p className="text-xs text-slate-500">Courses</p>
+                          <p className="mt-1 text-lg font-semibold text-white">
+                            {adminPlatformDashboard.summary?.courses_count ?? 0}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                          <p className="text-xs text-slate-500">Pending moderation</p>
+                          <p className="mt-1 text-lg font-semibold text-white">
+                            {(adminPlatformDashboard.summary?.pending_reviews_count ?? 0) +
+                              (adminPlatformDashboard.summary?.pending_comments_count ?? 0)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                          <p className="text-xs text-slate-500">Paid revenue</p>
+                          <p className="mt-1 text-lg font-semibold text-white">
+                            ${adminPlatformDashboard.summary?.revenue_total ?? "0.00"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                          Payment statuses
+                        </p>
+                        {(adminPlatformDashboard.payment_statuses || []).map((status) => (
+                          <div
+                            key={status.status}
+                            className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2 text-sm"
+                          >
+                            <span className="text-slate-200">{status.status}</span>
+                            <span className="text-slate-400">
+                              {status.count} • ${status.amount}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                          Recent activity
+                        </p>
+                        {(adminPlatformDashboard.recent_activity || []).slice(0, 6).map((activity, index) => (
+                          <div
+                            key={`${activity.type}-${activity.id}-${index}`}
+                            className="rounded-xl border border-white/10 px-3 py-2 text-sm"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-slate-200">{activity.label}</span>
+                              <Badge variant="outline">{activity.type.replace("_", " ")}</Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card className="border-white/10 bg-slate-950/70">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-white">

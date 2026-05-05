@@ -54,6 +54,14 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 - No dashboard statistics tables are stored
 - Revenue currently reads internal paid payment records and can be refined when real payment provider webhooks are introduced
 
+### Admin Monitoring
+
+- Live platform activity monitor for admins
+- User, course, enrollment, certificate, quiz attempt, and moderation totals
+- Payment status breakdown and paid revenue by course
+- Recent activity feed from existing users, courses, enrollments, payments, and certificates
+- No platform monitoring statistics tables are stored
+
 ### Student Learning Flow
 
 - Enroll into course

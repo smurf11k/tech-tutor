@@ -45,9 +45,23 @@ Banned users are blocked from protected routes.
 
 - `GET /admin/users`
 - `PATCH /admin/users/{user}`
+- `GET /admin/platform-dashboard`
 - `GET /admin/moderation-queue`
 - `PATCH /admin/moderation-queue/reviews/{review}`
 - `PATCH /admin/moderation-queue/comments/{comment}`
+
+`GET /admin/platform-dashboard` returns live platform monitoring metrics. It is admin-only and does not store separate statistics rows.
+
+Returned data includes:
+
+- user/course/enrollment/certificate/quiz attempt totals
+- moderation queue counts
+- payment totals and paid revenue
+- payment status breakdown
+- paid revenue grouped by course
+- recent activity feed
+
+Revenue currently uses internal `payments` rows with `status = paid`. When Stripe/LiqPay checkout and webhooks are added, this aggregation should be based on verified provider-backed payment states.
 
 ### Instructor Dashboard
 

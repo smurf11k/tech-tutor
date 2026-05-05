@@ -83,6 +83,16 @@ curl -X GET "$BASE_URL/instructor/dashboard" \
 
 Dashboard metrics are calculated live. Revenue currently comes from internal paid payment records.
 
+Fetch admin platform monitoring:
+
+```bash
+curl -X GET "$BASE_URL/admin/platform-dashboard" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
+Admin platform metrics are calculated live. Payment/revenue values currently come from internal payment records and should be refined around provider-backed payment states when Stripe/LiqPay webhooks are added.
+
 Create course:
 
 ```bash
