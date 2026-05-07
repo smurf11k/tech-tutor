@@ -154,7 +154,7 @@ RESTful API for all core features.
 
 - Backend readiness: about 90%
 - Frontend/demo readiness: partial integration shell for presenting backend flows
-- Current priority: finish payment/purchase flow before advanced integrations such as OAuth, 2FA, MeiliSearch, and CI/CD
+- Current priority: connect real payment providers before advanced integrations such as OAuth, 2FA, MeiliSearch, and CI/CD
 
 ### Backend (implemented)
 
@@ -169,6 +169,7 @@ RESTful API for all core features.
   - Course completion certificates
   - Quizzes, single-choice/multiple-choice questions, backend-scored quiz attempts, and live quiz analytics
   - Reviews, lesson comments, moderation queue, and payments
+  - Internal purchase flow with receipts and paid-course enrollment gating
   - Email notifications for enrollment, quiz results, certificate issuance, and handled publish requests
 - Admin endpoints for:
   - User listing, role changes, and ban management
@@ -187,6 +188,7 @@ RESTful API for all core features.
 - Course list and course detail from backend
 - Quick seeded login through the real auth API for student, instructor, admin, and banned-user testing
 - Role-aware demo panels for payments, admin users, and moderation queue
+- Paid-course purchase action wired to backend receipts and enrollment activation
 - Instructor dashboard summary from live backend aggregates
 - Admin platform activity and payment monitor from live backend aggregates
 - Enroll, lesson completion, and certificate issuance actions wired to backend
@@ -266,9 +268,9 @@ For local development commands and token helper details, see the docs pages abov
 - [x] Course pricing for free/paid courses
 - [x] Instructor/admin revenue reporting from internal paid records
 - [x] Admin payment monitoring dashboard
-- [ ] Verified purchase state and paid-course access gating
-- [ ] Purchase flow
-- [ ] Receipts
+- [x] Verified purchase state and paid-course access gating
+- [x] Purchase flow
+- [x] Receipts
 - [ ] Stripe checkout integration
 - [ ] LiqPay checkout integration
 - [ ] Payment provider webhooks

@@ -223,6 +223,36 @@ curl -X POST "$BASE_URL/courses/1/enrollments" \
 
 If the backend mailer is configured, a new enrollment sends the student an email confirmation.
 
+Paid courses require purchase before enrollment. Without a paid payment, enrollment returns `402`.
+
+Purchase a paid course and receive a receipt:
+
+```bash
+curl -X POST "$BASE_URL/courses/1/payments" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "manual_demo",
+    "amount": 49.99,
+    "currency": "USD",
+    "transaction_id": "txn_manual_demo_1001",
+    "provider_payload": {
+      "source": "manual_test"
+    }
+  }'
+```
+
+The purchase response includes both `payment` and `enrollment`. The payment includes `receipt_number`, `receipt_issued_at`, and `access_granted_at`.
+
+Fetch one receipt/payment record:
+
+```bash
+curl -X GET "$BASE_URL/payments/1" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json"
+```
+
 Update lesson progress:
 
 ```bash
@@ -332,7 +362,7 @@ curl -X POST "$BASE_URL/courses/1/reviews" \
   }'
 ```
 
-Create payment:
+Create payment/purchase:
 
 ```bash
 curl -X POST "$BASE_URL/courses/1/payments" \
@@ -340,7 +370,7 @@ curl -X POST "$BASE_URL/courses/1/payments" \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{
-    "provider": "stripe",
+    "provider": "manual_demo",
     "amount": 49.99,
     "currency": "USD",
     "transaction_id": "txn_1001"

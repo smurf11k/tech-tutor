@@ -137,7 +137,7 @@ class LessonCommentFlowTest extends TestCase
             'title' => 'Lesson Comment Course',
             'slug' => 'lesson-comment-course',
             'description' => 'Used for lesson comment testing',
-            'price' => 15,
+            'price' => 0,
             'is_published' => true,
             'published_at' => now(),
         ]);

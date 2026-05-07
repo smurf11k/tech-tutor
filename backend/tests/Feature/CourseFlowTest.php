@@ -33,7 +33,7 @@ class CourseFlowTest extends TestCase
             'title' => 'Laravel Basics',
             'slug' => 'laravel-basics',
             'description' => 'Intro course',
-            'price' => 49.99,
+            'price' => 0,
         ]);
 
         $courseResponse->assertCreated();
@@ -428,7 +428,7 @@ class CourseFlowTest extends TestCase
         $this->postJson('/api/courses', [
             'title' => 'Enrollment Delete Course',
             'slug' => 'enrollment-delete-course',
-            'price' => 5,
+            'price' => 0,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
@@ -457,7 +457,7 @@ class CourseFlowTest extends TestCase
         $this->postJson('/api/courses', [
             'title' => 'Roster Privacy Course',
             'slug' => 'roster-privacy-course',
-            'price' => 10,
+            'price' => 0,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
@@ -482,7 +482,7 @@ class CourseFlowTest extends TestCase
         $this->postJson('/api/courses', [
             'title' => 'Roster Owner Course',
             'slug' => 'roster-owner-course',
-            'price' => 12,
+            'price' => 0,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();

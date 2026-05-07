@@ -28,7 +28,7 @@ class QuizFlowTest extends TestCase
             'title' => 'Testing Course',
             'slug' => 'testing-course',
             'description' => 'Intro course',
-            'price' => 19.99,
+            'price' => 0,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
@@ -99,7 +99,7 @@ class QuizFlowTest extends TestCase
             'title' => 'Scored Quiz Course',
             'slug' => 'scored-quiz-course',
             'description' => 'Backend scoring test',
-            'price' => 10,
+            'price' => 0,
             'is_published' => true,
             'published_at' => now(),
         ]);
@@ -167,7 +167,7 @@ class QuizFlowTest extends TestCase
             'title' => 'Analytics Quiz Course',
             'slug' => 'analytics-quiz-course',
             'description' => 'Quiz analytics test',
-            'price' => 10,
+            'price' => 0,
             'is_published' => true,
             'published_at' => now(),
         ]);
@@ -257,7 +257,7 @@ class QuizFlowTest extends TestCase
             'title' => 'Unpublished Quiz Course',
             'slug' => 'unpublished-quiz-course',
             'description' => 'Draft quiz access test',
-            'price' => 10,
+            'price' => 0,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
@@ -311,7 +311,7 @@ class QuizFlowTest extends TestCase
             'title' => 'Attempt Limit Course',
             'slug' => 'attempt-limit-course',
             'description' => 'Attempt cap test',
-            'price' => 10,
+            'price' => 0,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();

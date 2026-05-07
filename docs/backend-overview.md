@@ -97,6 +97,8 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 
 - Course review create/update/delete
 - Payment create/list with provider, amount, currency, status
+- Internal purchase flow issues receipts, marks the payment as paid, grants course access, and creates an active enrollment
+- Paid-course enrollment requires an existing paid payment for students
 - Publish requests notify instructors when admins approve or decline them
 
 ### Seed Data
@@ -118,7 +120,7 @@ Feature tests currently cover:
 - Course catalog search/filtering and metadata
 - Quiz creation and student attempt submission
 - Email notification trigger assertions
-- Review and payment flow
+- Review and purchase/payment flow
 
 Run tests:
 

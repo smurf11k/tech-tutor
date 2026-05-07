@@ -310,6 +310,39 @@ function App() {
     }
   }
 
+  async function handlePurchaseCourse() {
+    if (!selectedCourse || currentUser?.role !== "student") {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authenticatedClient.post(`/courses/${selectedCourse.id}/payments`, {
+        provider: "manual_demo",
+        amount: Number(selectedCourse.price),
+        currency: "usd",
+        provider_payload: {
+          source: "frontend_demo",
+        },
+      });
+
+      await Promise.all([loadRoleData(), loadCourseDetails(selectedCourse.id)]);
+      setNotice({
+        variant: "default",
+        title: "Purchase complete",
+        description: `Receipt ${response.data.payment.receipt_number} issued and enrollment is active.`,
+      });
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Purchase failed",
+        description: error?.response?.data?.message || "Could not purchase this course.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleQuizAnswerChange(quizId, question, optionKey, checked = true) {
     setQuizAnswers((prev) => {
       const quizState = prev[quizId] ?? {};
@@ -668,9 +701,16 @@ function App() {
                         {selectedCourse.is_published ? "Published" : "Draft"}
                       </Badge>
                       {currentUser?.role === "student" && (
-                        <Button size="sm" onClick={handleEnroll} disabled={loading}>
-                          Enroll
-                        </Button>
+                        <>
+                          {Number(selectedCourse.price) > 0 && (
+                            <Button size="sm" onClick={handlePurchaseCourse} disabled={loading}>
+                              Purchase
+                            </Button>
+                          )}
+                          <Button size="sm" variant="outline" onClick={handleEnroll} disabled={loading}>
+                            Enroll
+                          </Button>
+                        </>
                       )}
                     </div>
 
@@ -955,6 +995,9 @@ function App() {
                     <p className="mt-2 text-xs text-slate-400">
                       {payment.provider} • {payment.user?.name || currentUser?.name}
                     </p>
+                    {payment.receipt_number && (
+                      <p className="mt-2 text-xs text-slate-400">Receipt {payment.receipt_number}</p>
+                    )}
                   </div>
                 ))}
               </CardContent>

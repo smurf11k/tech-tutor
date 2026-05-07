@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Course;
+use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -30,18 +31,19 @@ class CommerceFlowTest extends TestCase
 
         Sanctum::actingAs($student);
 
-        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
-
-        $this->postJson("/api/courses/{$course->id}/reviews", [
-            'rating' => 5,
-            'comment' => 'Strong course',
-        ])->assertCreated();
-
-        $this->postJson("/api/courses/{$course->id}/payments", [
+        $paymentResponse = $this->postJson("/api/courses/{$course->id}/payments", [
             'provider' => 'stripe',
             'amount' => 99.99,
             'currency' => 'usd',
             'transaction_id' => 'txn_12345',
+        ])->assertCreated()
+            ->assertJsonPath('enrollment.course_id', $course->id);
+
+        $this->assertStringStartsWith('TT-RCPT-', $paymentResponse->json('payment.receipt_number'));
+
+        $this->postJson("/api/courses/{$course->id}/reviews", [
+            'rating' => 5,
+            'comment' => 'Strong course',
         ])->assertCreated();
 
         $this->assertDatabaseHas('reviews', [
@@ -55,6 +57,13 @@ class CommerceFlowTest extends TestCase
             'user_id' => $student->id,
             'provider' => 'stripe',
             'transaction_id' => 'txn_12345',
+            'status' => 'paid',
+        ]);
+
+        $this->assertDatabaseHas('enrollments', [
+            'course_id' => $course->id,
+            'user_id' => $student->id,
+            'status' => 'active',
         ]);
     }
 
@@ -131,6 +140,53 @@ class CommerceFlowTest extends TestCase
             ->assertJsonValidationErrors('amount');
 
         $this->assertDatabaseCount('payments', 0);
+    }
+
+    public function test_paid_course_requires_purchase_before_enrollment_and_receipt_is_viewable(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+        $otherStudent = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Receipt Course',
+            'slug' => 'receipt-course',
+            'description' => 'Receipt and access gating',
+            'price' => 35,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/enrollments")
+            ->assertStatus(402)
+            ->assertJsonPath('message', 'Purchase this course before enrolling.');
+
+        $paymentResponse = $this->postJson("/api/courses/{$course->id}/payments", [
+            'provider' => 'manual_demo',
+            'amount' => 35,
+            'currency' => 'usd',
+            'transaction_id' => 'txn_receipt_course',
+        ])->assertCreated()
+            ->assertJsonPath('payment.status', 'paid')
+            ->assertJsonPath('enrollment.status', 'active');
+
+        $paymentId = $paymentResponse->json('payment.id');
+        $this->assertStringStartsWith('TT-RCPT-', $paymentResponse->json('payment.receipt_number'));
+
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+        $this->assertDatabaseCount('enrollments', 1);
+
+        $this->getJson("/api/payments/{$paymentId}")
+            ->assertOk()
+            ->assertJsonPath('id', $paymentId)
+            ->assertJsonPath('course_id', $course->id);
+
+        Sanctum::actingAs($otherStudent);
+
+        $this->getJson("/api/payments/{$paymentId}")->assertForbidden();
     }
 
     public function test_instructor_only_sees_payments_for_their_own_courses(): void
@@ -243,7 +299,7 @@ class CommerceFlowTest extends TestCase
 
         $this->postJson("/api/courses/{$course->id}/reviews", [
             'rating' => 5,
-            'comment' => 'Amazing!'
+            'comment' => 'Amazing!',
         ])->assertForbidden();
     }
 
@@ -258,7 +314,7 @@ class CommerceFlowTest extends TestCase
             'title' => 'Edit Window Course',
             'slug' => 'edit-window-course',
             'description' => 'Review edit window test',
-            'price' => 20,
+            'price' => 0,
         ])->assertCreated();
 
         $course = Course::query()->firstOrFail();
@@ -267,7 +323,7 @@ class CommerceFlowTest extends TestCase
 
         $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
 
-        $review = \App\Models\Review::create([
+        $review = Review::create([
             'course_id' => $course->id,
             'user_id' => $student->id,
             'rating' => 4,
@@ -290,7 +346,7 @@ class CommerceFlowTest extends TestCase
             'title' => 'Moderation Guard Course',
             'slug' => 'moderation-guard-course',
             'description' => 'Review moderation guard',
-            'price' => 15,
+            'price' => 0,
             'is_published' => true,
             'published_at' => now(),
         ]);
@@ -331,7 +387,7 @@ class CommerceFlowTest extends TestCase
             'title' => 'Review Visibility Course',
             'slug' => 'review-visibility-course',
             'description' => 'Review visibility rules',
-            'price' => 25,
+            'price' => 0,
             'is_published' => true,
             'published_at' => now(),
         ]);

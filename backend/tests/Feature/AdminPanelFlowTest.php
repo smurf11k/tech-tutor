@@ -218,7 +218,7 @@ class AdminPanelFlowTest extends TestCase
             'title' => 'Moderated Review Course',
             'slug' => 'moderated-review-course',
             'description' => 'Used for moderation queue',
-            'price' => 30,
+            'price' => 0,
             'is_published' => true,
             'published_at' => now(),
         ]);

@@ -18,6 +18,7 @@ class StorePaymentRequest extends FormRequest
             'amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['sometimes', 'string', 'size:3'],
             'transaction_id' => ['nullable', 'string', 'max:255', 'unique:payments,transaction_id'],
+            'provider_payload' => ['nullable', 'array'],
         ];
     }
 }

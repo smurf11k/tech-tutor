@@ -165,6 +165,16 @@ Course create/update payloads support catalog metadata:
 
 Creating a new enrollment sends an email notification to the enrolled student through the configured Laravel mailer. Re-enrolling into an existing enrollment does not send a duplicate notification.
 
+For paid courses, students must purchase the course before direct enrollment. If no paid payment exists, `POST /courses/{course}/enrollments` returns `402` with:
+
+```json
+{
+  "message": "Purchase this course before enrolling."
+}
+```
+
+Admins and the course instructor may enroll without purchase checks.
+
 ### Modules
 
 - `GET /courses/{course}/modules`
@@ -314,7 +324,46 @@ Returned metrics include:
 ### Payments
 
 - `GET /payments`
+- `GET /payments/{payment}`
 - `POST /courses/{course}/payments`
+
+`POST /courses/{course}/payments` is the current internal purchase endpoint. It validates that the submitted amount matches the current course price for non-admin users, creates a paid payment record, issues a receipt number, grants access, and creates/returns the active enrollment.
+
+Example payload:
+
+```json
+{
+  "provider": "manual_demo",
+  "amount": 49.99,
+  "currency": "USD",
+  "transaction_id": "txn_optional_unique_id",
+  "provider_payload": {
+    "source": "frontend_demo"
+  }
+}
+```
+
+Response shape:
+
+```json
+{
+  "payment": {
+    "id": 1,
+    "status": "paid",
+    "receipt_number": "TT-RCPT-20260507-ABC12345",
+    "receipt_issued_at": "2026-05-07T12:00:00.000000Z",
+    "access_granted_at": "2026-05-07T12:00:00.000000Z"
+  },
+  "enrollment": {
+    "id": 1,
+    "status": "active"
+  }
+}
+```
+
+`GET /payments/{payment}` returns a receipt/payment record to the payment owner, the course instructor, or an admin.
+
+Stripe/LiqPay are not connected yet. The current flow is provider-shaped so future checkout/webhook handlers can create or verify the same `payments` rows instead of changing course access logic later.
 
 ### Publish-request workflow
 

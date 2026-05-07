@@ -59,7 +59,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::get('quizzes/{quiz}/analytics', [QuizAnalyticsController::class, 'show']);
     Route::apiResource('quizzes.attempts', QuizAttemptController::class)->only(['index', 'store']);
     Route::apiResource('courses.reviews', ReviewController::class)->only(['index', 'store', 'update', 'destroy']);
-    Route::apiResource('payments', PaymentController::class)->only(['index']);
+    Route::apiResource('payments', PaymentController::class)->only(['index', 'show']);
     Route::post('courses/{course}/payments', [PaymentController::class, 'store']);
     Route::post('lessons/{lesson}/progress', [ProgressController::class, 'store']);
     Route::put('lessons/{lesson}/progress', [ProgressController::class, 'update']);

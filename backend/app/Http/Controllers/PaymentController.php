@@ -6,8 +6,10 @@ use App\Http\Requests\StorePaymentRequest;
 use App\Models\Course;
 use App\Models\Payment;
 use App\Models\User;
+use App\Services\CourseEnrollmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class PaymentController extends Controller
 {
@@ -31,7 +33,21 @@ class PaymentController extends Controller
         return response()->json($user->payments()->with('course')->latest()->get());
     }
 
-    public function store(StorePaymentRequest $request, Course $course): JsonResponse
+    public function show(Request $request, Payment $payment): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
+
+        $canView = $user->isAdmin()
+            || $payment->user_id === $user->id
+            || $payment->course()->where('instructor_id', $user->id)->exists();
+
+        abort_unless($canView, 403);
+
+        return response()->json($payment->load(['user', 'course']));
+    }
+
+    public function store(StorePaymentRequest $request, Course $course, CourseEnrollmentService $enrollments): JsonResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
@@ -70,9 +86,27 @@ class PaymentController extends Controller
             'currency' => strtoupper($validated['currency'] ?? 'USD'),
             'status' => 'paid',
             'transaction_id' => $validated['transaction_id'] ?? null,
+            'receipt_number' => $this->makeReceiptNumber(),
+            'receipt_issued_at' => now(),
+            'access_granted_at' => now(),
+            'provider_payload' => $validated['provider_payload'] ?? null,
             'paid_at' => now(),
         ]);
 
-        return response()->json($payment->load(['user', 'course']), 201);
+        $enrollment = $enrollments->enroll($user, $course);
+
+        return response()->json([
+            'payment' => $payment->load(['user', 'course']),
+            'enrollment' => $enrollment,
+        ], 201);
+    }
+
+    private function makeReceiptNumber(): string
+    {
+        do {
+            $receiptNumber = 'TT-RCPT-'.now()->format('Ymd').'-'.Str::upper(Str::random(8));
+        } while (Payment::where('receipt_number', $receiptNumber)->exists());
+
+        return $receiptNumber;
     }
 }
