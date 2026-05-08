@@ -3,13 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePaymentRequest;
+use App\Http\Requests\StoreStripeCheckoutRequest;
 use App\Models\Course;
 use App\Models\Payment;
 use App\Models\User;
-use App\Services\CourseEnrollmentService;
+use App\Services\PaymentFulfillmentService;
+use App\Services\StripeCheckoutService;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use RuntimeException;
 
 class PaymentController extends Controller
 {
@@ -47,7 +50,7 @@ class PaymentController extends Controller
         return response()->json($payment->load(['user', 'course']));
     }
 
-    public function store(StorePaymentRequest $request, Course $course, CourseEnrollmentService $enrollments): JsonResponse
+    public function store(StorePaymentRequest $request, Course $course, PaymentFulfillmentService $payments): JsonResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
@@ -84,29 +87,56 @@ class PaymentController extends Controller
             'provider' => $validated['provider'],
             'amount' => $requestedAmount,
             'currency' => strtoupper($validated['currency'] ?? 'USD'),
-            'status' => 'paid',
+            'status' => 'pending',
             'transaction_id' => $validated['transaction_id'] ?? null,
-            'receipt_number' => $this->makeReceiptNumber(),
-            'receipt_issued_at' => now(),
-            'access_granted_at' => now(),
             'provider_payload' => $validated['provider_payload'] ?? null,
-            'paid_at' => now(),
         ]);
 
-        $enrollment = $enrollments->enroll($user, $course);
+        $result = $payments->fulfill($payment);
 
         return response()->json([
-            'payment' => $payment->load(['user', 'course']),
-            'enrollment' => $enrollment,
+            'payment' => $result['payment'],
+            'enrollment' => $result['enrollment'],
         ], 201);
     }
 
-    private function makeReceiptNumber(): string
+    public function stripeCheckout(StoreStripeCheckoutRequest $request, Course $course, StripeCheckoutService $stripe): JsonResponse
     {
-        do {
-            $receiptNumber = 'TT-RCPT-'.now()->format('Ymd').'-'.Str::upper(Str::random(8));
-        } while (Payment::where('receipt_number', $receiptNumber)->exists());
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
 
-        return $receiptNumber;
+        if ((float) $course->price <= 0) {
+            return response()->json([
+                'message' => 'Free courses do not require Stripe checkout.',
+            ], 422);
+        }
+
+        $existingPaidPayment = Payment::query()
+            ->where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->where('status', 'paid')
+            ->exists();
+
+        if ($existingPaidPayment) {
+            return response()->json([
+                'message' => 'Course is already paid by this user.',
+            ], 409);
+        }
+
+        try {
+            return response()->json(
+                $stripe->createSession($user, $course, $request->validated()),
+                201
+            );
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 503);
+        } catch (RequestException $exception) {
+            return response()->json([
+                'message' => 'Stripe checkout session could not be created.',
+                'stripe_error' => $exception->response?->json('error.message'),
+            ], 502);
+        }
     }
 }

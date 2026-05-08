@@ -343,6 +343,41 @@ function App() {
     }
   }
 
+  async function handleStripeCheckout() {
+    if (!selectedCourse || currentUser?.role !== "student") {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authenticatedClient.post(`/courses/${selectedCourse.id}/payments/stripe-checkout`, {
+        success_url: window.location.href,
+        cancel_url: window.location.href,
+      });
+
+      const checkoutUrl = response.data.checkout?.url;
+
+      if (checkoutUrl) {
+        window.open(checkoutUrl, "_blank", "noopener,noreferrer");
+      }
+
+      await loadRoleData();
+      setNotice({
+        variant: "default",
+        title: "Stripe checkout created",
+        description: "A pending Stripe payment was created. Course access is granted after webhook verification is added.",
+      });
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Stripe checkout failed",
+        description: error?.response?.data?.message || "Could not create a Stripe checkout session.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleQuizAnswerChange(quizId, question, optionKey, checked = true) {
     setQuizAnswers((prev) => {
       const quizState = prev[quizId] ?? {};
@@ -703,9 +738,14 @@ function App() {
                       {currentUser?.role === "student" && (
                         <>
                           {Number(selectedCourse.price) > 0 && (
-                            <Button size="sm" onClick={handlePurchaseCourse} disabled={loading}>
-                              Purchase
-                            </Button>
+                            <>
+                              <Button size="sm" onClick={handlePurchaseCourse} disabled={loading}>
+                                Demo purchase
+                              </Button>
+                              <Button size="sm" variant="secondary" onClick={handleStripeCheckout} disabled={loading}>
+                                Stripe checkout
+                              </Button>
+                            </>
                           )}
                           <Button size="sm" variant="outline" onClick={handleEnroll} disabled={loading}>
                             Enroll

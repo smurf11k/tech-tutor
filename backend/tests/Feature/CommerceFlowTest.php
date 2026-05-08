@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Course;
+use App\Models\Payment;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -187,6 +189,196 @@ class CommerceFlowTest extends TestCase
         Sanctum::actingAs($otherStudent);
 
         $this->getJson("/api/payments/{$paymentId}")->assertForbidden();
+    }
+
+    public function test_student_can_create_stripe_checkout_session_for_paid_course(): void
+    {
+        config([
+            'services.stripe.secret' => 'sk_test_mock',
+            'services.stripe.currency' => 'USD',
+            'services.stripe.success_url' => 'https://example.test/success',
+            'services.stripe.cancel_url' => 'https://example.test/cancel',
+        ]);
+
+        Http::fake([
+            'https://api.stripe.com/v1/checkout/sessions' => Http::response([
+                'id' => 'cs_test_123',
+                'url' => 'https://checkout.stripe.test/pay/cs_test_123',
+                'mode' => 'payment',
+            ]),
+        ]);
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Stripe Course',
+            'slug' => 'stripe-course',
+            'description' => 'Stripe checkout test',
+            'price' => 42.50,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/payments/stripe-checkout")
+            ->assertCreated()
+            ->assertJsonPath('payment.provider', 'stripe')
+            ->assertJsonPath('payment.status', 'pending')
+            ->assertJsonPath('payment.transaction_id', 'cs_test_123')
+            ->assertJsonPath('checkout.session_id', 'cs_test_123')
+            ->assertJsonPath('checkout.url', 'https://checkout.stripe.test/pay/cs_test_123');
+
+        $this->assertDatabaseHas('payments', [
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'provider' => 'stripe',
+            'status' => 'pending',
+            'transaction_id' => 'cs_test_123',
+        ]);
+
+        $this->assertDatabaseCount('enrollments', 0);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.stripe.com/v1/checkout/sessions'
+            && $request->hasHeader('Authorization', 'Bearer sk_test_mock'));
+    }
+
+    public function test_stripe_webhook_marks_pending_checkout_payment_as_paid_and_enrolls_student(): void
+    {
+        config(['services.stripe.webhook_secret' => 'whsec_test']);
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Stripe Webhook Course',
+            'slug' => 'stripe-webhook-course',
+            'description' => 'Webhook fulfillment test',
+            'price' => 42.50,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $payment = Payment::create([
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'provider' => 'stripe',
+            'amount' => 42.50,
+            'currency' => 'USD',
+            'status' => 'pending',
+            'transaction_id' => 'cs_test_webhook',
+        ]);
+
+        $payload = [
+            'id' => 'evt_test_webhook',
+            'type' => 'checkout.session.completed',
+            'data' => [
+                'object' => [
+                    'id' => 'cs_test_webhook',
+                    'payment_status' => 'paid',
+                    'amount_total' => 4250,
+                    'currency' => 'usd',
+                ],
+            ],
+        ];
+
+        $this->postJson('/api/stripe/webhook', $payload, [
+            'Stripe-Signature' => $this->stripeSignature($payload, 'whsec_test'),
+        ])->assertOk()
+            ->assertJsonPath('received', true)
+            ->assertJsonPath('processed', true)
+            ->assertJsonPath('payment.id', $payment->id)
+            ->assertJsonPath('payment.status', 'paid')
+            ->assertJsonPath('enrollment.course_id', $course->id);
+
+        $payment->refresh();
+
+        $this->assertNotNull($payment->receipt_number);
+        $this->assertNotNull($payment->paid_at);
+        $this->assertNotNull($payment->access_granted_at);
+        $this->assertDatabaseHas('enrollments', [
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'status' => 'active',
+        ]);
+
+        $this->postJson('/api/stripe/webhook', $payload, [
+            'Stripe-Signature' => $this->stripeSignature($payload, 'whsec_test'),
+        ])->assertOk()
+            ->assertJsonPath('processed', true);
+
+        $this->assertDatabaseCount('enrollments', 1);
+        $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_stripe_webhook_rejects_invalid_signature(): void
+    {
+        config(['services.stripe.webhook_secret' => 'whsec_test']);
+
+        $payload = [
+            'id' => 'evt_bad_signature',
+            'type' => 'checkout.session.completed',
+            'data' => ['object' => ['id' => 'cs_bad']],
+        ];
+
+        $this->postJson('/api/stripe/webhook', $payload, [
+            'Stripe-Signature' => $this->stripeSignature($payload, 'wrong_secret'),
+        ])->assertStatus(400)
+            ->assertJsonPath('message', 'Stripe webhook signature verification failed.');
+    }
+
+    public function test_stripe_webhook_requires_configured_webhook_secret(): void
+    {
+        config(['services.stripe.webhook_secret' => null]);
+
+        $payload = [
+            'id' => 'evt_no_secret',
+            'type' => 'checkout.session.completed',
+            'data' => ['object' => ['id' => 'cs_no_secret']],
+        ];
+
+        $this->postJson('/api/stripe/webhook', $payload, [
+            'Stripe-Signature' => $this->stripeSignature($payload, 'whsec_test'),
+        ])->assertStatus(503)
+            ->assertJsonPath('message', 'Stripe webhook secret is not configured.');
+    }
+
+    public function test_stripe_checkout_requires_configured_secret_key(): void
+    {
+        config(['services.stripe.secret' => null]);
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Unconfigured Stripe Course',
+            'slug' => 'unconfigured-stripe-course',
+            'description' => 'Missing Stripe key',
+            'price' => 50,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/payments/stripe-checkout")
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'Stripe secret key is not configured.');
+
+        $this->assertDatabaseCount('payments', 0);
+    }
+
+    private function stripeSignature(array $payload, string $secret): string
+    {
+        $timestamp = time();
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha256', $timestamp.'.'.$json, $secret);
+
+        return "t={$timestamp},v1={$signature}";
     }
 
     public function test_instructor_only_sees_payments_for_their_own_courses(): void

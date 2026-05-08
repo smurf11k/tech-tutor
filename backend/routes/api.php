@@ -18,6 +18,7 @@ use App\Http\Controllers\QuizAnalyticsController;
 use App\Http\Controllers\QuizAttemptController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Middleware\EnsureUserIsNotBanned;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,7 @@ Route::get('auth/password/reset/{token}', fn (string $token) => response()->json
 Route::get('auth/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->middleware('signed')
     ->name('verification.verify');
+Route::post('stripe/webhook', StripeWebhookController::class);
 
 Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
@@ -61,6 +63,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::apiResource('courses.reviews', ReviewController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::apiResource('payments', PaymentController::class)->only(['index', 'show']);
     Route::post('courses/{course}/payments', [PaymentController::class, 'store']);
+    Route::post('courses/{course}/payments/stripe-checkout', [PaymentController::class, 'stripeCheckout']);
     Route::post('lessons/{lesson}/progress', [ProgressController::class, 'store']);
     Route::put('lessons/{lesson}/progress', [ProgressController::class, 'update']);
 });

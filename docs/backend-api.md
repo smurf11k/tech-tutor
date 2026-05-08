@@ -326,6 +326,8 @@ Returned metrics include:
 - `GET /payments`
 - `GET /payments/{payment}`
 - `POST /courses/{course}/payments`
+- `POST /courses/{course}/payments/stripe-checkout`
+- `POST /stripe/webhook`
 
 `POST /courses/{course}/payments` is the current internal purchase endpoint. It validates that the submitted amount matches the current course price for non-admin users, creates a paid payment record, issues a receipt number, grants access, and creates/returns the active enrollment.
 
@@ -363,7 +365,60 @@ Response shape:
 
 `GET /payments/{payment}` returns a receipt/payment record to the payment owner, the course instructor, or an admin.
 
-Stripe/LiqPay are not connected yet. The current flow is provider-shaped so future checkout/webhook handlers can create or verify the same `payments` rows instead of changing course access logic later.
+Stripe Checkout session creation and webhook fulfillment are available. LiqPay is still planned. The current flow is provider-shaped so checkout/webhook handlers can create or verify the same `payments` rows instead of changing course access logic later.
+
+`POST /courses/{course}/payments/stripe-checkout` creates a Stripe Checkout Session for a paid course and stores a local pending Stripe payment tied to the returned Checkout Session ID.
+
+Optional payload:
+
+```json
+{
+  "success_url": "http://127.0.0.1:5173/payment/success",
+  "cancel_url": "http://127.0.0.1:5173/payment/cancel"
+}
+```
+
+Response shape:
+
+```json
+{
+  "payment": {
+    "id": 2,
+    "provider": "stripe",
+    "status": "pending",
+    "transaction_id": "cs_test_..."
+  },
+  "checkout": {
+    "session_id": "cs_test_...",
+    "url": "https://checkout.stripe.com/c/pay/...",
+    "mode": "payment"
+  }
+}
+```
+
+Important: Stripe Checkout creation does not grant access immediately. Access is granted only after a verified `checkout.session.completed` webhook confirms `payment_status = paid`.
+
+`POST /stripe/webhook` is public because Stripe calls it server-to-server. It verifies the `Stripe-Signature` header with `STRIPE_WEBHOOK_SECRET`. On a valid paid `checkout.session.completed` event, it finds the pending local Stripe payment by Checkout Session ID, validates amount/currency when present, marks the payment `paid`, issues a receipt, sets access timestamps, and creates the active enrollment idempotently.
+
+For local testing, forward only the needed event:
+
+```bash
+stripe listen --forward-to http://127.0.0.1:8000/api/stripe/webhook --events checkout.session.completed
+```
+
+Copy the printed `whsec_...` value into backend `.env` as `STRIPE_WEBHOOK_SECRET`, then clear cached config if needed:
+
+```bash
+php artisan config:clear
+```
+
+When deployed, create a Workbench webhook endpoint pointing to:
+
+```txt
+https://your-domain.example/api/stripe/webhook
+```
+
+Select the `checkout.session.completed` event and use that endpoint's signing secret in production/staging env.
 
 ### Publish-request workflow
 

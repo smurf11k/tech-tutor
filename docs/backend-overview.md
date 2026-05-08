@@ -99,6 +99,8 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 - Payment create/list with provider, amount, currency, status
 - Internal purchase flow issues receipts, marks the payment as paid, grants course access, and creates an active enrollment
 - Paid-course enrollment requires an existing paid payment for students
+- Stripe Checkout session creation is wired for paid courses and stores pending Stripe payments
+- Stripe webhook verification converts paid Checkout Sessions into receipts and active enrollments
 - Publish requests notify instructors when admins approve or decline them
 
 ### Seed Data

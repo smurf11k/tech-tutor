@@ -150,12 +150,6 @@ RESTful API for all core features.
 
 ## Current Implementation Snapshot
 
-### Progress Summary
-
-- Backend readiness: about 90%
-- Frontend/demo readiness: partial integration shell for presenting backend flows
-- Current priority: connect real payment providers before advanced integrations such as OAuth, 2FA, MeiliSearch, and CI/CD
-
 ### Backend (implemented)
 
 - PostgreSQL-backed Laravel API with migrations
@@ -170,6 +164,8 @@ RESTful API for all core features.
   - Quizzes, single-choice/multiple-choice questions, backend-scored quiz attempts, and live quiz analytics
   - Reviews, lesson comments, moderation queue, and payments
   - Internal purchase flow with receipts and paid-course enrollment gating
+  - Stripe Checkout session creation for paid courses
+  - Stripe webhook verification for paid checkout completion
   - Email notifications for enrollment, quiz results, certificate issuance, and handled publish requests
 - Admin endpoints for:
   - User listing, role changes, and ban management
@@ -189,6 +185,7 @@ RESTful API for all core features.
 - Quick seeded login through the real auth API for student, instructor, admin, and banned-user testing
 - Role-aware demo panels for payments, admin users, and moderation queue
 - Paid-course purchase action wired to backend receipts and enrollment activation
+- Stripe Checkout demo action that creates a pending Stripe session
 - Instructor dashboard summary from live backend aggregates
 - Admin platform activity and payment monitor from live backend aggregates
 - Enroll, lesson completion, and certificate issuance actions wired to backend
@@ -271,9 +268,10 @@ For local development commands and token helper details, see the docs pages abov
 - [x] Verified purchase state and paid-course access gating
 - [x] Purchase flow
 - [x] Receipts
-- [ ] Stripe checkout integration
+- [x] Stripe checkout session creation
+- [x] Stripe webhook verification and paid access activation
 - [ ] LiqPay checkout integration
-- [ ] Payment provider webhooks
+- [ ] LiqPay webhook verification
 - [ ] Refund handling
 - [ ] Instructor payouts
 - [ ] Subscription pricing

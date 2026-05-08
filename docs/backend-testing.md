@@ -253,6 +253,50 @@ curl -X GET "$BASE_URL/payments/1" \
   -H "Accept: application/json"
 ```
 
+Create a Stripe Checkout session for a paid course:
+
+```bash
+curl -X POST "$BASE_URL/courses/1/payments/stripe-checkout" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "success_url": "http://127.0.0.1:5173/payment/success",
+    "cancel_url": "http://127.0.0.1:5173/payment/cancel"
+  }'
+```
+
+This returns a pending local payment and a Stripe `checkout.url`. Course access is granted after the verified `checkout.session.completed` webhook is received.
+
+Run Stripe webhooks locally:
+
+```bash
+stripe login
+stripe listen --forward-to http://127.0.0.1:8000/api/stripe/webhook --events checkout.session.completed
+```
+
+Copy the printed `whsec_...` signing secret into backend `.env`:
+
+```env
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+Then clear cached config if needed:
+
+```bash
+php artisan config:clear
+```
+
+After a student opens the Stripe Checkout URL and completes a test payment, Stripe sends `checkout.session.completed` to the local webhook. The backend verifies the signature, marks the pending Stripe payment as `paid`, issues the receipt, and activates enrollment.
+
+For hosted/staging/production use, create an event destination in Stripe Workbench with endpoint URL:
+
+```txt
+https://your-domain.example/api/stripe/webhook
+```
+
+Use the Workbench endpoint secret as `STRIPE_WEBHOOK_SECRET` on that deployed environment.
+
 Update lesson progress:
 
 ```bash
