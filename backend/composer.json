@@ -3,8 +3,16 @@
     "name": "laravel/laravel",
     "type": "project",
     "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
-    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
+    "license": "MPL-2.0",
+    "authors": [
+        {
+            "name": "smurf11k"
+        }
+    ],
     "require": {
         "php": "^8.3",
         "laravel/framework": "^13.0",
