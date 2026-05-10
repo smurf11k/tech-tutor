@@ -39,8 +39,10 @@ return [
         'secret' => env('STRIPE_SECRET_KEY'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'currency' => env('STRIPE_CURRENCY', 'USD'),
-        'success_url' => env('STRIPE_SUCCESS_URL', env('APP_URL').'/payment/success'),
-        'cancel_url' => env('STRIPE_CANCEL_URL', env('APP_URL').'/payment/cancel'),
+        'ca_bundle' => env('STRIPE_CA_BUNDLE'),
+        'checkout_sessions_url' => env('STRIPE_CHECKOUT_SESSIONS_URL', 'https://api.stripe.com/v1/checkout/sessions'),
+        'success_url' => env('STRIPE_SUCCESS_URL', env('FRONTEND_URL', 'http://localhost:5173') . '/payment/success'),
+        'cancel_url' => env('STRIPE_CANCEL_URL', env('FRONTEND_URL', 'http://localhost:5173') . '/payment/cancel'),
     ],
 
 ];

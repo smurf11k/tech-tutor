@@ -365,7 +365,7 @@ Response shape:
 
 `GET /payments/{payment}` returns a receipt/payment record to the payment owner, the course instructor, or an admin.
 
-Stripe Checkout session creation and webhook fulfillment are available. LiqPay is still planned. The current flow is provider-shaped so checkout/webhook handlers can create or verify the same `payments` rows instead of changing course access logic later.
+Stripe Checkout session creation and webhook fulfillment are complete. LiqPay integration is planned. The payment flow is provider-agnostic: both Stripe webhooks and internal payments create the same `payments` rows with `status = paid`, so enrollment logic remains unified.
 
 `POST /courses/{course}/payments/stripe-checkout` creates a Stripe Checkout Session for a paid course and stores a local pending Stripe payment tied to the returned Checkout Session ID.
 
@@ -417,6 +417,57 @@ When deployed, create a Workbench webhook endpoint pointing to:
 ```txt
 https://your-domain.example/api/stripe/webhook
 ```
+
+`GET /payments/status` allows checking the current payment status for a Stripe Checkout Session. No authentication is required if a `session_id` query parameter is provided.
+
+Query parameters:
+
+- `session_id` (required if not authenticated): Stripe Checkout Session ID
+- `course_id` (optional): Course ID for filtering
+
+Response shape:
+
+```json
+{
+  "status": "paid",
+  "payment": {
+    "id": 2,
+    "amount": "49.99",
+    "currency": "EUR",
+    "transaction_id": "cs_test_..."
+  }
+}
+```
+
+When authenticated, the endpoint scopes results to the current user. When unauthenticated, only `session_id` results are returned.
+
+`POST /payments/stripe/confirm` finalizes a pending Stripe payment by verifying the checkout session status with Stripe's API. Requires authentication and a valid `session_id`.
+
+Payload:
+
+```json
+{
+  "session_id": "cs_test_..."
+}
+```
+
+Response shape:
+
+```json
+{
+  "payment": {
+    "id": 2,
+    "status": "paid",
+    "receipt_number": "TT-RCPT-20260510-ABC12345"
+  },
+  "enrollment": {
+    "id": 10,
+    "status": "active"
+  }
+}
+```
+
+This endpoint is called automatically by the frontend return handler after a successful Stripe redirect to ensure the payment is marked `paid` before checking enrollment state.
 
 Select the `checkout.session.completed` event and use that endpoint's signing secret in production/staging env.
 

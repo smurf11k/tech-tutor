@@ -27,7 +27,7 @@ class PaymentController extends Controller
         if ($user->isInstructor()) {
             return response()->json(
                 Payment::with(['user', 'course'])
-                    ->whereHas('course', fn ($query) => $query->where('instructor_id', $user->id))
+                    ->whereHas('course', fn($query) => $query->where('instructor_id', $user->id))
                     ->latest()
                     ->get()
             );
@@ -72,7 +72,7 @@ class PaymentController extends Controller
         $requestedAmount = number_format((float) $validated['amount'], 2, '.', '');
         $courseAmount = number_format((float) $course->price, 2, '.', '');
 
-        if (! $user->isAdmin() && $requestedAmount !== $courseAmount) {
+        if (!$user->isAdmin() && $requestedAmount !== $courseAmount) {
             return response()->json([
                 'message' => 'The given data was invalid.',
                 'errors' => [
@@ -135,6 +135,31 @@ class PaymentController extends Controller
         } catch (RequestException $exception) {
             return response()->json([
                 'message' => 'Stripe checkout session could not be created.',
+                'stripe_error' => $exception->response?->json('error.message'),
+            ], 502);
+        }
+    }
+
+    public function confirmStripeCheckout(Request $request, StripeCheckoutService $stripe): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
+
+        $validated = $request->validate([
+            'session_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        try {
+            return response()->json($stripe->confirmSession($user, $validated['session_id']));
+        } catch (RuntimeException $exception) {
+            $status = $exception->getMessage() === 'Stripe secret key is not configured.' ? 503 : 422;
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], $status);
+        } catch (RequestException $exception) {
+            return response()->json([
+                'message' => 'Stripe checkout session could not be confirmed.',
                 'stripe_error' => $exception->response?->json('error.message'),
             ], 502);
         }

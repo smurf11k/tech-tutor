@@ -19,6 +19,7 @@ use App\Http\Controllers\QuizAttemptController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\StripeWebhookController;
+use App\Http\Controllers\PaymentStatusController;
 use App\Http\Middleware\EnsureUserIsNotBanned;
 use Illuminate\Support\Facades\Route;
 
@@ -29,7 +30,7 @@ Route::post('auth/register', [AuthController::class, 'register']);
 Route::post('auth/login', [AuthController::class, 'login']);
 Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
-Route::get('auth/password/reset/{token}', fn (string $token) => response()->json([
+Route::get('auth/password/reset/{token}', fn(string $token) => response()->json([
     'token' => $token,
     'email' => request('email'),
 ]))->name('password.reset');
@@ -37,6 +38,7 @@ Route::get('auth/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail
     ->middleware('signed')
     ->name('verification.verify');
 Route::post('stripe/webhook', StripeWebhookController::class);
+Route::get('payments/status', [PaymentStatusController::class, 'show']);
 
 Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
@@ -62,6 +64,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::apiResource('quizzes.attempts', QuizAttemptController::class)->only(['index', 'store']);
     Route::apiResource('courses.reviews', ReviewController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::apiResource('payments', PaymentController::class)->only(['index', 'show']);
+    Route::post('payments/stripe/confirm', [PaymentController::class, 'confirmStripeCheckout']);
     Route::post('courses/{course}/payments', [PaymentController::class, 'store']);
     Route::post('courses/{course}/payments/stripe-checkout', [PaymentController::class, 'stripeCheckout']);
     Route::post('lessons/{lesson}/progress', [ProgressController::class, 'store']);

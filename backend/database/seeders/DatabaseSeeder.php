@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $password = Hash::make('password');
+        $stripeCurrency = env('STRIPE_CURRENCY', 'USD');
 
         $admin = User::factory()->create([
             'name' => 'Olena Admin',
@@ -262,7 +263,7 @@ class DatabaseSeeder extends Seeder
             'course_id' => $laravelCourse->id,
             'provider' => 'stripe',
             'amount' => 79.00,
-            'currency' => 'USD',
+            'currency' => $stripeCurrency,
             'status' => 'paid',
             'transaction_id' => 'seed_txn_laravel_student',
             'paid_at' => now()->subDays(5),
@@ -273,7 +274,7 @@ class DatabaseSeeder extends Seeder
             'course_id' => $reactCourse->id,
             'provider' => 'stripe',
             'amount' => 59.00,
-            'currency' => 'USD',
+            'currency' => $stripeCurrency,
             'status' => 'paid',
             'transaction_id' => 'seed_txn_react_student',
             'paid_at' => now()->subDays(3),
@@ -284,7 +285,7 @@ class DatabaseSeeder extends Seeder
             'course_id' => $laravelCourse->id,
             'provider' => 'liqpay',
             'amount' => 79.00,
-            'currency' => 'USD',
+            'currency' => $stripeCurrency,
             'status' => 'paid',
             'transaction_id' => 'seed_txn_laravel_student_two',
             'paid_at' => now()->subDays(2),

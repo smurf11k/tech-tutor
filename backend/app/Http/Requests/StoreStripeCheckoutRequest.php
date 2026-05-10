@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Closure;
 
 class StoreStripeCheckoutRequest extends FormRequest
 {
@@ -14,8 +15,8 @@ class StoreStripeCheckoutRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'success_url' => ['nullable', 'url', 'max:2048'],
-            'cancel_url' => ['nullable', 'url', 'max:2048'],
+            'success_url' => ['nullable', 'string', 'max:2048'],
+            'cancel_url' => ['nullable', 'string', 'max:2048'],
         ];
     }
 }

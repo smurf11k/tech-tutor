@@ -241,7 +241,7 @@ class CommerceFlowTest extends TestCase
 
         $this->assertDatabaseCount('enrollments', 0);
 
-        Http::assertSent(fn ($request) => $request->url() === 'https://api.stripe.com/v1/checkout/sessions'
+        Http::assertSent(fn($request) => $request->url() === 'https://api.stripe.com/v1/checkout/sessions'
             && $request->hasHeader('Authorization', 'Bearer sk_test_mock'));
     }
 
@@ -314,6 +314,93 @@ class CommerceFlowTest extends TestCase
         $this->assertDatabaseCount('payments', 1);
     }
 
+    public function test_student_can_confirm_stripe_checkout_session_after_redirect(): void
+    {
+        config(['services.stripe.secret' => 'sk_test_mock']);
+
+        Http::fake([
+            'https://api.stripe.com/v1/checkout/sessions/cs_test_return' => Http::response([
+                'id' => 'cs_test_return',
+                'payment_status' => 'paid',
+                'amount_total' => 4250,
+                'currency' => 'usd',
+            ]),
+        ]);
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Stripe Return Course',
+            'slug' => 'stripe-return-course',
+            'description' => 'Stripe return confirmation test',
+            'price' => 42.50,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $payment = Payment::create([
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'provider' => 'stripe',
+            'amount' => 42.50,
+            'currency' => 'USD',
+            'status' => 'pending',
+            'transaction_id' => 'cs_test_return',
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->postJson('/api/payments/stripe/confirm', [
+            'session_id' => 'cs_test_return',
+        ])->assertOk()
+            ->assertJsonPath('payment.id', $payment->id)
+            ->assertJsonPath('payment.status', 'paid')
+            ->assertJsonPath('enrollment.course_id', $course->id)
+            ->assertJsonPath('enrollment.user_id', $student->id);
+
+        $payment->refresh();
+
+        $this->assertSame('paid', $payment->status);
+        $this->assertNotNull($payment->receipt_number);
+        $this->assertDatabaseHas('enrollments', [
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_payment_status_can_be_checked_from_checkout_session_without_authentication(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Stripe Return Status Course',
+            'slug' => 'stripe-return-status-course',
+            'description' => 'Payment status return test',
+            'price' => 42.50,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Payment::create([
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'provider' => 'stripe',
+            'amount' => 42.50,
+            'currency' => 'USD',
+            'status' => 'pending',
+            'transaction_id' => 'cs_test_public_status',
+        ]);
+
+        $this->getJson('/api/payments/status?session_id=cs_test_public_status&course_id=' . $course->id)
+            ->assertOk()
+            ->assertJsonPath('status', 'pending');
+    }
+
     public function test_stripe_webhook_rejects_invalid_signature(): void
     {
         config(['services.stripe.webhook_secret' => 'whsec_test']);
@@ -376,7 +463,7 @@ class CommerceFlowTest extends TestCase
     {
         $timestamp = time();
         $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
-        $signature = hash_hmac('sha256', $timestamp.'.'.$json, $secret);
+        $signature = hash_hmac('sha256', $timestamp . '.' . $json, $secret);
 
         return "t={$timestamp},v1={$signature}";
     }
