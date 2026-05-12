@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailBehavior;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -128,5 +129,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isBanned(): bool
     {
         return (bool) $this->is_banned;
+    }
+
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

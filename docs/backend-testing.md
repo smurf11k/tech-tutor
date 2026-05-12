@@ -483,6 +483,194 @@ Notes:
 - Accepting or declining a publish request sends an email notification to the instructor who requested publishing.
 - Automated tests use notification fakes, so local SMTP/Gmail credentials are not used by `php artisan test`.
 
+## Google OAuth Testing
+
+### Prerequisites
+
+**Environment Setup:**
+
+```bash
+# In .env (backend root)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
+```
+
+Obtain credentials from [Google Cloud Console](https://console.cloud.google.com/):
+
+1. Create a new OAuth 2.0 credential (Web Application)
+2. Set authorized redirect URIs: `http://127.0.0.1:8000/auth/google/callback`
+3. Copy Client ID and Secret to `.env`
+
+**Frontend Setup:**
+
+The frontend must serve on a specific origin (e.g., `http://localhost:5173`) and open the OAuth flow in a popup window.
+
+### Manual Testing in Browser
+
+**Test Flow:**
+
+1. **Start the OAuth redirect:**
+   - Visit: `http://127.0.0.1:8000/auth/google/redirect?return_to=http://localhost:5173`
+   - You will be redirected to Google's login page
+
+2. **Authenticate with Google:**
+   - Sign in with a test Google account
+   - Approve the requested permissions
+
+3. **Receive callback response:**
+   - Backend processes `/auth/google/callback`
+   - Backend returns a popup HTML with `window.postMessage()` containing auth payload
+   - Popup closes automatically if opener window is available
+   - Fallback message displayed if popup or opener detection fails
+
+4. **Expected Payload:**
+   ```javascript
+   {
+     type: 'techtutor-google-auth',
+     message: 'Google sign-in completed successfully.',
+     payload: {
+       token: 'SANCTUM_BEARER_TOKEN',
+       token_type: 'Bearer',
+       user: {
+         id: 1,
+         email: 'user@gmail.com',
+         name: 'User Name',
+         role: 'student',
+         email_verified_at: '2026-05-12T...'
+       }
+     }
+   }
+   ```
+
+### Automated Testing with Mocking
+
+The test suite includes a complete OAuth flow test using Mockery:
+
+**Test File:** [tests/Feature/AuthFlowTest.php](../backend/tests/Feature/AuthFlowTest.php#L68-L93)
+
+**Run OAuth tests:**
+
+```bash
+php artisan test tests/Feature/AuthFlowTest.php --filter=google
+```
+
+**What the test covers:**
+
+- Mocked Google user data (email, name, nickname)
+- Session-based return URL handling
+- New user creation on first OAuth
+- Existing user update on repeat OAuth
+- Sanctum token generation
+- User email auto-verification
+- Popup HTML response with postMessage payload
+- Database persistence validation
+
+### Testing with Postman (Manual)
+
+**Step 1: Start OAuth Redirect**
+
+```
+GET http://127.0.0.1:8000/auth/google/redirect?return_to=http://localhost:5173
+```
+
+- Set `Follow redirects: OFF` to capture the redirect location
+- Google will redirect you to its login page
+- Complete Google authentication in browser
+
+**Step 2: Callback Simulation (if needed)**
+
+If manually testing callback flow without full Google auth:
+
+```
+GET http://127.0.0.1:8000/auth/google/callback
+```
+
+Note: This requires a valid authenticated Google session or Socialite mock setup.
+
+### Common Issues & Troubleshooting
+
+| Issue                                            | Cause                                                | Solution                                                |
+| ------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------- |
+| `Google Client not configured`                   | Missing `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` | Add credentials to `.env` and restart server            |
+| `Invalid redirect URI`                           | Callback URL doesn't match Google Console config     | Update authorized redirect URIs in Google Cloud Console |
+| `Google sign-in did not return an email address` | Google account has no public email                   | Use a different test Google account with public email   |
+| `This account is banned`                         | User exists in DB but is banned                      | Un-ban user via admin dashboard or DB query             |
+| `403 Forbidden` on callback                      | Session data corrupted or missing                    | Clear browser session/cookies and restart OAuth flow    |
+| `window.postMessage failed`                      | Frontend origin not whitelisted                      | Verify `return_to` parameter matches frontend origin    |
+
+### Integration Testing Checklist
+
+- [ ] New user can sign in via Google and is created with `student` role
+- [ ] Existing user can sign in via Google and receives updated data
+- [ ] User email is auto-verified on OAuth
+- [ ] Banned user is rejected with appropriate error message
+- [ ] Popup closes successfully on frontend
+- [ ] Sanctum token works for authenticated API calls post-OAuth
+- [ ] User can enroll in courses after OAuth login
+- [ ] User profile persists correctly across sessions
+- [ ] OAuth state parameter is validated (Socialite handles this internally)
+- [ ] CSRF token validation works for OAuth redirect (session-based)
+
+### Password Fallback Scenario (OAuth Unavailable)
+
+**Important:** Users created via Google OAuth receive a random password they never see. If Google OAuth becomes unavailable, users can still log in via email/password using the password reset flow.
+
+**Test the fallback scenario:**
+
+1. **Create a user via Google OAuth** (as described above)
+
+2. **User forgets/doesn't know password:**
+
+   ```bash
+   curl -X POST "$BASE_URL/auth/forgot-password" \
+     -H "Accept: application/json" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"user@gmail.com"}'
+   ```
+
+   Response:
+
+   ```json
+   {
+     "message": "We have emailed your password reset link."
+   }
+   ```
+
+3. **User receives password reset email** with a unique token (in testing, check the database or mail log)
+
+4. **User resets password:**
+
+   ```bash
+   curl -X POST "$BASE_URL/auth/reset-password" \
+     -H "Accept: application/json" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email":"user@gmail.com",
+       "token":"RESET_TOKEN_FROM_EMAIL",
+       "password":"mynewpassword123",
+       "password_confirmation":"mynewpassword123"
+     }'
+   ```
+
+5. **User can now log in with email/password:**
+   ```bash
+   curl -X POST "$BASE_URL/auth/login" \
+     -H "Accept: application/json" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email":"user@gmail.com",
+       "password":"mynewpassword123",
+       "token_name":"fallback-login"
+     }'
+   ```
+
+**Why random password for OAuth?**
+
+- Prevents security issues where someone knowing your email could brute-force a weak password
+- Google handles authentication; you never need the random password
+- Password reset provides a secure fallback if OAuth is unavailable
+
 ## Postman Testing
 
 ## Environment Variables

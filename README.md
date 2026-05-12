@@ -68,7 +68,7 @@ It supports course management, payments, quizzes, and progress tracking.
 
 - Sign up / login with email
 - Email verification and password reset
-- OAuth login (planned)
+- OAuth login
 - Purchase courses
 - Watch lessons (video, text, files)
 - Pass quizzes & get results
@@ -101,8 +101,8 @@ It supports course management, payments, quizzes, and progress tracking.
 - Sanctum token authentication
 - Email/password login
 - Email verification and password reset
-- OAuth login (planned)
-- Optional 2FA
+- OAuth login
+- 2FA (optional)
 - Rate limiting & CAPTCHA
 - Protection against XSS / SQL Injection
 
@@ -160,9 +160,9 @@ RESTful API for all core features.
 - [x] Logout / token revocation
 - [x] Email verification
 - [x] Password reset flow
-- [ ] OAuth login with Google
-- [ ] OAuth login with GitHub
-- [ ] Optional 2FA
+- [x] OAuth login with Google
+- [ ] OAuth login with GitHub (optional)
+- [ ] 2FA (optional)
 - [ ] Rate limiting
 - [ ] CAPTCHA
 - [ ] Production security hardening
@@ -210,8 +210,8 @@ RESTful API for all core features.
 - [x] Receipts
 - [x] Stripe checkout session creation
 - [x] Stripe webhook verification and paid access activation
-- [ ] LiqPay checkout integration
-- [ ] LiqPay webhook verification
+- [ ] LiqPay checkout integration (optional)
+- [ ] LiqPay webhook verification (optional)
 - [ ] Refund handling
 - [ ] Instructor payouts
 - [ ] Subscription pricing

@@ -9,6 +9,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
+use Laravel\Socialite\Contracts\User as SocialiteUser;
+use Laravel\Socialite\Facades\Socialite;
+use Mockery;
 use Tests\TestCase;
 
 class AuthFlowTest extends TestCase
@@ -33,7 +36,7 @@ class AuthFlowTest extends TestCase
 
         Notification::assertSentTo($user, VerifyEmail::class);
 
-        $this->withHeader('Authorization', 'Bearer '.$response->json('token'))
+        $this->withHeader('Authorization', 'Bearer ' . $response->json('token'))
             ->getJson('/api/auth/me')
             ->assertOk()
             ->assertJsonPath('email', 'new.student@example.com');
@@ -54,12 +57,41 @@ class AuthFlowTest extends TestCase
             ->assertJsonPath('user.id', $user->id)
             ->json('token');
 
-        $this->withHeader('Authorization', 'Bearer '.$token)
+        $this->withHeader('Authorization', 'Bearer ' . $token)
             ->postJson('/api/auth/logout')
             ->assertOk()
             ->assertJsonPath('message', 'Logged out.');
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_user_can_login_with_google_and_receive_a_frontend_payload(): void
+    {
+        $googleUser = Mockery::mock(SocialiteUser::class);
+        $googleUser->shouldReceive('getEmail')->andReturn('google.student@example.com');
+        $googleUser->shouldReceive('getName')->andReturn('Google Student');
+        $googleUser->shouldReceive('getNickname')->andReturn('google-student');
+
+        $driver = Mockery::mock();
+        $driver->shouldReceive('user')->andReturn($googleUser);
+
+        Socialite::shouldReceive('driver')
+            ->with('google')
+            ->andReturn($driver);
+
+        $this->withSession(['google_oauth_return_to' => 'http://localhost:5173'])
+            ->get('/auth/google/callback')
+            ->assertOk()
+            ->assertSee('techtutor-google-auth', false)
+            ->assertSee('google.student@example.com', false)
+            ->assertSee('Google sign-in complete.', false);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'google.student@example.com',
+            'name' => 'Google Student',
+        ]);
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
     }
 
     public function test_banned_user_cannot_login(): void
@@ -82,7 +114,7 @@ class AuthFlowTest extends TestCase
         $user = User::factory()->unverified()->create();
         $token = $user->createToken('test')->plainTextToken;
 
-        $this->withHeader('Authorization', 'Bearer '.$token)
+        $this->withHeader('Authorization', 'Bearer ' . $token)
             ->postJson('/api/auth/email/resend')
             ->assertOk()
             ->assertJsonPath('message', 'Verification email sent.');

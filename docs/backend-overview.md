@@ -39,6 +39,34 @@ This documentation describes the backend logic currently implemented for TechTut
 - Current-user, logout, verification resend, email verification, forgot-password, and reset-password endpoints are available
 - Banned users cannot sign in and are blocked from protected routes
 
+#### Google OAuth Authentication
+
+TechTutor supports seamless Google OAuth login for students and existing users.
+
+**Flow:**
+
+1. Frontend initiates OAuth by opening `/auth/google/redirect?return_to=<frontend_origin>` in a popup window
+2. User authenticates with Google and consents to data sharing
+3. Backend processes callback via `/auth/google/callback` with session-stored return URL
+4. On success: user is created or updated, verified, and issued a Sanctum token
+5. Backend sends authentication payload via `window.postMessage()` back to the frontend popup
+6. Frontend extracts token and user data, closes popup, and authenticates session
+
+**User Creation/Update Logic:**
+
+- New users: created with email from Google, **random unguessable password** (never shown to user), `student` role, auto-verified
+  - If Google OAuth becomes unavailable later, use the "Forgot Password" flow to set a recoverable password
+  - The random password ensures security: even if your email is known, no one can login as you without going through Google or password reset
+- Existing users: name updated if missing, email automatically verified on OAuth
+- Banned users: rejected at callback stage with error message
+- Email is the unique identifier; the same Google email always updates the same TechTutor user
+
+**Session Management:**
+
+- OAuth return URL stored in `session['google_oauth_return_to']` during redirect step
+- URL validated via `resolveFrontendOrigin()` to prevent open redirects
+- Session data cleared after callback processing
+
 ### Course Structure
 
 - Course CRUD

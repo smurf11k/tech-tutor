@@ -20,15 +20,22 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import api, { loginUser, withAuth } from "@/lib/api";
+import api, {
+  backendOrigin,
+  buildGoogleLoginUrl,
+  loginUser,
+  withAuth,
+} from "@/lib/api";
 import {
   parsePaymentReturnFromUrl,
   fetchPaymentStatus,
 } from "@/hooks/usePaymentReturn";
+import ResetPassword from "@/pages/ResetPassword";
 
 const STORAGE_TOKEN_KEY = "techtutor_token";
 const STORAGE_USER_KEY = "techtutor_user";
 const DEFAULT_PASSWORD = "password";
+const GOOGLE_AUTH_MESSAGE_TYPE = "techtutor-google-auth";
 const STRIPE_CURRENCY = (
   import.meta.env.VITE_STRIPE_CURRENCY || "USD"
 ).toUpperCase();
@@ -102,7 +109,23 @@ function roleBadgeVariant(role) {
   return "outline";
 }
 
+function isGoogleAuthMessage(event) {
+  return (
+    event.origin === backendOrigin &&
+    event.data?.type === GOOGLE_AUTH_MESSAGE_TYPE
+  );
+}
+
 function App() {
+  // Check if we're on the password reset page
+  const searchParams = new URLSearchParams(window.location.search);
+  const resetToken = searchParams.get("token");
+  const resetEmail = searchParams.get("email");
+
+  if (resetToken && resetEmail) {
+    return <ResetPassword token={resetToken} email={resetEmail} />;
+  }
+
   const storedSession = readStoredSession();
 
   const [authToken, setAuthToken] = useState(storedSession.token);
@@ -125,11 +148,53 @@ function App() {
   const [catalogFilters, setCatalogFilters] = useState(defaultCatalogFilters);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
 
   const authenticatedClient = useMemo(() => withAuth(authToken), [authToken]);
   const canSeePrivateCatalog =
     currentUser?.role === "admin" || currentUser?.role === "instructor";
   const catalogClient = canSeePrivateCatalog ? authenticatedClient : api;
+
+  useEffect(() => {
+    function handleGoogleAuthMessage(event) {
+      if (!isGoogleAuthMessage(event)) {
+        return;
+      }
+
+      const payload = event.data?.payload;
+
+      if (payload?.token && payload?.user) {
+        localStorage.setItem(STORAGE_TOKEN_KEY, payload.token);
+        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(payload.user));
+        setAuthToken(payload.token);
+        setCurrentUser(payload.user);
+        setCredentials({
+          email: payload.user.email,
+          password: DEFAULT_PASSWORD,
+        });
+        setNotice({
+          variant: "default",
+          title: "Google sign-in complete",
+          description:
+            event.data?.message ||
+            `You are now browsing as ${payload.user.name} (${payload.user.role}).`,
+        });
+        return;
+      }
+
+      setNotice({
+        variant: "destructive",
+        title: "Google sign-in failed",
+        description:
+          event.data?.message || "Google did not return a usable session.",
+      });
+    }
+
+    window.addEventListener("message", handleGoogleAuthMessage);
+
+    return () => window.removeEventListener("message", handleGoogleAuthMessage);
+  }, []);
 
   async function loadCourseDetails(courseId, client = catalogClient) {
     const response = await client.get(`/courses/${courseId}`);
@@ -358,6 +423,59 @@ function App() {
         description:
           error?.response?.data?.message ||
           "Unable to sign in with these credentials.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleGoogleLogin() {
+    const popup = window.open(
+      buildGoogleLoginUrl(window.location.origin),
+      "techtutor-google-auth",
+      "width=520,height=720",
+    );
+
+    if (!popup) {
+      setNotice({
+        variant: "destructive",
+        title: "Popup blocked",
+        description: "Allow popups for the Google sign-in demo.",
+      });
+      return;
+    }
+
+    popup.focus();
+    setNotice({
+      variant: "default",
+      title: "Google sign-in started",
+      description: "Finish the Google flow in the popup window.",
+    });
+  }
+
+  async function handleForgotPasswordRequest(event) {
+    event?.preventDefault();
+    setLoading(true);
+    try {
+      await api.post("/auth/forgot-password", {
+        email: forgotPasswordEmail,
+      });
+
+      setNotice({
+        variant: "default",
+        title: "Password reset email sent",
+        description: `Check your email (${forgotPasswordEmail}) for the reset link.`,
+      });
+
+      setShowForgotPassword(false);
+      setForgotPasswordEmail("");
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Forgot password request failed",
+        description:
+          error?.response?.data?.message ||
+          "Could not process forgot password request.",
       });
     } finally {
       setLoading(false);
@@ -834,6 +952,24 @@ function App() {
                     <Button
                       type="button"
                       size="lg"
+                      variant="secondary"
+                      onClick={handleGoogleLogin}
+                      disabled={loading}
+                    >
+                      Continue with Google
+                    </Button>
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
+                      onClick={() => setShowForgotPassword(true)}
+                      disabled={loading}
+                    >
+                      Forgot Password
+                    </Button>
+                    <Button
+                      type="button"
+                      size="lg"
                       variant="outline"
                       onClick={refreshDashboard}
                       disabled={loading}
@@ -858,6 +994,58 @@ function App() {
             </Card>
           </div>
         </section>
+
+        {showForgotPassword && (
+          <section className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <Card className="w-full max-w-sm border-white/10 bg-slate-950">
+              <CardHeader>
+                <CardTitle className="text-white">Forgot Password?</CardTitle>
+                <CardDescription>
+                  Enter your email to receive a password reset link.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form
+                  className="space-y-3"
+                  onSubmit={handleForgotPasswordRequest}
+                >
+                  <Input
+                    type="email"
+                    value={forgotPasswordEmail}
+                    onChange={(event) =>
+                      setForgotPasswordEmail(event.target.value)
+                    }
+                    placeholder="Email address"
+                    className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                    required
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      size="lg"
+                      disabled={loading}
+                      className="flex-1"
+                    >
+                      Send Reset Link
+                    </Button>
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setForgotPasswordEmail("");
+                      }}
+                      disabled={loading}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
         {notice && (
           <Alert

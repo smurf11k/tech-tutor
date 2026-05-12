@@ -5,13 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
+use Laravel\Socialite\Facades\Socialite;
+use Throwable;
 
 class AuthController extends Controller
 {
@@ -47,7 +51,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
@@ -70,6 +74,83 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out.']);
     }
 
+    public function redirectToGoogle(Request $request): RedirectResponse
+    {
+        $returnTo = $this->resolveFrontendOrigin($request->string('return_to')->toString());
+
+        $request->session()->put('google_oauth_return_to', $returnTo);
+
+        return Socialite::driver('google')->redirect();
+    }
+
+    public function handleGoogleCallback(Request $request): Response
+    {
+        $returnTo = $this->resolveFrontendOrigin(
+            $request->session()->pull('google_oauth_return_to')
+        );
+
+        try {
+            $googleUser = Socialite::driver('google')->user();
+        } catch (Throwable) {
+            return $this->googleAuthPopupResponse(
+                $returnTo,
+                null,
+                'Google sign-in was not completed.',
+                'Google sign-in failed.'
+            );
+        }
+
+        $email = $googleUser->getEmail();
+
+        if (!$email) {
+            return $this->googleAuthPopupResponse(
+                $returnTo,
+                null,
+                'Google sign-in did not return an email address.',
+                'Google sign-in failed.'
+            );
+        }
+
+        $user = User::firstOrNew(['email' => $email]);
+        $displayName = Str::of($googleUser->getName() ?: $googleUser->getNickname() ?: $email)
+            ->trim()
+            ->toString();
+
+        if (!$user->exists) {
+            $user->name = $displayName;
+            $user->password = Str::random(40);
+            $user->role = 'student';
+        } elseif (!$user->name) {
+            $user->name = $displayName;
+        }
+
+        if ($user->isBanned()) {
+            return $this->googleAuthPopupResponse(
+                $returnTo,
+                null,
+                'This account is banned.',
+                'Google sign-in failed.'
+            );
+        }
+
+        $user->forceFill([
+            'email_verified_at' => $user->email_verified_at ?? now(),
+        ])->save();
+
+        $tokenResponse = $this->tokenResponse($user, 'google-oauth');
+
+        return $this->googleAuthPopupResponse(
+            $returnTo,
+            [
+                'token' => $tokenResponse['token'],
+                'token_type' => $tokenResponse['token_type'],
+                'user' => $tokenResponse['user']->toArray(),
+            ],
+            'Google sign-in completed successfully.',
+            'Google sign-in complete.'
+        );
+    }
+
     public function resendVerification(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -89,7 +170,7 @@ class AuthController extends Controller
 
         abort_unless(hash_equals($hash, sha1($user->getEmailForVerification())), 403);
 
-        if (! $user->hasVerifiedEmail()) {
+        if (!$user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
         }
 
@@ -154,5 +235,114 @@ class AuthController extends Controller
             'token_type' => 'Bearer',
             'user' => $user,
         ];
+    }
+
+    private function googleAuthPopupResponse(string $targetOrigin, ?array $payload, string $message, string $title): Response
+    {
+        $targetOriginJson = json_encode($targetOrigin, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $payloadJson = $payload
+            ? json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+            : 'null';
+        $messageJson = json_encode($message, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $titleJson = json_encode($title, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $html = <<<HTML
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{$titleJson}</title>
+        <style>
+            body {
+                margin: 0;
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+                background: #020617;
+                color: #e2e8f0;
+                font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+                text-align: center;
+            }
+
+            main {
+                max-width: 28rem;
+                padding: 2rem;
+            }
+
+            p {
+                margin: 0.75rem 0 0;
+                color: #94a3b8;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>{$titleJson}</h1>
+            <p id="message">{$messageJson}</p>
+        </main>
+        <script>
+            (function () {
+                const targetOrigin = {$targetOriginJson};
+                const payload = {$payloadJson};
+                const message = {$messageJson};
+
+                if (window.opener && targetOrigin) {
+                    window.opener.postMessage({
+                        type: 'techtutor-google-auth',
+                        message: message,
+                        payload: payload,
+                    }, targetOrigin);
+                    window.close();
+                    return;
+                }
+
+                const messageNode = document.getElementById('message');
+
+                if (messageNode) {
+                    messageNode.textContent = message;
+                }
+            }());
+        </script>
+    </body>
+</html>
+HTML;
+
+        return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    private function resolveFrontendOrigin(?string $candidate): string
+    {
+        $fallback = $this->frontendOrigin();
+
+        if (!$candidate) {
+            return $fallback;
+        }
+
+        $normalized = $this->normalizeOrigin($candidate);
+
+        return $normalized && $normalized === $fallback ? $normalized : $fallback;
+    }
+
+    private function frontendOrigin(): string
+    {
+        return rtrim((string) config('services.frontend_url', 'http://localhost:5173'), '/');
+    }
+
+    private function normalizeOrigin(string $url): ?string
+    {
+        $parts = parse_url($url);
+
+        if (!$parts || empty($parts['scheme']) || empty($parts['host'])) {
+            return null;
+        }
+
+        $origin = $parts['scheme'] . '://' . $parts['host'];
+
+        if (isset($parts['port'])) {
+            $origin .= ':' . $parts['port'];
+        }
+
+        return rtrim($origin, '/');
     }
 }

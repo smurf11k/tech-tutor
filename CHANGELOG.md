@@ -4,19 +4,30 @@ All notable changes to this project are documented in this file. Entries are ord
 
 ## Unreleased
 
-### Completed
+### Progress
 
-- Stripe checkout integration: session creation, webhook verification, payment fulfillment
-- Environment-based Stripe redirect URL configuration (frontend & backend)
-- Public payment status endpoint for unauthenticated Stripe returns
-- `POST /payments/stripe/confirm` — authenticated confirmation endpoint
-- Receipt generation and enrollment activation on confirmed payment
-- Tests added: commerce flow regression covering unauthenticated status check and webhook duplicates
+- Backend readiness: 85/100
+- Frontend readiness: 30/100 (demo)
 
-### Next
+---
 
-- LiqPay integration
-- OAuth login (Google, GitHub)
+## 2026-05-12 — Google OAuth login
+
+### Backend
+
+- Google OAuth redirect/callback flow via Socialite
+- Session-based popup return handling with frontend-origin validation
+- Auto-provisioning / login for Google accounts, including banned-user checks and verified email handling
+- Backend env/config wiring for Google client credentials and frontend redirect origin
+
+### Frontend (demo)
+
+- Google sign-in popup flow from the login screen
+- `postMessage` handling to receive the OAuth payload and hydrate local auth state
+
+### Tests
+
+- Feature coverage for the Google OAuth callback flow and frontend payload response
 
 ---
 
