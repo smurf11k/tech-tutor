@@ -547,7 +547,7 @@ The frontend must serve on a specific origin (e.g., `http://localhost:5173`) and
 
 The test suite includes a complete OAuth flow test using Mockery:
 
-**Test File:** [tests/Feature/AuthFlowTest.php](../backend/tests/Feature/AuthFlowTest.php#L68-L93)
+**Test File:** [tests/Feature/AuthFlowTest.php](https://github.com/smurf11k/tech-tutor/blob/main/backend/tests/Feature/AuthFlowTest.php)
 
 **Run OAuth tests:**
 
@@ -598,19 +598,6 @@ Note: This requires a valid authenticated Google session or Socialite mock setup
 | `This account is banned`                         | User exists in DB but is banned                      | Un-ban user via admin dashboard or DB query             |
 | `403 Forbidden` on callback                      | Session data corrupted or missing                    | Clear browser session/cookies and restart OAuth flow    |
 | `window.postMessage failed`                      | Frontend origin not whitelisted                      | Verify `return_to` parameter matches frontend origin    |
-
-### Integration Testing Checklist
-
-- [ ] New user can sign in via Google and is created with `student` role
-- [ ] Existing user can sign in via Google and receives updated data
-- [ ] User email is auto-verified on OAuth
-- [ ] Banned user is rejected with appropriate error message
-- [ ] Popup closes successfully on frontend
-- [ ] Sanctum token works for authenticated API calls post-OAuth
-- [ ] User can enroll in courses after OAuth login
-- [ ] User profile persists correctly across sessions
-- [ ] OAuth state parameter is validated (Socialite handles this internally)
-- [ ] CSRF token validation works for OAuth redirect (session-based)
 
 ### Password Fallback Scenario (OAuth Unavailable)
 
