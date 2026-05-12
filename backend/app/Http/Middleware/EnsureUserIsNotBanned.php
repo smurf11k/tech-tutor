@@ -21,7 +21,7 @@ class EnsureUserIsNotBanned
         if ($user !== null && $user->isBanned()) {
             return response()->json([
                 'message' => 'User account is banned.',
-            ], JsonResponse::HTTP_FORBIDDEN);
+            ], Response::HTTP_FORBIDDEN);
         }
 
         return $next($request);

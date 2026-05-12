@@ -12,7 +12,9 @@ use App\Notifications\CourseCertificateIssuedNotification;
 use App\Notifications\EnrollmentCreatedNotification;
 use App\Notifications\PublishRequestHandledNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -78,6 +80,105 @@ class CourseFlowTest extends TestCase
             'lesson_id' => $lesson->id,
             'progress_percent' => 100,
         ]);
+    }
+
+    public function test_instructor_can_upload_and_replace_lesson_files(): void
+    {
+        Storage::fake('public');
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'File Upload Course',
+            'slug' => 'file-upload-course',
+            'description' => 'Used for lesson upload testing',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $module = Module::create([
+            'course_id' => $course->id,
+            'title' => 'Uploads',
+            'slug' => 'uploads',
+            'position' => 1,
+        ]);
+
+        Sanctum::actingAs($instructor);
+
+        $initialUpload = UploadedFile::fake()->create('lesson-notes.pdf', 256, 'application/pdf');
+
+        $createResponse = $this->post(
+            "/api/modules/{$module->id}/lessons",
+            [
+                'title' => 'Lesson Notes',
+                'slug' => 'lesson-notes',
+                'type' => 'file',
+                'lesson_file' => $initialUpload,
+            ],
+            ['Accept' => 'application/json']
+        )->assertCreated();
+
+        $firstPath = $createResponse->json('file_path');
+
+        $this->assertNotNull($firstPath);
+        $this->assertStringStartsWith('lesson-files/module-' . $module->id . '/', $firstPath);
+        Storage::disk('public')->assertExists($firstPath);
+        $createResponse->assertJsonPath('file_url', url(Storage::disk('public')->url($firstPath)));
+
+        $lesson = Lesson::query()->firstOrFail();
+        $replacementUpload = UploadedFile::fake()->create('lesson-notes-v2.pdf', 256, 'application/pdf');
+
+        $updateResponse = $this->post(
+            "/api/modules/{$module->id}/lessons/{$lesson->id}",
+            [
+                '_method' => 'PUT',
+                'title' => 'Lesson Notes Updated',
+                'slug' => 'lesson-notes',
+                'type' => 'file',
+                'lesson_file' => $replacementUpload,
+            ],
+            ['Accept' => 'application/json']
+        )->assertOk();
+
+        $secondPath = $updateResponse->json('file_path');
+
+        $this->assertNotSame($firstPath, $secondPath);
+        Storage::disk('public')->assertMissing($firstPath);
+        Storage::disk('public')->assertExists($secondPath);
+        $updateResponse->assertJsonPath('file_url', url(Storage::disk('public')->url($secondPath)));
+    }
+
+    public function test_file_lessons_require_an_uploaded_file_or_existing_file_path(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Required File Course',
+            'slug' => 'required-file-course',
+            'description' => 'Used for lesson file validation testing',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $module = Module::create([
+            'course_id' => $course->id,
+            'title' => 'Required Uploads',
+            'slug' => 'required-uploads',
+            'position' => 1,
+        ]);
+
+        Sanctum::actingAs($instructor);
+
+        $this->postJson("/api/modules/{$module->id}/lessons", [
+            'title' => 'Broken File Lesson',
+            'slug' => 'broken-file-lesson',
+            'type' => 'file',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('lesson_file');
     }
 
     public function test_student_receives_certificate_after_completing_all_course_lessons(): void

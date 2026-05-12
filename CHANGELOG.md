@@ -6,8 +6,23 @@ All notable changes to this project are documented in this file. Entries are ord
 
 ### Progress
 
-- Backend readiness: 88/100
+- Backend readiness: 89/100
 - Frontend readiness: 32/100 (demo)
+
+---
+
+## 2026-05-12 — Lesson file upload pipeline
+
+### Backend
+
+- Lesson create/update now accept uploaded files, store them on the public disk, and expose an absolute `file_url`
+- Existing lesson files are deleted when replaced or when a file lesson is converted back to a non-file lesson
+- Validation now requires an attachment for file lessons unless an existing stored file is already present
+- Regression tests cover upload, replacement, and required-file behavior
+
+### Frontend (demo)
+
+- Lesson cards now show an `Open file` action when an uploaded lesson attachment is available
 
 ---
 

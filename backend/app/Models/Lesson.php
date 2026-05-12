@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -25,6 +27,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Lesson extends Model
 {
     use HasFactory;
+
+    protected $appends = [
+        'file_url',
+    ];
 
     protected $fillable = [
         'module_id',
@@ -59,5 +65,24 @@ class Lesson extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class)->latest();
+    }
+
+    protected function fileUrl(): Attribute
+    {
+        return Attribute::get(function (): ?string {
+            if (blank($this->file_path)) {
+                return null;
+            }
+
+            if (filter_var($this->file_path, FILTER_VALIDATE_URL)) {
+                return $this->file_path;
+            }
+
+            $publicDiskUrl = rtrim((string) config('filesystems.disks.public.url'), '/');
+
+            return $publicDiskUrl !== ''
+                ? $publicDiskUrl . '/' . ltrim($this->file_path, '/')
+                : url('storage/' . ltrim($this->file_path, '/'));
+        });
     }
 }

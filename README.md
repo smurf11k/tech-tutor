@@ -178,7 +178,7 @@ RESTful API for all core features.
 - [x] Module CRUD (instructor)
 - [x] Lesson CRUD (instructor)
 - [x] Lesson content fields for text/video/file metadata
-- [ ] Production-ready lesson file upload/storage pipeline
+- [x] Production-ready lesson file upload/storage pipeline
 - [x] Course publish / draft logic
 - [x] Course thumbnail & metadata
 - [x] Modular structure (Course → Modules → Lessons)

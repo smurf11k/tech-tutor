@@ -58,6 +58,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::apiResource('courses.enrollments', EnrollmentController::class)->only(['index', 'store', 'destroy']);
     Route::apiResource('courses.modules', ModuleController::class);
     Route::apiResource('modules.lessons', LessonController::class);
+    Route::get('lessons/{lesson}/attachment', [LessonController::class, 'downloadAttachment']);
     Route::apiResource('lessons.comments', CommentController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::apiResource('courses.quizzes', QuizController::class);
     Route::get('quizzes/{quiz}/analytics', [QuizAnalyticsController::class, 'show']);

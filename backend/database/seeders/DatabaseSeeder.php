@@ -16,6 +16,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class DatabaseSeeder extends Seeder
 {
@@ -157,6 +158,16 @@ class DatabaseSeeder extends Seeder
             'file_path' => null,
             'position' => 2,
             'is_preview' => false,
+        ]);
+
+        Storage::disk('public')->put(
+            'lesson-files/demo/authentication-and-tokens.md',
+            "# Authentication and Tokens\n\nThis demo lesson is stored as Markdown so the UI can surface a real file attachment.\n"
+        );
+
+        $authLesson->update([
+            'type' => 'file',
+            'file_path' => 'lesson-files/demo/authentication-and-tokens.md',
         ]);
 
         $paymentsLesson = Lesson::create([

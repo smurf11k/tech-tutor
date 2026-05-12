@@ -151,6 +151,13 @@ function App() {
   const [notice, setNotice] = useState(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [lessonDrafts, setLessonDrafts] = useState({});
+  const [uploadingModuleId, setUploadingModuleId] = useState(null);
+  const [openingLessonId, setOpeningLessonId] = useState(null);
+  const [editingLessonId, setEditingLessonId] = useState(null);
+  const [lessonEditDrafts, setLessonEditDrafts] = useState({});
+  const [savingLessonId, setSavingLessonId] = useState(null);
+  const [deletingLessonId, setDeletingLessonId] = useState(null);
 
   const authenticatedClient = useMemo(() => withAuth(authToken), [authToken]);
   const canSeePrivateCatalog =
@@ -197,6 +204,76 @@ function App() {
 
     return () => window.removeEventListener("message", handleGoogleAuthMessage);
   }, []);
+
+  function buildLessonSlug(value) {
+    return String(value ?? "")
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 255);
+  }
+
+  function getLessonDraft(moduleId) {
+    return (
+      lessonDrafts[moduleId] ?? {
+        title: "",
+        slug: "",
+        is_preview: false,
+        lesson_file: null,
+      }
+    );
+  }
+
+  function updateLessonDraft(moduleId, patch) {
+    setLessonDrafts((prev) => ({
+      ...prev,
+      [moduleId]: {
+        ...getLessonDraft(moduleId),
+        ...patch,
+      },
+    }));
+  }
+
+  function getLessonEditDraft(lesson) {
+    return (
+      lessonEditDrafts[lesson.id] ?? {
+        title: lesson.title ?? "",
+        slug: lesson.slug ?? "",
+        type: lesson.type ?? "text",
+        is_preview: Boolean(lesson.is_preview),
+        lesson_file: null,
+      }
+    );
+  }
+
+  function updateLessonEditDraft(lessonId, patch) {
+    setLessonEditDrafts((prev) => ({
+      ...prev,
+      [lessonId]: {
+        ...(prev[lessonId] ?? {}),
+        ...patch,
+      },
+    }));
+  }
+
+  function startLessonEdit(lesson) {
+    setEditingLessonId(lesson.id);
+    setLessonEditDrafts((prev) => ({
+      ...prev,
+      [lesson.id]: {
+        title: lesson.title ?? "",
+        slug: lesson.slug ?? "",
+        type: lesson.type ?? "text",
+        is_preview: Boolean(lesson.is_preview),
+        lesson_file: null,
+      },
+    }));
+  }
+
+  function cancelLessonEdit(lessonId) {
+    setEditingLessonId((prev) => (prev === lessonId ? null : prev));
+  }
 
   async function loadCourseDetails(courseId, client = catalogClient) {
     const response = await client.get(`/courses/${courseId}`);
@@ -821,6 +898,241 @@ function App() {
     }
   }
 
+  async function handleCreateFileLesson(event, module) {
+    event.preventDefault();
+
+    if (!selectedCourse) {
+      return;
+    }
+
+    if (!currentUser || !["instructor", "admin"].includes(currentUser.role)) {
+      return;
+    }
+
+    const draft = getLessonDraft(module.id);
+    const title = draft.title.trim();
+    const slug = (draft.slug.trim() || buildLessonSlug(title)).slice(0, 255);
+
+    if (!title) {
+      setNotice({
+        variant: "destructive",
+        title: "Lesson title required",
+        description: "Enter a lesson title before uploading.",
+      });
+      return;
+    }
+
+    if (!slug) {
+      setNotice({
+        variant: "destructive",
+        title: "Lesson slug required",
+        description: "Enter a valid lesson slug (letters, numbers, dashes).",
+      });
+      return;
+    }
+
+    if (!draft.lesson_file) {
+      setNotice({
+        variant: "destructive",
+        title: "Attachment required",
+        description:
+          "Choose a lesson file (.md, .txt, .pdf, etc.) before creating the lesson.",
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("slug", slug);
+    formData.append("type", "file");
+    formData.append("is_preview", draft.is_preview ? "1" : "0");
+    formData.append("lesson_file", draft.lesson_file);
+
+    setUploadingModuleId(module.id);
+    try {
+      await authenticatedClient.post(
+        `/modules/${module.id}/lessons`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      await loadCourseDetails(selectedCourse.id);
+
+      setLessonDrafts((prev) => ({
+        ...prev,
+        [module.id]: {
+          title: "",
+          slug: "",
+          is_preview: false,
+          lesson_file: null,
+        },
+      }));
+
+      setNotice({
+        variant: "default",
+        title: "Lesson uploaded",
+        description: `File lesson created in ${module.title}.`,
+      });
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Lesson upload failed",
+        description:
+          error?.response?.data?.message ||
+          "Could not create the file lesson. Check title/slug uniqueness and file format.",
+      });
+    } finally {
+      setUploadingModuleId(null);
+    }
+  }
+
+  async function handleOpenLessonAttachment(lesson) {
+    if (!currentUser) {
+      return;
+    }
+
+    setOpeningLessonId(lesson.id);
+    try {
+      const response = await authenticatedClient.get(
+        `/lessons/${lesson.id}/attachment`,
+        {
+          responseType: "blob",
+        },
+      );
+
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.click();
+
+      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 15000);
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Attachment open failed",
+        description:
+          error?.response?.data?.message ||
+          "Could not open this attachment. Please try again.",
+      });
+    } finally {
+      setOpeningLessonId(null);
+    }
+  }
+
+  async function handleUpdateLesson(module, lesson) {
+    if (!selectedCourse || !currentUser) {
+      return;
+    }
+
+    if (!["instructor", "admin"].includes(currentUser.role)) {
+      return;
+    }
+
+    const draft = getLessonEditDraft(lesson);
+    const title = String(draft.title ?? "").trim();
+    const slug = String(draft.slug ?? "").trim();
+
+    if (!title || !slug) {
+      setNotice({
+        variant: "destructive",
+        title: "Lesson update failed",
+        description: "Title and slug are required.",
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("_method", "PUT");
+    formData.append("title", title);
+    formData.append("slug", slug);
+    formData.append("type", draft.type || "text");
+    formData.append("is_preview", draft.is_preview ? "1" : "0");
+    formData.append("position", String(lesson.position ?? 0));
+
+    if (draft.lesson_file) {
+      formData.append("lesson_file", draft.lesson_file);
+    }
+
+    setSavingLessonId(lesson.id);
+    try {
+      await authenticatedClient.post(
+        `/modules/${module.id}/lessons/${lesson.id}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      await loadCourseDetails(selectedCourse.id);
+      setEditingLessonId(null);
+
+      setNotice({
+        variant: "default",
+        title: "Lesson updated",
+        description: `${lesson.title} was updated successfully.`,
+      });
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Lesson update failed",
+        description:
+          error?.response?.data?.message ||
+          "Could not update this lesson. Check title/slug and try again.",
+      });
+    } finally {
+      setSavingLessonId(null);
+    }
+  }
+
+  async function handleDeleteLesson(module, lesson) {
+    if (!selectedCourse || !currentUser) {
+      return;
+    }
+
+    if (!["instructor", "admin"].includes(currentUser.role)) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `Delete lesson \"${lesson.title}\"? This cannot be undone.`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingLessonId(lesson.id);
+    try {
+      await authenticatedClient.delete(`/modules/${module.id}/lessons/${lesson.id}`);
+      await loadCourseDetails(selectedCourse.id);
+      setEditingLessonId((prev) => (prev === lesson.id ? null : prev));
+
+      setNotice({
+        variant: "default",
+        title: "Lesson deleted",
+        description: `${lesson.title} was removed.`,
+      });
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Lesson delete failed",
+        description:
+          error?.response?.data?.message ||
+          "Could not delete this lesson right now.",
+      });
+    } finally {
+      setDeletingLessonId(null);
+    }
+  }
+
   async function handleModeration(item, isPublished) {
     const content = item.review ?? item.comment;
     const moderationType =
@@ -1370,31 +1682,190 @@ function App() {
                               /{module.slug}
                             </span>
                           </div>
+                          {(currentUser?.role === "instructor" ||
+                            currentUser?.role === "admin") && (
+                            <form
+                              className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-slate-950/40 p-3"
+                              onSubmit={(event) =>
+                                handleCreateFileLesson(event, module)
+                              }
+                            >
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                Add file lesson
+                              </p>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <Input
+                                  value={getLessonDraft(module.id).title}
+                                  onChange={(event) => {
+                                    const title = event.target.value;
+                                    const existingDraft = getLessonDraft(
+                                      module.id,
+                                    );
+
+                                    updateLessonDraft(module.id, {
+                                      title,
+                                      slug:
+                                        existingDraft.slug === ""
+                                          ? buildLessonSlug(title)
+                                          : existingDraft.slug,
+                                    });
+                                  }}
+                                  placeholder="Lesson title"
+                                  className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                                  disabled={
+                                    loading || uploadingModuleId === module.id
+                                  }
+                                />
+                                <Input
+                                  value={getLessonDraft(module.id).slug}
+                                  onChange={(event) =>
+                                    updateLessonDraft(module.id, {
+                                      slug: buildLessonSlug(event.target.value),
+                                    })
+                                  }
+                                  placeholder="lesson-slug"
+                                  className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                                  disabled={
+                                    loading || uploadingModuleId === module.id
+                                  }
+                                />
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Input
+                                  type="file"
+                                  accept=".md,.txt,.pdf,.doc,.docx,.rtf,.png,.jpg,.jpeg,.webp,.mp4,.mov,.m4v,.mp3,.wav,.zip"
+                                  onChange={(event) =>
+                                    updateLessonDraft(module.id, {
+                                      lesson_file:
+                                        event.target.files &&
+                                        event.target.files[0]
+                                          ? event.target.files[0]
+                                          : null,
+                                    })
+                                  }
+                                  className="max-w-sm border-white/10 bg-white/5 text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-xs file:text-white"
+                                  disabled={
+                                    loading || uploadingModuleId === module.id
+                                  }
+                                />
+                                <label className="flex items-center gap-2 text-xs text-slate-300">
+                                  <input
+                                    type="checkbox"
+                                    checked={
+                                      getLessonDraft(module.id).is_preview
+                                    }
+                                    onChange={(event) =>
+                                      updateLessonDraft(module.id, {
+                                        is_preview: event.target.checked,
+                                      })
+                                    }
+                                    disabled={
+                                      loading || uploadingModuleId === module.id
+                                    }
+                                  />
+                                  Preview lesson
+                                </label>
+                                <Button
+                                  type="submit"
+                                  size="sm"
+                                  disabled={
+                                    loading || uploadingModuleId === module.id
+                                  }
+                                >
+                                  {uploadingModuleId === module.id
+                                    ? "Uploading..."
+                                    : "Upload + create lesson"}
+                                </Button>
+                              </div>
+                            </form>
+                          )}
                           <div className="mt-3 space-y-2">
                             {(module.lessons || []).map((lesson) => (
                               <div
                                 key={lesson.id}
-                                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm"
+                                className="flex flex-col gap-3 rounded-xl border border-white/10 px-3 py-3 text-sm"
                               >
-                                <span className="text-slate-200">
-                                  {lesson.title}
-                                </span>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className="text-slate-200">
+                                    {lesson.title}
+                                  </span>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge
+                                      variant={
+                                        lesson.is_preview
+                                          ? "secondary"
+                                          : "outline"
+                                      }
+                                    >
+                                      {lesson.is_preview
+                                        ? "Preview"
+                                        : lesson.type}
+                                    </Badge>
+                                  </div>
+                                </div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <Badge
-                                    variant={
-                                      lesson.is_preview
-                                        ? "secondary"
-                                        : "outline"
-                                    }
-                                  >
-                                    {lesson.is_preview
-                                      ? "Preview"
-                                      : lesson.type}
-                                  </Badge>
+                                  {currentUser &&
+                                    lesson.type === "file" &&
+                                    (lesson.file_path || lesson.file_url) && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          handleOpenLessonAttachment(lesson)
+                                        }
+                                        disabled={
+                                          loading ||
+                                          openingLessonId === lesson.id
+                                        }
+                                      >
+                                        {openingLessonId === lesson.id
+                                          ? "Opening..."
+                                          : "Open attachment"}
+                                      </Button>
+                                    )}
+                                  {(currentUser?.role === "instructor" ||
+                                    currentUser?.role === "admin") && (
+                                    <>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => startLessonEdit(lesson)}
+                                        disabled={
+                                          loading || deletingLessonId === lesson.id
+                                        }
+                                      >
+                                        Edit
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() =>
+                                          handleDeleteLesson(module, lesson)
+                                        }
+                                        disabled={
+                                          loading || deletingLessonId === lesson.id
+                                        }
+                                      >
+                                        {deletingLessonId === lesson.id
+                                          ? "Deleting..."
+                                          : "Delete"}
+                                      </Button>
+                                    </>
+                                  )}
+                                  {!lesson.file_url &&
+                                    lesson.type === "file" && (
+                                      <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs text-amber-100">
+                                        File lesson: attach a .md, .txt, .pdf,
+                                        or similar file to enable the action.
+                                      </span>
+                                    )}
                                   {currentUser?.role === "student" && (
                                     <Button
                                       type="button"
-                                      size="xs"
+                                      size="sm"
                                       variant="outline"
                                       onClick={() =>
                                         handleLessonComplete(lesson)
@@ -1405,6 +1876,120 @@ function App() {
                                     </Button>
                                   )}
                                 </div>
+                                {editingLessonId === lesson.id &&
+                                  (currentUser?.role === "instructor" ||
+                                    currentUser?.role === "admin") && (
+                                    <form
+                                      className="grid gap-2 rounded-xl border border-white/10 bg-slate-950/40 p-3"
+                                      onSubmit={(event) => {
+                                        event.preventDefault();
+                                        handleUpdateLesson(module, lesson);
+                                      }}
+                                    >
+                                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                        Edit lesson
+                                      </p>
+                                      <div className="grid gap-2 sm:grid-cols-2">
+                                        <Input
+                                          value={getLessonEditDraft(lesson).title}
+                                          onChange={(event) =>
+                                            updateLessonEditDraft(lesson.id, {
+                                              title: event.target.value,
+                                            })
+                                          }
+                                          placeholder="Lesson title"
+                                          className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                                          disabled={savingLessonId === lesson.id}
+                                        />
+                                        <Input
+                                          value={getLessonEditDraft(lesson).slug}
+                                          onChange={(event) =>
+                                            updateLessonEditDraft(lesson.id, {
+                                              slug: buildLessonSlug(
+                                                event.target.value,
+                                              ),
+                                            })
+                                          }
+                                          placeholder="lesson-slug"
+                                          className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                                          disabled={savingLessonId === lesson.id}
+                                        />
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <select
+                                          value={getLessonEditDraft(lesson).type}
+                                          onChange={(event) =>
+                                            updateLessonEditDraft(lesson.id, {
+                                              type: event.target.value,
+                                            })
+                                          }
+                                          className="h-10 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white"
+                                          disabled={savingLessonId === lesson.id}
+                                        >
+                                          <option value="text">text</option>
+                                          <option value="video">video</option>
+                                          <option value="file">file</option>
+                                        </select>
+                                        {getLessonEditDraft(lesson).type ===
+                                          "file" && (
+                                          <Input
+                                            type="file"
+                                            accept=".md,.txt,.pdf,.doc,.docx,.rtf,.png,.jpg,.jpeg,.webp,.mp4,.mov,.m4v,.mp3,.wav,.zip"
+                                            onChange={(event) =>
+                                              updateLessonEditDraft(lesson.id, {
+                                                lesson_file:
+                                                  event.target.files &&
+                                                  event.target.files[0]
+                                                    ? event.target.files[0]
+                                                    : null,
+                                              })
+                                            }
+                                            className="max-w-sm border-white/10 bg-white/5 text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-xs file:text-white"
+                                            disabled={savingLessonId === lesson.id}
+                                          />
+                                        )}
+                                        <label className="flex items-center gap-2 text-xs text-slate-300">
+                                          <input
+                                            type="checkbox"
+                                            checked={
+                                              getLessonEditDraft(lesson)
+                                                .is_preview
+                                            }
+                                            onChange={(event) =>
+                                              updateLessonEditDraft(lesson.id, {
+                                                is_preview:
+                                                  event.target.checked,
+                                              })
+                                            }
+                                            disabled={savingLessonId === lesson.id}
+                                          />
+                                          Preview lesson
+                                        </label>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <Button
+                                          type="submit"
+                                          size="sm"
+                                          disabled={savingLessonId === lesson.id}
+                                        >
+                                          {savingLessonId === lesson.id
+                                            ? "Saving..."
+                                            : "Save"}
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            cancelLessonEdit(lesson.id)
+                                          }
+                                          disabled={savingLessonId === lesson.id}
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
+                                    </form>
+                                  )}
                               </div>
                             ))}
                           </div>
