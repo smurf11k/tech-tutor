@@ -103,7 +103,9 @@ It supports course management, payments, quizzes, and progress tracking.
 - Email verification and password reset
 - OAuth login
 - 2FA (optional)
-- Rate limiting & CAPTCHA
+- Rate limiting on auth endpoints
+- CAPTCHA on registration/login
+- Input validation and sanitization audit
 - Protection against XSS / SQL Injection
 
 ---
@@ -163,8 +165,9 @@ RESTful API for all core features.
 - [x] OAuth login with Google
 - [ ] OAuth login with GitHub (optional)
 - [ ] 2FA (optional)
-- [ ] Rate limiting
-- [ ] CAPTCHA
+- [x] Rate limiting on auth endpoints
+- [x] CAPTCHA on registration/login
+- [x] Input validation and sanitization audit
 - [ ] Production security hardening
 - [x] Role-based access control (student, instructor, admin)
 - [x] Ban enforcement for protected API routes

@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesInput;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateLessonRequest extends FormRequest
 {
+    use NormalizesInput;
+
     public function authorize(): bool
     {
         return true;
@@ -23,5 +26,12 @@ class UpdateLessonRequest extends FormRequest
             'position' => ['sometimes', 'integer', 'min:0'],
             'is_preview' => ['sometimes', 'boolean'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeTextFields(['title']);
+        $this->normalizeLowercaseFields(['slug']);
+        $this->normalizeTrimmedFields(['type', 'content', 'video_url', 'file_path']);
     }
 }

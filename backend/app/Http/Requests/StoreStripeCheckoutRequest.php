@@ -2,11 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesInput;
 use Illuminate\Foundation\Http\FormRequest;
-use Closure;
 
 class StoreStripeCheckoutRequest extends FormRequest
 {
+    use NormalizesInput;
+
     public function authorize(): bool
     {
         return true;
@@ -18,5 +20,10 @@ class StoreStripeCheckoutRequest extends FormRequest
             'success_url' => ['nullable', 'string', 'max:2048'],
             'cancel_url' => ['nullable', 'string', 'max:2048'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeTrimmedFields(['success_url', 'cancel_url']);
     }
 }

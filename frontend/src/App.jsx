@@ -133,6 +133,7 @@ function App() {
   const [credentials, setCredentials] = useState({
     email: storedSession.user?.email ?? demoAccounts[0].email,
     password: DEFAULT_PASSWORD,
+    captcha_token: "",
   });
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -172,6 +173,7 @@ function App() {
         setCredentials({
           email: payload.user.email,
           password: DEFAULT_PASSWORD,
+          captcha_token: "",
         });
         setNotice({
           variant: "default",
@@ -404,6 +406,7 @@ function App() {
       const response = await loginUser({
         email: credentials.email,
         password: credentials.password,
+        captcha_token: credentials.captcha_token,
         token_name: "frontend-demo",
       });
 
@@ -453,6 +456,27 @@ function App() {
     });
   }
 
+  function handleDemoCaptcha() {
+    setCredentials((prev) => ({
+      ...prev,
+      captcha_token: "demo-captcha-token",
+    }));
+
+    setNotice({
+      variant: "default",
+      title: "Demo CAPTCHA enabled",
+      description:
+        "The demo shell now sends a placeholder CAPTCHA token for local testing.",
+    });
+  }
+
+  function clearDemoCaptcha() {
+    setCredentials((prev) => ({
+      ...prev,
+      captcha_token: "",
+    }));
+  }
+
   async function handleForgotPasswordRequest(event) {
     event?.preventDefault();
     setLoading(true);
@@ -493,7 +517,11 @@ function App() {
     setCertificates([]);
     setInstructorDashboard(null);
     setAdminPlatformDashboard(null);
-    setCredentials((prev) => ({ ...prev, password: DEFAULT_PASSWORD }));
+    setCredentials((prev) => ({
+      ...prev,
+      password: DEFAULT_PASSWORD,
+      captcha_token: "",
+    }));
     setNotice({
       variant: "default",
       title: "Signed out",
@@ -902,6 +930,7 @@ function App() {
                         setCredentials({
                           email: account.email,
                           password: account.password,
+                          captcha_token: "",
                         })
                       }
                       className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-left transition hover:border-amber-300/40 hover:bg-white/10"
@@ -948,6 +977,25 @@ function App() {
                   <div className="flex flex-wrap gap-2">
                     <Button type="submit" size="lg" disabled={loading}>
                       Sign in
+                    </Button>
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
+                      onClick={handleDemoCaptcha}
+                      disabled={loading}
+                    >
+                      <ShieldCheck className="mr-1 size-4" />
+                      Demo CAPTCHA
+                    </Button>
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="ghost"
+                      onClick={clearDemoCaptcha}
+                      disabled={loading || !credentials.captcha_token}
+                    >
+                      Clear demo CAPTCHA
                     </Button>
                     <Button
                       type="button"
@@ -1041,6 +1089,11 @@ function App() {
                       Cancel
                     </Button>
                   </div>
+                  <p className="text-xs text-slate-400">
+                    {credentials.captcha_token
+                      ? "Demo CAPTCHA token is attached for local testing."
+                      : "Use the demo CAPTCHA button while testing locally; replace it with the real widget in production."}
+                  </p>
                 </form>
               </CardContent>
             </Card>
@@ -2009,7 +2062,11 @@ function App() {
                   to reseed everything quickly.
                 </p>
                 <p>
-                  Use <span className="font-mono text-amber-200">composer db:fresh</span> to reseed or fully recreate tables as needed.
+                  Use{" "}
+                  <span className="font-mono text-amber-200">
+                    composer db:fresh
+                  </span>{" "}
+                  to reseed or fully recreate tables as needed.
                 </p>
                 <p>
                   All demo accounts use the same password:{" "}

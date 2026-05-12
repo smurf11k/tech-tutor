@@ -35,6 +35,12 @@ If you set `DEV_TOKEN_KEY` in backend env, include:
 
 Response contains a `token` value. Use it as bearer token in requests below.
 
+## Auth Security Checks
+
+If CAPTCHA is enabled in `.env`, the auth endpoints require `captcha_token`. In local development, the demo CAPTCHA helper button in the frontend sends the placeholder token `demo-captcha-token`, which the backend accepts only in local/testing environments.
+
+Rate limiting is applied to auth routes server-side, so repeated registration/login attempts may return throttle errors.
+
 ## Base Variables
 
 Use these in your shell before running commands.
@@ -83,7 +89,8 @@ curl -X POST "$BASE_URL/auth/register" \
     "password": "password123",
     "password_confirmation": "password123",
     "role": "student",
-    "token_name": "manual-test"
+    "token_name": "manual-test",
+    "captcha_token": "demo-captcha-token"
   }'
 ```
 
@@ -93,7 +100,7 @@ Login with email/password:
 curl -X POST "$BASE_URL/auth/login" \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
-  -d '{"email":"student@techtutor.test","password":"password","token_name":"manual-test"}'
+  -d '{"email":"student@techtutor.test","password":"password","token_name":"manual-test","captcha_token":"demo-captcha-token"}'
 ```
 
 Forgot/reset password:

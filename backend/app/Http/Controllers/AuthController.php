@@ -2,7 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Auth\ForgotPasswordRequest;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Models\User;
+use App\Services\Security\CaptchaVerifier;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -12,22 +17,17 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
 use Throwable;
 
 class AuthController extends Controller
 {
-    public function register(Request $request): JsonResponse
+    public function register(RegisterRequest $request, CaptchaVerifier $captchaVerifier): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', PasswordRule::min(8)],
-            'role' => ['sometimes', 'in:student,instructor'],
-            'token_name' => ['sometimes', 'string', 'max:255'],
-        ]);
+        $validated = $request->validated();
+
+        $this->ensureCaptchaIsValid($request, $captchaVerifier);
 
         $user = User::create([
             'name' => $validated['name'],
@@ -41,13 +41,11 @@ class AuthController extends Controller
         return response()->json($this->tokenResponse($user, $validated['token_name'] ?? 'api-token'), 201);
     }
 
-    public function login(Request $request): JsonResponse
+    public function login(LoginRequest $request, CaptchaVerifier $captchaVerifier): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'string', 'lowercase', 'email'],
-            'password' => ['required', 'string'],
-            'token_name' => ['sometimes', 'string', 'max:255'],
-        ]);
+        $validated = $request->validated();
+
+        $this->ensureCaptchaIsValid($request, $captchaVerifier);
 
         $user = User::where('email', $validated['email'])->first();
 
@@ -177,11 +175,9 @@ class AuthController extends Controller
         return response()->json(['message' => 'Email verified.']);
     }
 
-    public function forgotPassword(Request $request): JsonResponse
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'string', 'lowercase', 'email'],
-        ]);
+        $validated = $request->validated();
 
         $status = Password::sendResetLink($validated);
 
@@ -194,13 +190,9 @@ class AuthController extends Controller
         return response()->json(['message' => __($status)]);
     }
 
-    public function resetPassword(Request $request): JsonResponse
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'token' => ['required', 'string'],
-            'email' => ['required', 'string', 'lowercase', 'email'],
-            'password' => ['required', 'confirmed', PasswordRule::min(8)],
-        ]);
+        $validated = $request->validated();
 
         $status = Password::reset(
             $validated,
@@ -235,6 +227,17 @@ class AuthController extends Controller
             'token_type' => 'Bearer',
             'user' => $user,
         ];
+    }
+
+    private function ensureCaptchaIsValid(Request $request, CaptchaVerifier $captchaVerifier): void
+    {
+        if ($captchaVerifier->verify($request->string('captcha_token')->toString(), $request->ip())) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'captcha_token' => ['CAPTCHA validation failed.'],
+        ]);
     }
 
     private function googleAuthPopupResponse(string $targetOrigin, ?array $payload, string $message, string $title): Response

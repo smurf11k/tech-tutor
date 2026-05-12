@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesInput;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateCourseRequest extends FormRequest
 {
+    use NormalizesInput;
+
     public function authorize(): bool
     {
         return true;
@@ -40,5 +43,12 @@ class UpdateCourseRequest extends FormRequest
             'decline_publish' => ['sometimes', 'boolean'],
             'publish_request_declined_reason' => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeTextFields(['title', 'description', 'subtitle', 'category', 'level', 'language', 'publish_request_declined_reason']);
+        $this->normalizeLowercaseFields(['slug']);
+        $this->normalizeTrimmedFields(['thumbnail_path']);
     }
 }

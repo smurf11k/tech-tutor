@@ -37,6 +37,12 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
+    'captcha' => [
+        'secret' => env('CAPTCHA_SECRET'),
+        'site_key' => env('CAPTCHA_SITE_KEY'),
+        'verify_url' => env('CAPTCHA_VERIFY_URL', 'https://www.google.com/recaptcha/api/siteverify'),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

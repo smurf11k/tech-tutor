@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Notifications\ResetPasswordNotification;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -150,7 +150,7 @@ class AuthFlowTest extends TestCase
             'email' => 'reset@example.com',
         ])->assertOk();
 
-        Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use (&$resetToken): bool {
+        Notification::assertSentTo($user, ResetPasswordNotification::class, function (ResetPasswordNotification $notification) use (&$resetToken): bool {
             $resetToken = $notification->token;
 
             return true;

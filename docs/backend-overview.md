@@ -38,6 +38,15 @@ This documentation describes the backend logic currently implemented for TechTut
 - Public registration and login issue Sanctum bearer tokens
 - Current-user, logout, verification resend, email verification, forgot-password, and reset-password endpoints are available
 - Banned users cannot sign in and are blocked from protected routes
+- Auth endpoints are rate-limited to reduce brute-force attempts
+- Registration and login require CAPTCHA when CAPTCHA is configured in `.env`
+- Request normalization strips tags and trims common user-facing text inputs before validation
+
+### Auth Security Notes
+
+- Use an invisible CAPTCHA or score-based CAPTCHA in production to keep login and registration low-friction
+- Local development can use a demo token for the CAPTCHA helper button, but production still requires the real widget token
+- `localhost` is an acceptable site entry for local testing and can be replaced later in the CAPTCHA provider dashboard
 
 #### Google OAuth Authentication
 
@@ -120,6 +129,14 @@ TODO: move free-text catalog search and ranking to MeiliSearch when search infra
 - Laravel mail notifications use the configured mailer from `.env`
 - Current email triggers: registration verification, password reset, new enrollment, completed quiz attempt, issued certificate, and admin-handled publish request
 - Notification tests fake the notification channel so SMTP credentials are never used by the automated suite
+
+### Input Validation and Sanitization Audit
+
+- Auth requests normalize email, token name, and user display fields before validation
+- Course, module, lesson, review, comment, quiz, and payment request payloads normalize text inputs before persistence
+- Quiz question and option text is stripped of HTML tags and squished to plain text
+- URL fields used in checkout requests are trimmed before use
+- The goal is to reject malformed data early and reduce accidental HTML injection in stored content
 
 ### Commerce and Community
 

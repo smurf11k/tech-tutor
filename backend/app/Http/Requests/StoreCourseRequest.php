@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesInput;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCourseRequest extends FormRequest
 {
+    use NormalizesInput;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -36,5 +39,12 @@ class StoreCourseRequest extends FormRequest
             'published_at' => ['nullable', 'date'],
             'request_publish' => ['sometimes', 'boolean'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeTextFields(['title', 'description', 'subtitle', 'category', 'level', 'language']);
+        $this->normalizeLowercaseFields(['slug']);
+        $this->normalizeTrimmedFields(['thumbnail_path']);
     }
 }

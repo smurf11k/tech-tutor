@@ -6,8 +6,17 @@ All notable changes to this project are documented in this file. Entries are ord
 
 ### Progress
 
-- Backend readiness: 85/100
-- Frontend readiness: 30/100 (demo)
+- Backend readiness: 88/100
+- Frontend readiness: 32/100 (demo)
+
+---
+
+## 2026-05-12 — Security Hardening
+
+- Auth endpoints are rate-limited to reduce brute-force abuse
+- Registration and login now support CAPTCHA verification
+- Shared input normalization/sanitization pass added for common user-facing forms
+- Added auth cURL snippets for Postman/manual API testing
 
 ---
 

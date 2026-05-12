@@ -36,6 +36,8 @@ Base URL during local backend development:
 
 Allowed self-registration roles are `student` and `instructor`; admins are still managed by seed data or admin tools.
 
+When CAPTCHA is enabled in backend `.env`, both registration and login also require `captcha_token`.
+
 `POST /auth/login` accepts `email`, `password`, and optional `token_name`, then returns:
 
 ```json
@@ -52,6 +54,8 @@ Allowed self-registration roles are `student` and `instructor`; admins are still
 
 Banned users cannot log in.
 
+Auth endpoints are rate-limited server-side to reduce brute-force abuse.
+
 Password reset flow:
 
 - `POST /auth/forgot-password` with `{ "email": "student@example.com" }` sends a reset email.
@@ -62,6 +66,64 @@ Email verification flow:
 - Registration sends a signed verification URL.
 - `GET /auth/email/verify/{id}/{hash}` marks the address as verified when the URL signature is valid.
 - `POST /auth/email/resend` resends the verification email for the authenticated user.
+
+### Auth cURL / Postman Examples
+
+Register with CAPTCHA token:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/auth/register" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Student",
+    "email": "student@example.com",
+    "password": "password123",
+    "password_confirmation": "password123",
+    "role": "student",
+    "token_name": "frontend",
+    "captcha_token": "demo-captcha-token"
+  }'
+```
+
+Login with CAPTCHA token:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/auth/login" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "student@example.com",
+    "password": "password123",
+    "token_name": "frontend",
+    "captcha_token": "demo-captcha-token"
+  }'
+```
+
+Forgot password:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/auth/forgot-password" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "student@example.com"
+  }'
+```
+
+Reset password:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/auth/reset-password" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "RESET_TOKEN_HERE",
+    "email": "student@example.com",
+    "password": "new-password123",
+    "password_confirmation": "new-password123"
+  }'
+```
 
 ### Course Catalog Query Parameters
 

@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesInput;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateQuizRequest extends FormRequest
 {
+    use NormalizesInput;
+
     public function authorize(): bool
     {
         return true;
@@ -28,5 +31,45 @@ class UpdateQuizRequest extends FormRequest
             'questions.*.options.*.text' => ['required_with:questions', 'string', 'max:500'],
             'questions.*.options.*.is_correct' => ['sometimes', 'boolean'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeTextFields(['title', 'description']);
+
+        $questions = $this->input('questions');
+
+        if (!is_array($questions)) {
+            return;
+        }
+
+        $this->merge([
+            'questions' => array_map(function (array $question): array {
+                if (isset($question['prompt']) && is_string($question['prompt'])) {
+                    $question['prompt'] = $this->sanitizeTextValue($question['prompt']);
+                }
+
+                if (isset($question['options']) && is_array($question['options'])) {
+                    $question['options'] = array_map(function (array $option): array {
+                        if (isset($option['key']) && is_string($option['key'])) {
+                            $option['key'] = trim($option['key']);
+                        }
+
+                        if (isset($option['text']) && is_string($option['text'])) {
+                            $option['text'] = $this->sanitizeTextValue($option['text']);
+                        }
+
+                        return $option;
+                    }, $question['options']);
+                }
+
+                return $question;
+            }, $questions),
+        ]);
+    }
+
+    private function sanitizeTextValue(string $value): string
+    {
+        return preg_replace('/\s+/u', ' ', trim(strip_tags($value))) ?? trim(strip_tags($value));
     }
 }

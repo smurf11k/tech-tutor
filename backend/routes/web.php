@@ -9,5 +9,5 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('auth/google/redirect', [AuthController::class, 'redirectToGoogle']);
-Route::get('auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
+Route::get('auth/google/redirect', [AuthController::class, 'redirectToGoogle'])->middleware('throttle:auth-oauth');
+Route::get('auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->middleware('throttle:auth-oauth');

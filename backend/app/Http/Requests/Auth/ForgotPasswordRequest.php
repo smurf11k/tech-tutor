@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\Auth;
 
 use App\Http\Requests\Concerns\NormalizesInput;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreCommentRequest extends FormRequest
+class ForgotPasswordRequest extends FormRequest
 {
     use NormalizesInput;
 
@@ -17,12 +17,12 @@ class StoreCommentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['required', 'string', 'max:2000'],
+            'email' => ['required', 'string', 'lowercase', 'email'],
         ];
     }
 
     protected function prepareForValidation(): void
     {
-        $this->normalizeTextFields(['body']);
+        $this->normalizeLowercaseFields(['email']);
     }
 }

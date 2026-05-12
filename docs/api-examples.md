@@ -47,3 +47,7 @@ const { site, theme, page, frontmatter } = useData()
 ## More
 
 Check out the documentation for the [full list of runtime APIs](https://vitepress.dev/reference/runtime-api#usedata).
+
+## Auth Helper Notes
+
+For local backend testing, use `localhost` as the CAPTCHA site domain and the demo CAPTCHA helper button in the frontend to generate the placeholder token. In production, replace it with the real CAPTCHA widget token and update the allowed domain in your provider dashboard.
