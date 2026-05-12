@@ -2009,12 +2009,7 @@ function App() {
                   to reseed everything quickly.
                 </p>
                 <p>
-                  Use{" "}
-                  <span className="font-mono text-amber-200">
-                    composer db:reset-hard
-                  </span>{" "}
-                  when you want to wipe the Docker-backed Postgres data
-                  directory too.
+                  Use <span className="font-mono text-amber-200">composer db:fresh</span> to reseed or fully recreate tables as needed.
                 </p>
                 <p>
                   All demo accounts use the same password:{" "}

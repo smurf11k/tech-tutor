@@ -54,75 +54,77 @@ export default function ResetPassword({ token, email, onSuccess }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm border-white/10 bg-slate-950/70">
-        <CardHeader>
-          <CardTitle className="text-white">Reset Your Password</CardTitle>
-          <CardDescription>
-            Enter your new password below. Passwords must be at least 8
-            characters.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {notice && (
-            <Alert
-              variant={
-                notice.variant === "destructive" ? "destructive" : "default"
-              }
-            >
-              <AlertTitle>{notice.title}</AlertTitle>
-              <AlertDescription>{notice.description}</AlertDescription>
-            </Alert>
-          )}
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <Card className="border-white/10 bg-slate-950/70">
+          <CardHeader>
+            <CardTitle className="text-white">Reset Your Password</CardTitle>
+            <CardDescription className="text-slate-400">
+              Enter your new password below. Passwords must be at least 8
+              characters.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {notice && (
+              <Alert
+                variant={
+                  notice.variant === "destructive" ? "destructive" : "default"
+                }
+              >
+                <AlertTitle>{notice.title}</AlertTitle>
+                <AlertDescription>{notice.description}</AlertDescription>
+              </Alert>
+            )}
 
-          <form onSubmit={handleResetPassword} className="space-y-3">
-            <div className="text-sm text-slate-400">
-              Resetting password for:{" "}
-              <span className="text-white font-medium">{email}</span>
-            </div>
+            <form onSubmit={handleResetPassword} className="space-y-3">
+              <div className="text-sm text-slate-400">
+                Resetting password for:{" "}
+                <span className="text-white font-medium">{email}</span>
+              </div>
 
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="New password"
-              className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-              required
-              minLength="8"
-            />
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="New password"
+                className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                required
+                minLength="8"
+              />
 
-            <Input
-              type="password"
-              value={passwordConfirmation}
-              onChange={(e) => setPasswordConfirmation(e.target.value)}
-              placeholder="Confirm password"
-              className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-              required
-              minLength="8"
-            />
+              <Input
+                type="password"
+                value={passwordConfirmation}
+                onChange={(e) => setPasswordConfirmation(e.target.value)}
+                placeholder="Confirm password"
+                className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                required
+                minLength="8"
+              />
 
-            <Button
-              type="submit"
-              size="lg"
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? "Resetting..." : "Reset Password"}
-            </Button>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={loading}
+                className="w-full text-white"
+              >
+                {loading ? "Resetting..." : "Reset Password"}
+              </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              onClick={() => (window.location.href = "/")}
-              disabled={loading}
-              className="w-full"
-            >
-              Cancel
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => (window.location.href = "/")}
+                disabled={loading}
+                className="w-full text-white border-white/10 hover:text-white hover:border-white/10 hover:bg-transparent"
+              >
+                Cancel
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -92,11 +92,29 @@ password
 
 ```bash
 php artisan migrate:fresh --seed
+composer start:fresh
+composer start:fresh:seed
 php artisan test
 vendor/bin/pint
 ```
 
 ## Reset Database Quickly
+
+First-start cleanup and migrate from `backend`:
+
+```bash
+composer start:fresh
+```
+
+This clears Laravel's compiled config/cache state and then runs migrations.
+
+First-start cleanup, migrate, and seed from `backend`:
+
+```bash
+composer start:fresh:seed
+```
+
+This does the same cleanup, then runs migrations and seeds the database.
 
 Soft reset from `backend`:
 
@@ -105,13 +123,4 @@ composer db:fresh
 ```
 
 This recreates all tables and reseeds the database, but keeps the Postgres data directory/container in place.
-
-Hard reset from `backend`:
-
-```bash
-composer db:reset-hard
-```
-
-This stops Docker Compose, deletes `backend/database/data`, starts the Postgres service again, and runs `php artisan migrate:fresh --seed`.
-
 Important: in this project, `docker compose down -v` alone does not fully wipe Postgres data because the database is stored in a bind-mounted folder at `backend/database/data`, not a named Docker volume.

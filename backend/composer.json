@@ -49,6 +49,25 @@
             "npm install",
             "npm run build"
         ],
+        "start:fresh": [
+            "@php artisan optimize:clear",
+            "@php artisan config:clear",
+            "@php artisan cache:clear",
+            "@php artisan route:clear",
+            "@php artisan view:clear",
+            "@php artisan event:clear",
+            "@php artisan migrate --force"
+        ],
+        "start:fresh:seed": [
+            "@php artisan optimize:clear",
+            "@php artisan config:clear",
+            "@php artisan cache:clear",
+            "@php artisan route:clear",
+            "@php artisan view:clear",
+            "@php artisan event:clear",
+            "@php artisan migrate --force",
+            "@php artisan migrate:fresh --seed --force"
+        ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
@@ -59,9 +78,6 @@
         ],
         "db:fresh": [
             "@php artisan migrate:fresh --seed"
-        ],
-        "db:reset-hard": [
-            "powershell -ExecutionPolicy Bypass -File ..\\scripts\\reset-db.ps1 -Hard"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
