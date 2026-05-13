@@ -150,6 +150,23 @@ RESTful API for all core features.
 
 ---
 
+## Local Security Scan (ZAP)
+
+This project includes [zap.yaml](zap.yaml) for local OWASP ZAP baseline automation.
+
+Run from the project root:
+
+```powershell
+docker run -t -v ${PWD}:/zap/wrk:rw ghcr.io/zaproxy/zaproxy:stable zap.sh -cmd -autorun /zap/wrk/zap.yaml
+```
+
+Notes:
+
+- The scan target is currently set to http://host.docker.internal:8000 in [zap.yaml](zap.yaml).
+- This setup is intended for local testing and development hardening.
+
+---
+
 ## Roadmap
 
 ### Infrastructure & Auth
