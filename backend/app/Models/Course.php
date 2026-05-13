@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Scout\Searchable;
 
 /**
  * @property int $id
@@ -34,6 +35,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Course extends Model
 {
     use HasFactory;
+    use Searchable;
 
     protected $fillable = [
         'instructor_id',
@@ -63,6 +65,31 @@ class Course extends Model
             'duration_minutes' => 'integer',
             'is_published' => 'boolean',
             'published_at' => 'datetime',
+        ];
+    }
+
+    public function searchableAs(): string
+    {
+        return 'courses';
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->title,
+            'slug' => $this->slug,
+            'description' => $this->description,
+            'subtitle' => $this->subtitle,
+            'category' => $this->category,
+            'level' => $this->level,
+            'language' => $this->language,
+            'thumbnail_path' => $this->thumbnail_path,
+            'duration_minutes' => $this->duration_minutes,
+            'price' => (float) $this->price,
+            'is_published' => $this->is_published,
+            'published_at' => $this->getRawOriginal('published_at'),
+            'instructor_id' => $this->instructor_id,
         ];
     }
 

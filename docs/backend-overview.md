@@ -84,8 +84,7 @@ TechTutor supports seamless Google OAuth login for students and existing users.
 - Publish/draft flags and metadata fields on course and quiz
 - Course catalog metadata: subtitle, category, level, language, thumbnail path, and duration
 - Database-backed course catalog search, filtering, sorting, rating average, review count, and enrollment count
-
-TODO: move free-text catalog search and ranking to MeiliSearch when search infrastructure is added.
+- MeiliSearch-backed free-text catalog indexing and search sync for courses
 
 ### Instructor Dashboard
 

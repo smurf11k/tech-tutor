@@ -6,8 +6,21 @@ All notable changes to this project are documented in this file. Entries are ord
 
 ### Progress
 
-- Backend readiness: 91/100
+- Backend readiness: 94/100
 - Frontend readiness: 35/100 (demo)
+
+---
+
+## 2026-05-13 — MeiliSearch catalog indexing/search rollout
+
+### Backend
+
+- Added Laravel Scout + MeiliSearch integration for course catalog free-text search
+- `Course` model is now Scout-searchable with explicit indexed payload fields for catalog use
+- `GET /courses` now routes `q` free-text search through MeiliSearch when `SCOUT_DRIVER=meilisearch` is enabled
+- Added MeiliSearch index settings for `courses` (filterable/sortable attributes) and synced index settings via Scout
+- Added queue-backed indexing support (`SCOUT_QUEUE=true`) with database `jobs` migration for local/production-like processing
+- Fixed `php artisan optimize` view-cache failure by restoring the expected `resources/views` directory
 
 ---
 

@@ -71,6 +71,42 @@ Search/filter the catalog:
 curl -X GET "$BASE_URL/courses?q=laravel&category=backend&price_type=paid&sort=price_desc"
 ```
 
+MeiliSearch smoke test with live indexing:
+
+1. Keep a queue worker running in another terminal:
+
+```bash
+php artisan queue:listen --tries=1 --timeout=0
+```
+
+2. Create or update a published course through the API using an instructor token:
+
+```bash
+curl -X POST "$BASE_URL/courses" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "MeiliSearch Demo Course",
+    "slug": "meilisearch-demo-course",
+    "description": "Used to verify live indexing",
+    "category": "backend",
+    "level": "beginner",
+    "language": "en",
+    "price": 25,
+    "is_published": true
+  }'
+```
+
+3. Search the catalog for the new course title or category:
+
+```bash
+curl -X GET "$BASE_URL/courses?q=meili&category=backend&sort=price_desc" \
+  -H "Accept: application/json"
+```
+
+If MeiliSearch is configured correctly, the new course should appear in the response after the queue job is processed.
+
 Get one course:
 
 ```bash

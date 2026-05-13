@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Laravel\Scout\Builder as ScoutBuilder;
 
 class CourseController extends Controller
 {
@@ -34,13 +35,43 @@ class CourseController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
+        if (!empty($filters['q']) && config('scout.driver') === 'meilisearch' && ($filters['sort'] ?? 'newest') !== 'rating') {
+            $query = Course::search($filters['q']);
+
+            if ($user === null) {
+                $query->where('is_published', true);
+            }
+
+            $this->applyCatalogSearchFilters($query, $filters);
+
+            if (($filters['sort'] ?? 'newest') !== 'rating') {
+                $this->applyCatalogSearchSort($query, $filters['sort'] ?? 'newest');
+            }
+
+            $query->query(
+                fn(Builder $query) => $query
+                    ->with('instructor')
+                    ->withCount([
+                        'enrollments',
+                        'reviews as published_reviews_count' => fn($query) => $query->where('is_published', true),
+                    ])
+                    ->withAvg([
+                        'reviews as average_rating' => fn($query) => $query->where('is_published', true),
+                    ], 'rating')
+            );
+
+            return response()->json(
+                $query->paginate($filters['per_page'] ?? 12)
+            );
+        }
+
         $query = Course::with('instructor')
             ->withCount([
                 'enrollments',
-                'reviews as published_reviews_count' => fn ($query) => $query->where('is_published', true),
+                'reviews as published_reviews_count' => fn($query) => $query->where('is_published', true),
             ])
             ->withAvg([
-                'reviews as average_rating' => fn ($query) => $query->where('is_published', true),
+                'reviews as average_rating' => fn($query) => $query->where('is_published', true),
             ], 'rating');
 
         if ($user === null) {
@@ -66,7 +97,7 @@ class CourseController extends Controller
         $payload = $this->normalizePublicationPayload($validated);
 
         // Only admins can set the published flag via API
-        if (($payload['is_published'] ?? false) && ! $request->user()->isAdmin()) {
+        if (($payload['is_published'] ?? false) && !$request->user()->isAdmin()) {
             abort(403);
         }
 
@@ -79,7 +110,7 @@ class CourseController extends Controller
             'is_published' => $payload['is_published'] ?? false,
         ]);
 
-        if ($requestPublish && ! $request->user()->isAdmin()) {
+        if ($requestPublish && !$request->user()->isAdmin()) {
             PublishRequest::create([
                 'course_id' => $course->id,
                 'requester_id' => $request->user()->id,
@@ -111,7 +142,7 @@ class CourseController extends Controller
         $payload = $this->normalizePublicationPayload($validated, $course);
 
         // Only admins can change the published flag via API
-        if (array_key_exists('is_published', $payload) && ! $request->user()->isAdmin()) {
+        if (array_key_exists('is_published', $payload) && !$request->user()->isAdmin()) {
             abort(403);
         }
 
@@ -132,7 +163,7 @@ class CourseController extends Controller
         $course->update($payload);
 
         // After update: process request/accept/decline
-        if ($requestPublish && ! $request->user()->isAdmin()) {
+        if ($requestPublish && !$request->user()->isAdmin()) {
             // Create a new pending PublishRequest
             PublishRequest::create([
                 'course_id' => $course->id,
@@ -216,11 +247,10 @@ class CourseController extends Controller
      */
     private function applyCatalogFilters($query, array $filters): void
     {
-        if (! empty($filters['q'])) {
+        if (!empty($filters['q'])) {
             $search = strtolower($filters['q']);
-            $like = '%'.addcslashes($search, '%_\\').'%';
+            $like = '%' . addcslashes($search, '%_\\') . '%';
 
-            // TODO: Replace this relational fallback with MeiliSearch when the search service is wired in.
             $query->where(function ($query) use ($like) {
                 $query->whereRaw('LOWER(title) LIKE ?', [$like])
                     ->orWhereRaw('LOWER(subtitle) LIKE ?', [$like])
@@ -265,6 +295,49 @@ class CourseController extends Controller
             'price_desc' => $query->orderByDesc('price')->latest(),
             'rating' => $query->orderByDesc('average_rating')->latest(),
             default => $query->latest(),
+        };
+    }
+
+    /**
+     * @param  ScoutBuilder<Course>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyCatalogSearchFilters(ScoutBuilder $query, array $filters): void
+    {
+        foreach (['category', 'level', 'language', 'instructor_id'] as $field) {
+            if (array_key_exists($field, $filters) && $filters[$field] !== null && $filters[$field] !== '') {
+                $query->where($field, $filters[$field]);
+            }
+        }
+
+        if (($filters['price_type'] ?? null) === 'free') {
+            $query->where('price', '=', 0);
+        }
+
+        if (($filters['price_type'] ?? null) === 'paid') {
+            $query->where('price', '>', 0);
+        }
+
+        if (array_key_exists('min_price', $filters) && $filters['min_price'] !== null) {
+            $query->where('price', '>=', $filters['min_price']);
+        }
+
+        if (array_key_exists('max_price', $filters) && $filters['max_price'] !== null) {
+            $query->where('price', '<=', $filters['max_price']);
+        }
+    }
+
+    /**
+     * @param  ScoutBuilder<Course>  $query
+     */
+    private function applyCatalogSearchSort(ScoutBuilder $query, string $sort): void
+    {
+        match ($sort) {
+            'oldest' => $query->orderBy('published_at', 'asc'),
+            'title' => $query->orderBy('title', 'asc'),
+            'price_asc' => $query->orderBy('price', 'asc'),
+            'price_desc' => $query->orderBy('price', 'desc'),
+            default => $query->orderBy('published_at', 'desc'),
         };
     }
 }

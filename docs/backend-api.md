@@ -202,7 +202,7 @@ Response:
 
 ### Course Catalog Query Parameters
 
-`GET /courses` supports database-backed catalog filters:
+`GET /courses` supports catalog filters and MeiliSearch-backed free-text search when Scout is configured for MeiliSearch:
 
 - `q`: search title, subtitle, description, category, and slug
 - `category`
@@ -221,7 +221,7 @@ Example:
 curl -X GET "$BASE_URL/courses?q=laravel&category=backend&price_type=paid&sort=price_desc"
 ```
 
-TODO: replace the relational `q` search fallback with MeiliSearch-backed indexing once the search service is introduced.
+When `SCOUT_DRIVER=meilisearch`, the `q` parameter routes through MeiliSearch for free-text matching, while the remaining filters continue to apply to the catalog query.
 
 ## Protected Routes (Sanctum)
 

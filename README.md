@@ -187,7 +187,7 @@ RESTful API for all core features.
 ### Student Experience
 
 - [x] Course catalog with database-backed search & filtering
-- [ ] MeiliSearch-powered catalog indexing/search
+- [x] MeiliSearch-powered catalog indexing/search
 - [ ] Course detail / preview page
 - [x] Enrollment flow
 - [ ] Lesson viewer (video player, text renderer, file downloads)
