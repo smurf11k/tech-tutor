@@ -49,22 +49,24 @@
             "npm install",
             "npm run build"
         ],
-        "start:fresh": [
+        "cleanup": [
             "@php artisan optimize:clear",
             "@php artisan config:clear",
             "@php artisan cache:clear",
             "@php artisan route:clear",
             "@php artisan view:clear",
-            "@php artisan event:clear",
+            "@php artisan event:clear"
+        ],
+        "cleanup:optimize": [
+            "@cleanup",
+            "@php artisan optimize"
+        ],
+        "start:fresh": [
+            "@cleanup",
             "@php artisan migrate --force"
         ],
         "start:fresh:seed": [
-            "@php artisan optimize:clear",
-            "@php artisan config:clear",
-            "@php artisan cache:clear",
-            "@php artisan route:clear",
-            "@php artisan view:clear",
-            "@php artisan event:clear",
+            "@cleanup",
             "@php artisan migrate --force",
             "@php artisan migrate:fresh --seed --force"
         ],

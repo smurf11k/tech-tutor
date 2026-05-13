@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\RequestVerificationCodeRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Http\Requests\Auth\VerifyEmailCodeRequest;
+use App\Models\EmailVerificationCode;
 use App\Models\User;
+use App\Notifications\EmailVerificationCodeNotification;
 use App\Services\Security\CaptchaVerifier;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
@@ -58,6 +62,70 @@ class AuthController extends Controller
         abort_if($user->isBanned(), 403, 'This account is banned.');
 
         return response()->json($this->tokenResponse($user, $validated['token_name'] ?? 'api-token'));
+    }
+
+    public function requestVerificationCode(RequestVerificationCodeRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        if (User::where('email', $validated['email'])->exists()) {
+            throw ValidationException::withMessages([
+                'email' => ['This email is already registered.'],
+            ]);
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        EmailVerificationCode::where('email', $validated['email'])->delete();
+
+        EmailVerificationCode::create([
+            'email' => $validated['email'],
+            'code' => $code,
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $user = new User(['email' => $validated['email']]);
+        $user->notify(new EmailVerificationCodeNotification($code));
+
+        return response()->json([
+            'message' => 'Verification code sent to your email.',
+            'email' => $validated['email'],
+        ], 201);
+    }
+
+    public function verifyEmailCode(VerifyEmailCodeRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        if (!EmailVerificationCode::isValid($validated['email'], $validated['code'])) {
+            throw ValidationException::withMessages([
+                'code' => ['The verification code is invalid or has expired.'],
+            ]);
+        }
+
+        EmailVerificationCode::markAsUsed($validated['email'], $validated['code']);
+
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'password' => ['required', 'confirmed', 'min:8'],
+            'role' => ['sometimes', 'in:student,instructor'],
+            'token_name' => ['sometimes', 'string', 'max:255'],
+        ]);
+
+        $user = User::create([
+            'name' => $request->input('name'),
+            'email' => $validated['email'],
+            'password' => $request->input('password'),
+            'role' => $request->input('role', 'student'),
+        ]);
+
+        $user->forceFill([
+            'email_verified_at' => now(),
+        ])->save();
+
+        event(new Registered($user));
+
+        return response()->json($this->tokenResponse($user, $request->input('token_name', 'api-token')), 201);
     }
 
     public function me(Request $request): JsonResponse

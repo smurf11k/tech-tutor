@@ -161,6 +161,7 @@ RESTful API for all core features.
 - [x] Current-user profile endpoint
 - [x] Logout / token revocation
 - [x] Email verification
+- [x] 6-digit email verification code flow
 - [x] Password reset flow
 - [x] OAuth login with Google
 - [ ] OAuth login with GitHub (optional)

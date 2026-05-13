@@ -6,8 +6,30 @@ All notable changes to this project are documented in this file. Entries are ord
 
 ### Progress
 
-- Backend readiness: 89/100
-- Frontend readiness: 32/100 (demo)
+- Backend readiness: 91/100
+- Frontend readiness: 35/100 (demo)
+
+---
+
+## 2026-05-13 — Email verification code registration flow
+
+### Backend
+
+- New registration flow with 6-digit email verification codes
+- `POST /auth/register/request-verification-code` generates a code, emails it, and stores verification record with 5-minute expiration
+- `POST /auth/register/verify-code` validates the code and completes registration with auto-verified email
+- `EmailVerificationCode` model with active code scoping, validation, and cleanup utilities
+- `EmailVerificationCodeNotification` sends codes via email
+- New `VerifyEmailCodeRequest` form request with 6-digit code validation
+- Comprehensive curl testing snippets added to backend-api.md documentation
+
+### Frontend (demo)
+
+- Sign-up modal with 2-step email verification code flow
+- Step 1: Enter name, email, password, CAPTCHA → verification code sent
+- Step 2: Enter 6-digit code → account created with verified email
+- Sign-up button added to login card for easy access
+- Demo CAPTCHA integration works with sign-up flow
 
 ---
 

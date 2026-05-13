@@ -13,6 +13,8 @@ Base URL during local backend development:
 - `GET /courses`
 - `GET /courses/{course}`
 - `POST /auth/register`
+- `POST /auth/register/request-verification-code`
+- `POST /auth/register/verify-code`
 - `POST /auth/login`
 - `POST /auth/forgot-password`
 - `POST /auth/reset-password`
@@ -66,6 +68,19 @@ Email verification flow:
 - Registration sends a signed verification URL.
 - `GET /auth/email/verify/{id}/{hash}` marks the address as verified when the URL signature is valid.
 - `POST /auth/email/resend` resends the verification email for the authenticated user.
+
+**Alternative email verification with 6-digit code:**
+
+TechTutor also supports a two-step registration flow with email verification codes:
+
+1. `POST /auth/register/request-verification-code` — Creates a verification record, generates a 6-digit code, and emails it to the provided address.
+   - Requires `name`, `email`, `password`, `password_confirmation`, optional `role`, and `captcha_token` (if CAPTCHA is enabled)
+   - Code expires in 5 minutes
+   - Returns the email address for reference
+
+2. `POST /auth/register/verify-code` — Validates the 6-digit code and finalizes registration.
+   - Requires `email`, `code`, `name`, `password`, `password_confirmation`, optional `role` and `token_name`
+   - Returns a Sanctum bearer token and user info on success
 
 ### Auth cURL / Postman Examples
 
@@ -123,6 +138,66 @@ curl -X POST "http://127.0.0.1:8000/api/auth/reset-password" \
     "password": "new-password123",
     "password_confirmation": "new-password123"
   }'
+```
+
+#### Email Verification Code Registration Flow
+
+Request verification code (sends 6-digit code to email):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/auth/register/request-verification-code" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Student",
+    "email": "student@example.com",
+    "password": "password123",
+    "password_confirmation": "password123",
+    "role": "student",
+    "captcha_token": "demo-captcha-token"
+  }'
+```
+
+Response:
+
+```json
+{
+  "message": "Verification code sent to your email.",
+  "email": "student@example.com"
+}
+```
+
+Verify code and complete registration:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/auth/register/verify-code" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "student@example.com",
+    "code": "123456",
+    "name": "New Student",
+    "password": "password123",
+    "password_confirmation": "password123",
+    "role": "student",
+    "token_name": "frontend"
+  }'
+```
+
+Response:
+
+```json
+{
+  "token": "1|...",
+  "token_type": "Bearer",
+  "user": {
+    "id": 1,
+    "email": "student@example.com",
+    "name": "New Student",
+    "role": "student",
+    "email_verified_at": "2026-05-13T10:30:00Z"
+  }
+}
 ```
 
 ### Course Catalog Query Parameters

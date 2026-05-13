@@ -92,11 +92,49 @@ password
 
 ```bash
 php artisan migrate:fresh --seed
+composer cleanup
+composer cleanup:optimize
 composer start:fresh
 composer start:fresh:seed
 php artisan test
 vendor/bin/pint
 ```
+
+### Cleanup
+
+```bash
+composer cleanup
+```
+
+Clears Laravel’s compiled and runtime caches to restore a clean application state.
+
+Internally runs:
+
+- `php artisan optimize:clear`
+- `php artisan config:clear`
+- `php artisan cache:clear`
+- `php artisan route:clear`
+- `php artisan view:clear`
+- `php artisan event:clear`
+
+Use this after:
+
+- changing `.env` values
+- pulling new branches
+- dependency updates
+- encountering unexpected cached behavior during local development
+
+### Cleanup + Optimize
+
+```bash
+composer cleanup:optimize
+```
+
+Runs the standard cleanup and then rebuilds optimized caches using:
+
+- `php artisan optimize`
+
+This is useful when you want a clean but fully optimized local state.
 
 ## Reset Database Quickly
 
@@ -106,7 +144,7 @@ First-start cleanup and migrate from `backend`:
 composer start:fresh
 ```
 
-This clears Laravel's compiled config/cache state and then runs migrations.
+This runs the cleanup command and then executes database migrations.
 
 First-start cleanup, migrate, and seed from `backend`:
 
@@ -114,7 +152,7 @@ First-start cleanup, migrate, and seed from `backend`:
 composer start:fresh:seed
 ```
 
-This does the same cleanup, then runs migrations and seeds the database.
+This performs the same cleanup, then runs a fresh migration and seeds the database.
 
 Soft reset from `backend`:
 
@@ -123,4 +161,7 @@ composer db:fresh
 ```
 
 This recreates all tables and reseeds the database, but keeps the Postgres data directory/container in place.
-Important: in this project, `docker compose down -v` alone does not fully wipe Postgres data because the database is stored in a bind-mounted folder at `backend/database/data`, not a named Docker volume.
+
+::: info
+In this project, `docker compose down -v` alone does not fully wipe Postgres data because the database is stored in a bind-mounted folder at `backend/database/data`, not a named Docker volume.
+:::

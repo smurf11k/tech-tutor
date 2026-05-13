@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\EmailVerificationCode;
 use App\Notifications\ResetPasswordNotification;
+use App\Notifications\EmailVerificationCodeNotification;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,6 +19,88 @@ use Tests\TestCase;
 class AuthFlowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_user_can_request_email_verification_code_for_signup_without_captcha_token(): void
+    {
+        $this->postJson('/api/auth/register/request-verification-code', [
+            'name' => 'Code Request Student',
+            'email' => 'code.request@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertCreated()
+            ->assertJsonPath('message', 'Verification code sent to your email.')
+            ->assertJsonPath('email', 'code.request@example.com');
+
+        $this->assertDatabaseHas('email_verification_codes', [
+            'email' => 'code.request@example.com',
+            'used' => false,
+        ]);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'code.request@example.com',
+        ]);
+
+        Notification::assertSentTimes(EmailVerificationCodeNotification::class, 1);
+    }
+
+    public function test_user_can_complete_signup_by_verifying_email_code(): void
+    {
+        EmailVerificationCode::create([
+            'email' => 'verify.code@example.com',
+            'code' => '123456',
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $response = $this->postJson('/api/auth/register/verify-code', [
+            'name' => 'Verified Student',
+            'email' => 'verify.code@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'code' => '123456',
+            'role' => 'student',
+            'token_name' => 'test-verify-code',
+        ])->assertCreated()
+            ->assertJsonPath('token_type', 'Bearer')
+            ->assertJsonPath('user.email', 'verify.code@example.com')
+            ->assertJsonPath('user.role', 'student');
+
+        $user = User::where('email', 'verify.code@example.com')->firstOrFail();
+
+        $this->assertNotNull($user->email_verified_at);
+
+        $this->assertDatabaseHas('email_verification_codes', [
+            'email' => 'verify.code@example.com',
+            'code' => '123456',
+            'used' => true,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer ' . $response->json('token'))
+            ->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('email', 'verify.code@example.com');
+    }
+
+    public function test_signup_verification_fails_with_invalid_or_expired_code(): void
+    {
+        EmailVerificationCode::create([
+            'email' => 'expired.code@example.com',
+            'code' => '654321',
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        $this->postJson('/api/auth/register/verify-code', [
+            'name' => 'Expired Code User',
+            'email' => 'expired.code@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'code' => '654321',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['code']);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'expired.code@example.com',
+        ]);
+    }
 
     public function test_user_can_register_receive_verification_email_and_fetch_profile(): void
     {

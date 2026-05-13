@@ -151,6 +151,15 @@ function App() {
   const [notice, setNotice] = useState(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [showSignUp, setShowSignUp] = useState(false);
+  const [signUpStep, setSignUpStep] = useState("request-code"); // 'request-code' or 'verify-code'
+  const [signUpData, setSignUpData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    password_confirmation: "",
+    code: "",
+  });
   const [lessonDrafts, setLessonDrafts] = useState({});
   const [uploadingModuleId, setUploadingModuleId] = useState(null);
   const [openingLessonId, setOpeningLessonId] = useState(null);
@@ -503,6 +512,79 @@ function App() {
         description:
           error?.response?.data?.message ||
           "Unable to sign in with these credentials.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRequestVerificationCode(event) {
+    event?.preventDefault();
+    setLoading(true);
+    try {
+      await api.post("/auth/register/request-verification-code", {
+        name: signUpData.name.trim(),
+        email: signUpData.email.toLowerCase().trim(),
+        password: signUpData.password,
+        password_confirmation: signUpData.password_confirmation,
+      });
+
+      setSignUpStep("verify-code");
+      setNotice({
+        variant: "default",
+        title: "Verification code sent",
+        description: `Check your email at ${signUpData.email} for the 6-digit code.`,
+      });
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Sign-up request failed",
+        description:
+          error?.response?.data?.message || "Could not send verification code.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSignUpVerifyCode(event) {
+    event?.preventDefault();
+    setLoading(true);
+    try {
+      const response = await api.post("/auth/register/verify-code", {
+        email: signUpData.email.toLowerCase().trim(),
+        code: signUpData.code.trim(),
+        name: signUpData.name.trim(),
+        password: signUpData.password,
+        password_confirmation: signUpData.password_confirmation,
+        role: "student",
+        token_name: "frontend-demo",
+      });
+
+      localStorage.setItem(STORAGE_TOKEN_KEY, response.token);
+      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(response.user));
+      setAuthToken(response.token);
+      setCurrentUser(response.user);
+      setShowSignUp(false);
+      setSignUpStep("request-code");
+      setSignUpData({
+        name: "",
+        email: "",
+        password: "",
+        password_confirmation: "",
+        code: "",
+      });
+      setNotice({
+        variant: "default",
+        title: "Sign-up complete",
+        description: `Welcome ${response.user.name}! Your email is verified.`,
+      });
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Sign-up verification failed",
+        description:
+          error?.response?.data?.message || "Could not verify your email code.",
       });
     } finally {
       setLoading(false);
@@ -1111,7 +1193,9 @@ function App() {
 
     setDeletingLessonId(lesson.id);
     try {
-      await authenticatedClient.delete(`/modules/${module.id}/lessons/${lesson.id}`);
+      await authenticatedClient.delete(
+        `/modules/${module.id}/lessons/${lesson.id}`,
+      );
       await loadCourseDetails(selectedCourse.id);
       setEditingLessonId((prev) => (prev === lesson.id ? null : prev));
 
@@ -1294,6 +1378,25 @@ function App() {
                       type="button"
                       size="lg"
                       variant="outline"
+                      onClick={() => {
+                        setShowSignUp(true);
+                        setSignUpStep("request-code");
+                        setSignUpData({
+                          name: "",
+                          email: "",
+                          password: "",
+                          password_confirmation: "",
+                          code: "",
+                        });
+                      }}
+                      disabled={loading}
+                    >
+                      Sign up
+                    </Button>
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
                       onClick={handleDemoCaptcha}
                       disabled={loading}
                     >
@@ -1407,6 +1510,160 @@ function App() {
                       : "Use the demo CAPTCHA button while testing locally; replace it with the real widget in production."}
                   </p>
                 </form>
+              </CardContent>
+            </Card>
+          </section>
+        )}
+
+        {showSignUp && (
+          <section className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <Card className="w-full max-w-sm border-white/10 bg-slate-950">
+              <CardHeader>
+                <CardTitle className="text-white">
+                  {signUpStep === "request-code"
+                    ? "Create account"
+                    : "Verify email"}
+                </CardTitle>
+                <CardDescription>
+                  {signUpStep === "request-code"
+                    ? "Enter your details and password to sign up."
+                    : "Enter the 6-digit code sent to your email."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {signUpStep === "request-code" ? (
+                  <form
+                    className="space-y-3"
+                    onSubmit={handleRequestVerificationCode}
+                  >
+                    <Input
+                      value={signUpData.name}
+                      onChange={(event) =>
+                        setSignUpData((prev) => ({
+                          ...prev,
+                          name: event.target.value,
+                        }))
+                      }
+                      placeholder="Full name"
+                      className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                      required
+                    />
+                    <Input
+                      type="email"
+                      value={signUpData.email}
+                      onChange={(event) =>
+                        setSignUpData((prev) => ({
+                          ...prev,
+                          email: event.target.value,
+                        }))
+                      }
+                      placeholder="Email address"
+                      className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                      required
+                    />
+                    <Input
+                      type="password"
+                      value={signUpData.password}
+                      onChange={(event) =>
+                        setSignUpData((prev) => ({
+                          ...prev,
+                          password: event.target.value,
+                        }))
+                      }
+                      placeholder="Password (min 8 chars)"
+                      className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                      required
+                    />
+                    <Input
+                      type="password"
+                      value={signUpData.password_confirmation}
+                      onChange={(event) =>
+                        setSignUpData((prev) => ({
+                          ...prev,
+                          password_confirmation: event.target.value,
+                        }))
+                      }
+                      placeholder="Confirm password"
+                      className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                      required
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="submit"
+                        size="lg"
+                        disabled={loading}
+                        className="flex-1"
+                      >
+                        Send verification code
+                      </Button>
+                      <Button
+                        type="button"
+                        size="lg"
+                        variant="outline"
+                        onClick={() => {
+                          setShowSignUp(false);
+                          setSignUpStep("request-code");
+                          setSignUpData({
+                            name: "",
+                            email: "",
+                            password: "",
+                            password_confirmation: "",
+                            code: "",
+                          });
+                        }}
+                        disabled={loading}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <form className="space-y-3" onSubmit={handleSignUpVerifyCode}>
+                    <Input
+                      value={signUpData.code}
+                      onChange={(event) =>
+                        setSignUpData((prev) => ({
+                          ...prev,
+                          code: event.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 6),
+                        }))
+                      }
+                      placeholder="000000"
+                      maxLength="6"
+                      className="border-white/10 bg-white/5 text-white placeholder:text-slate-500 text-center text-2xl tracking-widest"
+                      required
+                    />
+                    <p className="text-xs text-slate-400">
+                      Check your email for the 6-digit verification code
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="submit"
+                        size="lg"
+                        disabled={loading || signUpData.code.length !== 6}
+                        className="flex-1"
+                      >
+                        Verify & sign up
+                      </Button>
+                      <Button
+                        type="button"
+                        size="lg"
+                        variant="outline"
+                        onClick={() => {
+                          setSignUpStep("request-code");
+                          setSignUpData((prev) => ({
+                            ...prev,
+                            code: "",
+                          }));
+                        }}
+                        disabled={loading}
+                      >
+                        Back
+                      </Button>
+                    </div>
+                  </form>
+                )}
               </CardContent>
             </Card>
           </section>
@@ -1833,7 +2090,8 @@ function App() {
                                         variant="secondary"
                                         onClick={() => startLessonEdit(lesson)}
                                         disabled={
-                                          loading || deletingLessonId === lesson.id
+                                          loading ||
+                                          deletingLessonId === lesson.id
                                         }
                                       >
                                         Edit
@@ -1846,7 +2104,8 @@ function App() {
                                           handleDeleteLesson(module, lesson)
                                         }
                                         disabled={
-                                          loading || deletingLessonId === lesson.id
+                                          loading ||
+                                          deletingLessonId === lesson.id
                                         }
                                       >
                                         {deletingLessonId === lesson.id
@@ -1891,7 +2150,9 @@ function App() {
                                       </p>
                                       <div className="grid gap-2 sm:grid-cols-2">
                                         <Input
-                                          value={getLessonEditDraft(lesson).title}
+                                          value={
+                                            getLessonEditDraft(lesson).title
+                                          }
                                           onChange={(event) =>
                                             updateLessonEditDraft(lesson.id, {
                                               title: event.target.value,
@@ -1899,10 +2160,14 @@ function App() {
                                           }
                                           placeholder="Lesson title"
                                           className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                                          disabled={savingLessonId === lesson.id}
+                                          disabled={
+                                            savingLessonId === lesson.id
+                                          }
                                         />
                                         <Input
-                                          value={getLessonEditDraft(lesson).slug}
+                                          value={
+                                            getLessonEditDraft(lesson).slug
+                                          }
                                           onChange={(event) =>
                                             updateLessonEditDraft(lesson.id, {
                                               slug: buildLessonSlug(
@@ -1912,19 +2177,25 @@ function App() {
                                           }
                                           placeholder="lesson-slug"
                                           className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                                          disabled={savingLessonId === lesson.id}
+                                          disabled={
+                                            savingLessonId === lesson.id
+                                          }
                                         />
                                       </div>
                                       <div className="flex flex-wrap items-center gap-2">
                                         <select
-                                          value={getLessonEditDraft(lesson).type}
+                                          value={
+                                            getLessonEditDraft(lesson).type
+                                          }
                                           onChange={(event) =>
                                             updateLessonEditDraft(lesson.id, {
                                               type: event.target.value,
                                             })
                                           }
                                           className="h-10 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white"
-                                          disabled={savingLessonId === lesson.id}
+                                          disabled={
+                                            savingLessonId === lesson.id
+                                          }
                                         >
                                           <option value="text">text</option>
                                           <option value="video">video</option>
@@ -1945,7 +2216,9 @@ function App() {
                                               })
                                             }
                                             className="max-w-sm border-white/10 bg-white/5 text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-xs file:text-white"
-                                            disabled={savingLessonId === lesson.id}
+                                            disabled={
+                                              savingLessonId === lesson.id
+                                            }
                                           />
                                         )}
                                         <label className="flex items-center gap-2 text-xs text-slate-300">
@@ -1961,7 +2234,9 @@ function App() {
                                                   event.target.checked,
                                               })
                                             }
-                                            disabled={savingLessonId === lesson.id}
+                                            disabled={
+                                              savingLessonId === lesson.id
+                                            }
                                           />
                                           Preview lesson
                                         </label>
@@ -1970,7 +2245,9 @@ function App() {
                                         <Button
                                           type="submit"
                                           size="sm"
-                                          disabled={savingLessonId === lesson.id}
+                                          disabled={
+                                            savingLessonId === lesson.id
+                                          }
                                         >
                                           {savingLessonId === lesson.id
                                             ? "Saving..."
@@ -1983,7 +2260,9 @@ function App() {
                                           onClick={() =>
                                             cancelLessonEdit(lesson.id)
                                           }
-                                          disabled={savingLessonId === lesson.id}
+                                          disabled={
+                                            savingLessonId === lesson.id
+                                          }
                                         >
                                           Cancel
                                         </Button>
@@ -2649,7 +2928,7 @@ function App() {
                 <p>
                   Use{" "}
                   <span className="font-mono text-amber-200">
-                    composer db:fresh
+                    composer db:fresh:seed
                   </span>{" "}
                   to reseed or fully recreate tables as needed.
                 </p>

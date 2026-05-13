@@ -27,6 +27,8 @@ Route::apiResource('courses', CourseController::class)->only(['index', 'show']);
 
 Route::post('dev/token', DevTokenController::class);
 Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:auth');
+Route::post('auth/register/request-verification-code', [AuthController::class, 'requestVerificationCode'])->middleware('throttle:auth');
+Route::post('auth/register/verify-code', [AuthController::class, 'verifyEmailCode'])->middleware('throttle:auth');
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
 Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth');
