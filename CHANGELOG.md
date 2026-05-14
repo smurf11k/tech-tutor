@@ -11,6 +11,15 @@ All notable changes to this project are documented in this file. Entries are ord
 
 ---
 
+## 2026-05-14 — Add uk localization for docs and readme
+
+### Docs
+
+- Added ukrainian localized `.md` files for docs
+- Added README-uk.md for consistency
+
+---
+
 ## 2026-05-13 — MeiliSearch catalog indexing/search rollout
 
 ### Backend

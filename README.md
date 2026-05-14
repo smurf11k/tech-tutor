@@ -1,6 +1,8 @@
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](./LICENSE)
 ![Status: Under Development](https://img.shields.io/badge/status-under--development-orange)
 
+> Ukrainian version available: [README українською](./README-uk.md)
+
 # TechTutor
 
 > Modern LMS platform for creating, selling, and consuming online courses.
