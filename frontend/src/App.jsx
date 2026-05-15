@@ -31,6 +31,7 @@ import {
   fetchPaymentStatus,
 } from "@/hooks/usePaymentReturn";
 import ResetPassword from "@/pages/ResetPassword";
+import AcceptInvite from "@/pages/AcceptInvite";
 
 const STORAGE_TOKEN_KEY = "techtutor_token";
 const STORAGE_USER_KEY = "techtutor_user";
@@ -121,6 +122,11 @@ function App() {
   const searchParams = new URLSearchParams(window.location.search);
   const resetToken = searchParams.get("token");
   const resetEmail = searchParams.get("email");
+  const inviteToken = searchParams.get("token");
+
+  if (window.location.pathname === "/invite" && inviteToken) {
+    return <AcceptInvite token={inviteToken} />;
+  }
 
   if (resetToken && resetEmail) {
     return <ResetPassword token={resetToken} email={resetEmail} />;
@@ -145,6 +151,11 @@ function App() {
   const [instructorDashboard, setInstructorDashboard] = useState(null);
   const [adminPlatformDashboard, setAdminPlatformDashboard] = useState(null);
   const [adminUsers, setAdminUsers] = useState([]);
+  const [inviteForm, setInviteForm] = useState({
+    email: "",
+    role: "instructor",
+  });
+  const [lastInviteUrl, setLastInviteUrl] = useState("");
   const [moderationQueue, setModerationQueue] = useState([]);
   const [catalogFilters, setCatalogFilters] = useState(defaultCatalogFilters);
   const [loading, setLoading] = useState(false);
@@ -1214,6 +1225,37 @@ function App() {
       });
     } finally {
       setDeletingLessonId(null);
+    }
+  }
+
+  async function handleSendUserInvite(event) {
+    event?.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await authenticatedClient.post("/admin/users/invites", {
+        email: inviteForm.email.toLowerCase().trim(),
+        role: inviteForm.role,
+      });
+
+      setLastInviteUrl(response.data.invite_url ?? "");
+      setInviteForm((prev) => ({ ...prev, email: "" }));
+      setNotice({
+        variant: "default",
+        title: "Invitation sent",
+        description: `Invite link for ${response.data.role} role expires in 5 minutes. Open the link below if email is not configured locally.`,
+      });
+    } catch (error) {
+      setNotice({
+        variant: "destructive",
+        title: "Invitation failed",
+        description:
+          error?.response?.data?.message ||
+          error?.response?.data?.errors?.email?.[0] ||
+          "Could not send the invitation.",
+      });
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -2805,11 +2847,60 @@ function App() {
                       User management
                     </CardTitle>
                     <CardDescription>
-                      Seeded accounts let you test admin list, roles, and banned
-                      states.
+                      Invite new users with a pre-selected role. Links expire in
+                      5 minutes.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    <form
+                      onSubmit={handleSendUserInvite}
+                      className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 space-y-3"
+                    >
+                      <p className="text-sm font-medium text-white">
+                        Send role invite
+                      </p>
+                      <Input
+                        type="email"
+                        value={inviteForm.email}
+                        onChange={(event) =>
+                          setInviteForm((prev) => ({
+                            ...prev,
+                            email: event.target.value,
+                          }))
+                        }
+                        placeholder="new.user@example.com"
+                        className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
+                        required
+                      />
+                      <select
+                        value={inviteForm.role}
+                        onChange={(event) =>
+                          setInviteForm((prev) => ({
+                            ...prev,
+                            role: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                      >
+                        <option value="student">student</option>
+                        <option value="instructor">instructor</option>
+                      </select>
+                      <Button type="submit" size="sm" disabled={loading}>
+                        Send invite email
+                      </Button>
+                      {lastInviteUrl && (
+                        <p className="text-xs text-slate-400 break-all">
+                          Demo link:{" "}
+                          <a
+                            href={lastInviteUrl}
+                            className="text-amber-200 underline"
+                          >
+                            {lastInviteUrl}
+                          </a>
+                        </p>
+                      )}
+                    </form>
+
                     {adminUsers.map((user) => (
                       <div
                         key={user.id}
@@ -2935,6 +3026,11 @@ function App() {
                 <p>
                   All demo accounts use the same password:{" "}
                   <span className="font-mono text-amber-200">password</span>.
+                </p>
+                <p>
+                  Sign in as admin, send an invite from User management, then
+                  open the returned link within 5 minutes to onboard with the
+                  chosen role.
                 </p>
               </CardContent>
             </Card>

@@ -20,6 +20,7 @@ use App\Http\Controllers\QuizController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\PaymentStatusController;
+use App\Http\Controllers\UserInviteController;
 use App\Http\Middleware\EnsureUserIsNotBanned;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,8 @@ Route::post('dev/token', DevTokenController::class);
 Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:auth');
 Route::post('auth/register/request-verification-code', [AuthController::class, 'requestVerificationCode'])->middleware('throttle:auth');
 Route::post('auth/register/verify-code', [AuthController::class, 'verifyEmailCode'])->middleware('throttle:auth');
+Route::get('auth/invite/{token}', [UserInviteController::class, 'show']);
+Route::post('auth/invite/{token}/accept', [UserInviteController::class, 'accept'])->middleware('throttle:auth');
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
 Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth');
@@ -47,6 +50,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::post('auth/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:auth-email');
     Route::get('admin/users', [AdminUserController::class, 'index']);
+    Route::post('admin/users/invites', [UserInviteController::class, 'store']);
     Route::patch('admin/users/{user}', [AdminUserController::class, 'update']);
     Route::get('admin/platform-dashboard', [AdminPlatformDashboardController::class, 'show']);
     Route::get('admin/moderation-queue', [AdminModerationQueueController::class, 'index']);

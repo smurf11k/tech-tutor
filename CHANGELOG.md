@@ -6,8 +6,21 @@ All notable changes to this project are documented in this file. Entries are ord
 
 ### Progress
 
-- Backend readiness: 94/100
+- Backend readiness: 95/100
 - Frontend readiness: 35/100 (demo)
+
+---
+
+## 2026-05-15 — Add invite via token logic
+
+### Backend
+
+- Implemented inviting with a chosen (student/instructor) role for admins
+- Send email with invitation link to chosen user with chosen role
+
+### Frontend (demo)
+
+- Added a section for invitation flow for admins
 
 ---
 

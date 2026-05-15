@@ -367,6 +367,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->command?->info('Seeded demo accounts (password: password)');
+        $this->command?->line('Admin can invite users (student/instructor) from the demo User management panel; invite links expire in 5 minutes.');
         $this->command?->line('admin@techtutor.test');
         $this->command?->line('instructor@techtutor.test');
         $this->command?->line('student@techtutor.test');
