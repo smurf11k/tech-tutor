@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AuthShell } from "@/components/common/AuthShell";
 import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { getDefaultRouteForUser } from "@/lib/navigation";
+import { getApiErrorMessage } from "@/lib/utils";
 
 export default function AcceptInvite({ token }) {
+  const { applySession } = useAuth();
+  const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
   const [loadingInvite, setLoadingInvite] = useState(true);
   const [name, setName] = useState("");
@@ -38,9 +39,10 @@ export default function AcceptInvite({ token }) {
           setNotice({
             variant: "destructive",
             title: "Invitation unavailable",
-            description:
-              error?.response?.data?.message ||
+            description: getApiErrorMessage(
+              error,
               "This invitation is invalid or has expired.",
+            ),
           });
         }
       } finally {
@@ -51,7 +53,6 @@ export default function AcceptInvite({ token }) {
     }
 
     loadInvite();
-
     return () => {
       cancelled = true;
     };
@@ -67,32 +68,20 @@ export default function AcceptInvite({ token }) {
         name: name.trim(),
         password,
         password_confirmation: passwordConfirmation,
-        token_name: "invite-onboarding",
+        token_name: "web",
       });
 
-      localStorage.setItem("techtutor_token", response.data.token);
-      localStorage.setItem(
-        "techtutor_user",
-        JSON.stringify(response.data.user),
-      );
-
-      setNotice({
-        variant: "default",
-        title: "Welcome to TechTutor",
-        description: `Your ${response.data.user.role} account is ready. Redirecting...`,
+      applySession({
+        token: response.data.token,
+        user: response.data.user,
       });
 
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1500);
+      navigate(getDefaultRouteForUser(response.data.user), { replace: true });
     } catch (error) {
       setNotice({
         variant: "destructive",
         title: "Could not complete invitation",
-        description:
-          error?.response?.data?.message ||
-          error?.response?.data?.errors?.token?.[0] ||
-          "The invitation may have expired.",
+        description: getApiErrorMessage(error, "The invitation may have expired."),
       });
     } finally {
       setLoading(false);
@@ -100,100 +89,78 @@ export default function AcceptInvite({ token }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="border-white/10 bg-slate-950/70">
-          <CardHeader>
-            <CardTitle className="text-white">Accept your invitation</CardTitle>
-            <CardDescription className="text-slate-400">
-              Finish onboarding with the role assigned by your administrator.
-              Invitation links expire in 5 minutes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notice && (
-              <Alert
-                variant={
-                  notice.variant === "destructive" ? "destructive" : "default"
+    <AuthShell
+      title="Accept your invitation"
+      description="Finish onboarding with the role assigned by your administrator. Links expire in 5 minutes."
+    >
+      {notice ? (
+        <Alert
+          variant={
+            notice.variant === "destructive" ? "destructive" : "default"
+          }
+        >
+          <AlertTitle>{notice.title}</AlertTitle>
+          <AlertDescription>{notice.description}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {loadingInvite ? (
+        <p className="text-sm text-muted-foreground">Checking invitation...</p>
+      ) : null}
+
+      {!loadingInvite && invite ? (
+        <>
+          <section className="rounded-xl border border-border/80 bg-muted/30 p-3 text-sm">
+            <p>
+              Email: <span className="font-medium">{invite.email}</span>
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              Role: <Badge variant="secondary">{invite.role}</Badge>
+            </div>
+          </section>
+          <form onSubmit={handleAcceptInvite} className="space-y-3">
+            <label className="block space-y-2">
+              <Label>Full name</Label>
+              <Input
+                required
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+            <label className="block space-y-2">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+            <label className="block space-y-2">
+              <Label>Confirm password</Label>
+              <Input
+                type="password"
+                required
+                minLength={8}
+                value={passwordConfirmation}
+                onChange={(event) =>
+                  setPasswordConfirmation(event.target.value)
                 }
-              >
-                <AlertTitle>{notice.title}</AlertTitle>
-                <AlertDescription>{notice.description}</AlertDescription>
-              </Alert>
-            )}
+              />
+            </label>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creating account..." : "Create account"}
+            </Button>
+          </form>
+        </>
+      ) : null}
 
-            {loadingInvite && (
-              <p className="text-sm text-slate-400">Checking invitation...</p>
-            )}
-
-            {!loadingInvite && invite && (
-              <>
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
-                  <p>
-                    Email:{" "}
-                    <span className="font-medium text-white">{invite.email}</span>
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span>Role:</span>
-                    <Badge variant="secondary">{invite.role}</Badge>
-                  </div>
-                </div>
-
-                <form onSubmit={handleAcceptInvite} className="space-y-3">
-                  <Input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Full name"
-                    className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                    required
-                  />
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Password"
-                    className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                    required
-                    minLength={8}
-                  />
-                  <Input
-                    type="password"
-                    value={passwordConfirmation}
-                    onChange={(event) =>
-                      setPasswordConfirmation(event.target.value)
-                    }
-                    placeholder="Confirm password"
-                    className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                    required
-                    minLength={8}
-                  />
-                  <Button
-                    type="submit"
-                    size="lg"
-                    disabled={loading}
-                    className="w-full text-white"
-                  >
-                    {loading ? "Creating account..." : "Create account"}
-                  </Button>
-                </form>
-              </>
-            )}
-
-            {!loadingInvite && !invite && (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full text-white border-white/10"
-                onClick={() => {
-                  window.location.href = "/";
-                }}
-              >
-                Back to demo
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+      {!loadingInvite && !invite ? (
+        <Button variant="outline" className="w-full" asChild>
+          <Link to="/">Back to home</Link>
+        </Button>
+      ) : null}
+    </AuthShell>
   );
 }

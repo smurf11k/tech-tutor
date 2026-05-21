@@ -22,7 +22,7 @@ class EmailVerificationCodeNotification extends Notification
             ->subject('TechTutor Email Verification Code')
             ->line('Welcome to TechTutor! To complete your registration, please enter the following verification code:')
             ->line('**' . $this->code . '**')
-            ->line('This code will expire in 15 minutes.')
+            ->line('This code will expire in 5 minutes.') //TODO: instead of hardcoding, use the actual expiration time
             ->line('If you did not sign up for a TechTutor account, you can safely ignore this email.')
             ->salutation('Best regards,')
             ->from(config('mail.from.address'), config('mail.from.name'));

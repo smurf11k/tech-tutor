@@ -15,7 +15,39 @@ class ModuleController extends Controller
     {
         $this->authorize('view', $course);
 
-        return response()->json($course->modules()->with('lessons')->get());
+        $modules = $course->modules()->with(['lessons', 'quizzes.questions'])->get();
+
+        $user = request()->user();
+        $isInstructor = $this->isInstructor($user, $course);
+
+        // Filter out unpublished lessons and quizzes for non-instructors
+        if (!$isInstructor) {
+            $modules->each(function ($module) {
+                $module->lessons = $module->lessons->filter(fn($lesson) => $lesson->is_published)->values();
+                $module->quizzes = $module->quizzes->filter(fn($quiz) => $quiz->is_published)->values();
+                $module->quizzes->each(function ($quiz) {
+                    $quiz->questions->each(function ($question) {
+                        $question->makeHidden(['correct_answers']);
+                    });
+                });
+            });
+        } else {
+            // Hide correct_answers from students
+            $modules->each(function ($module) {
+                $module->quizzes->each(function ($quiz) {
+                    $quiz->questions->each(function ($question) {
+                        $question->makeHidden(['correct_answers']);
+                    });
+                });
+            });
+        }
+
+        return response()->json($modules);
+    }
+
+    private function isInstructor($user, $course): bool
+    {
+        return $user && ($user->isAdmin() || $user->id === $course->instructor_id);
     }
 
     public function store(StoreModuleRequest $request, Course $course): JsonResponse
@@ -29,7 +61,10 @@ class ModuleController extends Controller
             'position' => $validated['position'] ?? 0,
         ]);
 
-        return response()->json($module->load('lessons'), 201);
+        $module = $module->load(['lessons', 'quizzes.questions']);
+
+        // Hide correct_answers from students (though this is a create action, so only instructors)
+        return response()->json($module, 201);
     }
 
     public function show(Course $course, Module $module): JsonResponse
@@ -38,7 +73,34 @@ class ModuleController extends Controller
 
         abort_unless($module->course_id === $course->id, 404);
 
-        return response()->json($module->load('lessons'));
+        $module = $module->load(['lessons', 'quizzes.questions']);
+
+        $user = request()->user();
+        $isInstructor = $this->isInstructor($user, $course);
+
+        // Filter out unpublished lessons and quizzes for non-instructors
+        if (!$isInstructor) {
+            $module->setRelation(
+                'lessons',
+                $module->lessons->filter(fn($lesson) => $lesson->is_published)->values()
+            );
+
+            $module->setRelation(
+                'quizzes',
+                $module->quizzes->filter(fn($quiz) => $quiz->is_published)->values()
+            );
+        }
+
+        // Hide correct_answers from students
+        if (!$isInstructor) {
+            $module->quizzes->each(function ($quiz) {
+                $quiz->questions->each(function ($question) {
+                    $question->makeHidden(['correct_answers']);
+                });
+            });
+        }
+
+        return response()->json($module);
     }
 
     public function update(UpdateModuleRequest $request, Course $course, Module $module): JsonResponse
@@ -47,11 +109,12 @@ class ModuleController extends Controller
 
         abort_unless($module->course_id === $course->id, 404);
 
-        $validated = $request->validated();
+        $module->update($request->validated());
 
-        $module->update($validated);
+        $module = $module->fresh()->load(['lessons', 'quizzes.questions']);
 
-        return response()->json($module->fresh()->load('lessons'));
+        // Hide correct_answers from students (though this is an update action, so only instructors)
+        return response()->json($module);
     }
 
     public function destroy(Course $course, Module $module): Response

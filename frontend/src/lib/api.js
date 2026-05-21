@@ -2,8 +2,12 @@ import axios from "axios";
 
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+
 export const backendOrigin = new URL(apiBaseUrl, "http://localhost:8000")
   .origin;
+
+export const STORAGE_TOKEN_KEY = "techtutor_token";
+export const STORAGE_USER_KEY = "techtutor_user";
 
 const api = axios.create({
   baseURL: apiBaseUrl,
@@ -24,6 +28,35 @@ export function withAuth(token) {
       Authorization: `Bearer ${token}`,
     },
   });
+}
+
+export function postFormData(client, url, formData) {
+  return client.post(url, formData);
+}
+
+export function readStoredSession() {
+  const token = localStorage.getItem(STORAGE_TOKEN_KEY);
+  const userRaw = localStorage.getItem(STORAGE_USER_KEY);
+
+  if (!token || !userRaw) {
+    return { token: "", user: null };
+  }
+
+  try {
+    return { token, user: JSON.parse(userRaw) };
+  } catch {
+    return { token: "", user: null };
+  }
+}
+
+export function persistSession({ token, user }) {
+  localStorage.setItem(STORAGE_TOKEN_KEY, token);
+  localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+}
+
+export function clearSession() {
+  localStorage.removeItem(STORAGE_TOKEN_KEY);
+  localStorage.removeItem(STORAGE_USER_KEY);
 }
 
 export async function loginUser(credentials) {

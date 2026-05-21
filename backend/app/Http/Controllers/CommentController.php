@@ -8,6 +8,8 @@ use App\Models\Comment;
 use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\User;
+use App\Notifications\CommentReplyNotification;
+use App\Notifications\NewCommentNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -19,10 +21,20 @@ class CommentController extends Controller
         $course = $this->resolveCourse($lesson);
         $this->authorize('view', $course);
 
-        $comments = $lesson->comments()->with('user');
+        // Load only top-level comments (parent_comment_id is null)
+        $comments = $lesson->comments()
+            ->whereNull('parent_comment_id')
+            ->with(['user', 'replies.user']);
 
-        if (! $request->user()->isAdmin()) {
-            $comments->where('is_published', true);
+        $user = $request->user();
+        $isAdmin = $user?->isAdmin();
+        $isInstructor = $user && ($isAdmin || $user->id === $course->instructor_id);
+
+        // Instructors and admins see all comments; others see only published
+        //TODO: fix, there shouldn't be unpublished comments, why is there?
+        if (!$isInstructor && !$isAdmin) {
+            $comments->where('is_published', true)
+                ->whereHas('lesson', fn($q) => $q->where('is_published', true));
         }
 
         return response()->json($comments->get());
@@ -33,22 +45,53 @@ class CommentController extends Controller
         $course = $this->resolveCourse($lesson);
         $this->ensureAccess($request, $course);
 
+        $validated = $request->validated();
+        $parentCommentId = $validated['parent_comment_id'] ?? null;
+        $parentComment = null;
+
+        // If replying to a comment, verify it exists in this lesson
+        if ($parentCommentId) {
+            $parentComment = Comment::where('id', $parentCommentId)
+                ->where('lesson_id', $lesson->id)
+                ->firstOrFail();
+        }
+
         $comment = $lesson->comments()->create([
             'user_id' => $request->user()->id,
-            'body' => $request->validated()['body'],
+            'body' => $validated['body'],
+            'parent_comment_id' => $parentCommentId,
             'is_published' => false,
         ]);
 
-        return response()->json($comment->load(['lesson', 'user']), 201);
+        // Send notifications
+        if ($parentComment) {
+            // Notify the user whose comment was replied to
+            if ($parentComment->user->email_notifications_enabled) {
+                $parentComment->user->notify(new CommentReplyNotification($comment, $course));
+            }
+        } else {
+            // Notify course instructor about new top-level comment
+            if ($course->instructor->email_notifications_enabled) {
+                $course->instructor->notify(new NewCommentNotification($comment, $course));
+            }
+        }
+
+        return response()->json($comment->load(['lesson', 'user', 'replies.user']), 201);
     }
 
     public function update(UpdateCommentRequest $request, Lesson $lesson, Comment $comment): JsonResponse
     {
-        $this->authorizeOwnerOrAdmin($request, $lesson, $comment);
+        $course = $this->resolveCourse($lesson);
+        $this->authorizeCommentManagement($request, $lesson, $comment, $course);
 
         $validated = $request->validated();
 
-        if (! $request->user()->isAdmin()) {
+        $user = $request->user();
+        $isAdmin = $user->isAdmin();
+        $isInstructor = $isAdmin || $user->id === $course->instructor_id;
+
+        // Only admins and instructors can publish/unpublish
+        if (!$isAdmin && !$isInstructor) {
             unset($validated['is_published']);
         }
 
@@ -59,11 +102,41 @@ class CommentController extends Controller
 
     public function destroy(Request $request, Lesson $lesson, Comment $comment): Response
     {
-        $this->authorizeOwnerOrAdmin($request, $lesson, $comment);
+        $course = $this->resolveCourse($lesson);
+        $this->authorizeCommentManagement($request, $lesson, $comment, $course);
 
         $comment->delete();
 
         return response()->noContent();
+    }
+
+    public function instructorPendingComments(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User && ($user->isAdmin() || $user->isInstructor()), 403);
+
+        $query = Comment::with(['user', 'lesson.module.course'])
+            ->where('is_published', false)
+            ->latest();
+
+        // Instructors see only their course's pending comments; admins see all
+        if (!$user->isAdmin()) {
+            $query->whereHas('lesson.module.course', function ($q) use ($user) {
+                $q->where('instructor_id', $user->id);
+            });
+        }
+
+        $comments = $query->get()
+            ->groupBy(function ($comment) {
+                return $comment->lesson->module->course->id;
+            })
+            ->map(function ($courseComments) {
+                return $courseComments->groupBy(function ($comment) {
+                    return $comment->lesson_id;
+                });
+            });
+
+        return response()->json($comments);
     }
 
     private function resolveCourse(Lesson $lesson): Course
@@ -82,6 +155,7 @@ class CommentController extends Controller
         $isInstructor = $user->isAdmin() || $user->id === $course->instructor_id;
         $isEnrolled = $course->enrollments()->where('user_id', $user->id)->exists();
 
+        // Allow instructors/admins of the course OR enrolled students to comment
         abort_unless($isInstructor || $isEnrolled, 403);
     }
 
@@ -93,5 +167,18 @@ class CommentController extends Controller
         $isOwner = $request->user()->id === $comment->user_id;
 
         abort_unless($isAdmin || $isOwner, 403);
+    }
+
+    private function authorizeCommentManagement(Request $request, Lesson $lesson, Comment $comment, Course $course): void
+    {
+        abort_unless($comment->lesson_id === $lesson->id, 404);
+
+        $user = $request->user();
+        $isAdmin = $user->isAdmin();
+        $isInstructor = $user->id === $course->instructor_id;
+        $isOwner = $user->id === $comment->user_id;
+
+        // Allow: comment owner, course instructor, or admin
+        abort_unless($isOwner || $isInstructor || $isAdmin, 403);
     }
 }

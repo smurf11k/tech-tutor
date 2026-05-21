@@ -2,22 +2,279 @@
 outline: deep
 ---
 
-# API Testing
+# Backend Testing Guide
 
-This page contains copy-paste testing examples for the current backend.
+Comprehensive guide to testing the Tech Tutor backend, including automated tests, test setup, and manual testing.
 
-## Get Sanctum Token Quickly (Local Dev)
+## Automated Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+php artisan test
+
+# Run specific test file
+php artisan test tests/Feature/AuthFlowTest.php
+
+# Run specific test method
+php artisan test tests/Feature/AuthFlowTest.php --filter=test_user_can_register
+
+# Run with coverage report
+php artisan test --coverage
+
+# Run watch mode (auto-rerun on changes)
+php artisan test --watch
+
+# Run unit tests only
+php artisan test tests/Unit
+
+# Run feature tests only
+php artisan test tests/Feature
+```
+
+### Test Structure
+
+```
+tests/
+├── Feature/
+│   ├── AuthFlowTest.php           # Registration, login, OAuth, password reset
+│   ├── CourseFlowTest.php         # Course CRUD, enrollment, progress, certificates
+│   ├── CommerceFlowTest.php       # Payments, reviews, purchase flow
+│   ├── QuizFlowTest.php           # Quiz creation, attempts, scoring
+│   ├── InstructorDashboardFlowTest.php  # Instructor analytics
+│   ├── AdminPanelFlowTest.php     # Admin features, moderation
+│   ├── LessonCommentFlowTest.php  # Comments, threads, moderation
+│   └── UserInviteFlowTest.php     # User invitations
+├── Unit/
+│   └── ExampleTest.php            # Unit test examples
+├── TestCase.php                    # Base test class
+└── CreatesApplication.php          # Application bootstrap
+```
+
+### Test Coverage Summary
+
+| Feature | Tests | Location |
+|---------|-------|----------|
+| **Authentication** | Register, login, OAuth, password reset, email verification | AuthFlowTest |
+| **Course Management** | CRUD, publishing, enrollment, progress | CourseFlowTest |
+| **Learning Path** | Enrollment → Progress → Certificate | CourseFlowTest |
+| **Payments** | Internal payment, Stripe checkout, receipt generation | CommerceFlowTest |
+| **Quizzes** | Creation, attempts, scoring, analytics | QuizFlowTest |
+| **Instructor Dashboard** | Metrics, analytics, certificates | InstructorDashboardFlowTest |
+| **Admin Panel** | User management, moderation, dashboard | AdminPanelFlowTest |
+| **Comments** | Creation, threads, replies, moderation | LessonCommentFlowTest |
+| **User Invites** | Invite creation, acceptance, role assignment | UserInviteFlowTest |
+
+### Test Environment Setup
+
+Test configuration in `phpunit.xml`:
+
+```xml
+<php>
+  <env name="APP_ENV" value="testing"/>
+  <env name="DB_CONNECTION" value="sqlite"/>
+  <env name="DB_DATABASE" value=":memory:"/>    <!-- In-memory SQLite -->
+  <env name="MAIL_MAILER" value="array"/>       <!-- No real emails -->
+  <env name="QUEUE_CONNECTION" value="sync"/>   <!-- Synchronous jobs -->
+  <env name="CACHE_STORE" value="array"/>       <!-- In-memory cache -->
+</php>
+```
+
+**Benefits**:
+- **Fast**: No real database I/O
+- **Isolated**: Fresh database for each test
+- **No Side Effects**: No real emails sent
+- **Deterministic**: Same results every run
+
+### Test Best Practices
+
+#### 1. Use RefreshDatabase
+
+```php
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class AuthFlowTest extends TestCase {
+    use RefreshDatabase;  // Fresh DB state for each test
+    
+    public function test_user_can_register() {
+        // Test code
+    }
+}
+```
+
+#### 2. Create Test Data with Factories
+
+```php
+// Create a user
+$user = User::factory()->create();
+
+// Create with specific attributes
+$admin = User::factory()->admin()->create(['email' => 'admin@test.com']);
+
+// Create multiple
+$courses = Course::factory()->count(5)->create();
+```
+
+#### 3. Authenticate Test Requests
+
+```php
+// Act as authenticated user
+$this->actingAs($user, 'sanctum')
+    ->postJson('/api/courses', [...])
+    ->assertStatus(201);
+
+// Or with token
+$token = $user->createToken('test')->plainTextToken;
+$this->withHeader('Authorization', "Bearer $token")
+    ->postJson('/api/courses', [...]);
+```
+
+#### 4. Mock External Services
+
+```php
+// Mock CAPTCHA
+CAPTCHA::shouldReceive('verify')
+    ->with('test-token', '127.0.0.1')
+    ->andReturn(true);
+
+// Mock Stripe
+Stripe::setApiKey('sk_test_...');
+Stripe\Charge::shouldReceive('create')
+    ->andReturn((object)['id' => 'ch_test_123']);
+
+// Mock OAuth
+Socialite::shouldReceive('driver')
+    ->with('google')
+    ->andReturn(...);
+```
+
+#### 5. Assert JSON Responses
+
+```php
+$response = $this->getJson('/api/courses/1');
+
+$response
+    ->assertStatus(200)
+    ->assertJsonPath('data.id', 1)
+    ->assertJsonPath('data.title', 'Course Title')
+    ->assertJsonStructure(['data' => ['id', 'title', 'description']]);
+```
+
+#### 6. Assert Database State
+
+```php
+// Record exists
+$this->assertDatabaseHas('users', ['email' => 'test@example.com']);
+
+// Record doesn't exist
+$this->assertDatabaseMissing('users', ['email' => 'test@example.com']);
+
+// Count records
+$this->assertEquals(5, User::count());
+```
+
+#### 7. Assert Notifications
+
+```php
+use Illuminate\Support\Facades\Notification;
+
+Notification::fake();
+
+// Trigger action
+$this->postJson('/api/auth/register', [...]);
+
+// Assert notification sent
+Notification::assertSentTo(
+    $user,
+    EnrollmentCreatedNotification::class
+);
+
+Notification::assertSentTimes(
+    EmailVerificationCodeNotification::class,
+    1
+);
+```
+
+### Common Test Patterns
+
+#### Testing Authorization
+
+```php
+public function test_student_cannot_edit_others_review() {
+    $review = Review::factory()->for($user1)->create();
+    
+    $this->actingAs($user2, 'sanctum')
+        ->patchJson("/api/courses/{$review->course_id}/reviews/{$review->id}", [...])
+        ->assertStatus(403);
+}
+
+public function test_admin_can_edit_any_review() {
+    $review = Review::factory()->create();
+    $admin = User::factory()->admin()->create();
+    
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson("/api/courses/{$review->course_id}/reviews/{$review->id}", [...])
+        ->assertStatus(200);
+}
+```
+
+#### Testing Validation
+
+```php
+public function test_registration_requires_email() {
+    $this->postJson('/api/auth/register', [
+        'name' => 'Test User',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+    ])
+    ->assertStatus(422)
+    ->assertJsonValidationErrors('email');
+}
+```
+
+#### Testing State Transitions
+
+```php
+public function test_payment_grants_enrollment_access() {
+    $user = User::factory()->create();
+    $course = Course::factory()->create(['price' => 99.99]);
+    
+    // Before payment - can't enroll
+    $this->actingAs($user, 'sanctum')
+        ->postJson("/api/courses/{$course->id}/enrollments", [])
+        ->assertStatus(402);
+    
+    // Create payment
+    Payment::factory()->paid()->for($user)->for($course)->create();
+    
+    // After payment - can enroll
+    $this->actingAs($user, 'sanctum')
+        ->postJson("/api/courses/{$course->id}/enrollments", [])
+        ->assertStatus(201);
+}
+```
+
+---
+
+## Manual API Testing (cURL)
+
+### Setup
+
+```bash
+BASE_URL="http://127.0.0.1:8000/api"
+```
+
+### Get Sanctum Token Quickly (Local Dev)
 
 Use this endpoint to mint a token for an existing user in local debug environment.
 
-Endpoint:
-
-- `POST /api/dev/token`
+Endpoint: `POST /api/dev/token`
 
 Example:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/dev/token" \
+curl -X POST "$BASE_URL/dev/token" \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{
@@ -27,7 +284,7 @@ curl -X POST "http://127.0.0.1:8000/api/dev/token" \
   }'
 ```
 
-If you set `DEV_TOKEN_KEY` in backend env, include:
+If you set `DEV_TOKEN_KEY` in backend `.env`, include:
 
 ```bash
 -H "X-Dev-Key: your-dev-key"
@@ -35,15 +292,15 @@ If you set `DEV_TOKEN_KEY` in backend env, include:
 
 Response contains a `token` value. Use it as bearer token in requests below.
 
-## Auth Security Checks
+### Auth Security Checks
 
 If CAPTCHA is enabled in `.env`, the auth endpoints require `captcha_token`. In local development, the demo CAPTCHA helper button in the frontend sends the placeholder token `demo-captcha-token`, which the backend accepts only in local/testing environments.
 
 Rate limiting is applied to auth routes server-side, so repeated registration/login attempts may return throttle errors.
 
-## Base Variables
+### Base Variables
 
-Use these in your shell before running commands.
+For bash/zsh:
 
 ```bash
 BASE_URL="http://127.0.0.1:8000/api"

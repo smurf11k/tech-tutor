@@ -46,6 +46,7 @@ class ReviewController extends Controller
                 'rating' => $validated['rating'],
                 'comment' => $validated['comment'] ?? null,
                 'is_published' => false,
+                'moderated_at' => null,
             ]
         );
 

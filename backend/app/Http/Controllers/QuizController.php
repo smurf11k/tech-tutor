@@ -15,7 +15,26 @@ class QuizController extends Controller
     {
         $this->authorize('view', $course);
 
-        return response()->json($course->quizzes()->with('questions')->latest()->get());
+        $quizzes = $course->quizzes()->with('questions')->orderBy('position')->get();
+
+        // Hide correct_answers from students
+        $user = request()->user();
+        $isInstructor = $user && ($user->isAdmin() || $user->id === $course->instructor_id);
+
+        // Filter unpublished quizzes for non-instructors
+        if (!$isInstructor) {
+            $quizzes = $quizzes->filter(fn($quiz) => $quiz->is_published)->values();
+        }
+
+        $quizzes->each(function ($quiz) use ($isInstructor) {
+            if (!$isInstructor) {
+                $quiz->questions->each(function ($question) {
+                    $question->makeHidden(['correct_answers']);
+                });
+            }
+        });
+
+        return response()->json($quizzes);
     }
 
     public function store(StoreQuizRequest $request, Course $course): JsonResponse
@@ -27,10 +46,26 @@ class QuizController extends Controller
         $questions = $validated['questions'] ?? [];
         unset($validated['questions']);
 
+        // If position not provided, calculate it based on module content
+        $position = $validated['position'] ?? null;
+        if ($position === null && isset($validated['module_id'])) {
+            $module = $course->modules()->find($validated['module_id']);
+            if ($module) {
+                $maxLessonPos = $module->lessons()->max('position') ?? -1;
+                $maxQuizPos = $module->quizzes()->max('position') ?? -1;
+                $position = max($maxLessonPos, $maxQuizPos) + 1;
+            }
+        }
+        if ($position === null) {
+            $position = 0;
+        }
+
         $quiz = $course->quizzes()->create([
             ...$validated,
+            'module_id' => $validated['module_id'] ?? null,
             'pass_score' => $validated['pass_score'] ?? 70,
             'is_published' => $validated['is_published'] ?? false,
+            'position' => $position,
         ]);
 
         $this->syncQuestions($quiz, $questions);
@@ -44,7 +79,24 @@ class QuizController extends Controller
 
         abort_unless($quiz->course_id === $course->id, 404);
 
-        return response()->json($quiz->load('questions'));
+        $quiz = $quiz->load('questions');
+
+        // Hide correct_answers from students
+        $user = request()->user();
+        $isInstructor = $user && ($user->isAdmin() || $user->id === $course->instructor_id);
+
+        // Check if quiz is published for non-instructors
+        if (!$isInstructor && !$quiz->is_published) {
+            abort(403, 'This quiz is not yet available.');
+        }
+
+        if (!$isInstructor) {
+            $quiz->questions->each(function ($question) {
+                $question->makeHidden(['correct_answers']);
+            });
+        }
+
+        return response()->json($quiz);
     }
 
     public function update(UpdateQuizRequest $request, Course $course, Quiz $quiz): JsonResponse
@@ -54,6 +106,11 @@ class QuizController extends Controller
         abort_unless($quiz->course_id === $course->id, 404);
 
         $validated = $request->validated();
+
+        // Only admins can directly set is_published
+        if (array_key_exists('is_published', $validated) && !$request->user()->isAdmin()) {
+            abort(403, 'Only admins can publish/unpublish quizzes.');
+        }
 
         $questions = $validated['questions'] ?? null;
         unset($validated['questions']);
@@ -97,9 +154,9 @@ class QuizController extends Controller
     private function prepareQuestionPayload(array $question, int $defaultPosition): array
     {
         $correctAnswers = collect($question['options'])
-            ->filter(fn (array $option): bool => (bool) ($option['is_correct'] ?? false))
+            ->filter(fn(array $option): bool => (bool) ($option['is_correct'] ?? false))
             ->pluck('key')
-            ->map(fn (string $key): string => trim($key))
+            ->map(fn(string $key): string => trim($key))
             ->values()
             ->all();
 
@@ -110,7 +167,7 @@ class QuizController extends Controller
         }
 
         $options = collect($question['options'])
-            ->map(fn (array $option): array => [
+            ->map(fn(array $option): array => [
                 'key' => trim($option['key']),
                 'text' => $option['text'],
             ])
@@ -118,7 +175,11 @@ class QuizController extends Controller
             ->all();
 
         $optionKeys = array_column($options, 'key');
-        abort_if(count($optionKeys) !== count(array_unique($optionKeys)), 422, 'Question option keys must be unique.');
+        abort_if(
+            count($optionKeys) !== count(array_unique($optionKeys)),
+            422,
+            'Question option keys must be unique.'
+        );
 
         return [
             'type' => $question['type'],

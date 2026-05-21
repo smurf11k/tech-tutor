@@ -1,26 +1,25 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { AuthShell } from "@/components/common/AuthShell";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/utils";
 
-export default function ResetPassword({ token, email, onSuccess }) {
+export default function ResetPassword({ token, email }) {
+  const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [loading, setLoading] = useState(false);
-  const [notice, setNotice] = useState(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   async function handleResetPassword(event) {
     event.preventDefault();
     setLoading(true);
-    setNotice(null);
+    setError("");
+    setMessage("");
 
     try {
       await api.post("/auth/reset-password", {
@@ -30,101 +29,53 @@ export default function ResetPassword({ token, email, onSuccess }) {
         password_confirmation: passwordConfirmation,
       });
 
-      setNotice({
-        variant: "default",
-        title: "Password reset successful!",
-        description: "Your password has been reset. Redirecting to login...",
-      });
-
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 2000);
-    } catch (error) {
-      setNotice({
-        variant: "destructive",
-        title: "Password reset failed",
-        description:
-          error?.response?.data?.message ||
-          error?.response?.data?.errors?.password?.[0] ||
-          "Could not reset your password. The link may have expired.",
-      });
+      setMessage("Password reset successful. Redirecting to login...");
+      setTimeout(() => navigate("/login", { replace: true }), 1500);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Could not reset your password."));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <Card className="border-white/10 bg-slate-950/70">
-          <CardHeader>
-            <CardTitle className="text-white">Reset Your Password</CardTitle>
-            <CardDescription className="text-slate-400">
-              Enter your new password below. Passwords must be at least 8
-              characters.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notice && (
-              <Alert
-                variant={
-                  notice.variant === "destructive" ? "destructive" : "default"
-                }
-              >
-                <AlertTitle>{notice.title}</AlertTitle>
-                <AlertDescription>{notice.description}</AlertDescription>
-              </Alert>
-            )}
-
-            <form onSubmit={handleResetPassword} className="space-y-3">
-              <div className="text-sm text-slate-400">
-                Resetting password for:{" "}
-                <span className="text-white font-medium">{email}</span>
-              </div>
-
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="New password"
-                className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                required
-                minLength="8"
-              />
-
-              <Input
-                type="password"
-                value={passwordConfirmation}
-                onChange={(e) => setPasswordConfirmation(e.target.value)}
-                placeholder="Confirm password"
-                className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
-                required
-                minLength="8"
-              />
-
-              <Button
-                type="submit"
-                size="lg"
-                disabled={loading}
-                className="w-full text-white"
-              >
-                {loading ? "Resetting..." : "Reset Password"}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={() => (window.location.href = "/")}
-                disabled={loading}
-                className="w-full text-white border-white/10 hover:text-white hover:border-white/10 hover:bg-transparent"
-              >
-                Cancel
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <AuthShell
+      title="Reset your password"
+      description={`Resetting password for ${email}`}
+    >
+      {message ? (
+        <p className="text-sm text-muted-foreground">{message}</p>
+      ) : null}
+      <form onSubmit={handleResetPassword} className="space-y-3">
+        <label className="block space-y-2">
+          <Label htmlFor="password">New password</Label>
+          <Input
+            id="password"
+            type="password"
+            required
+            minLength={8}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+        <label className="block space-y-2">
+          <Label htmlFor="password_confirmation">Confirm password</Label>
+          <Input
+            id="password_confirmation"
+            type="password"
+            required
+            minLength={8}
+            value={passwordConfirmation}
+            onChange={(event) => setPasswordConfirmation(event.target.value)}
+          />
+        </label>
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? "Resetting..." : "Reset password"}
+        </Button>
+        <Button type="button" variant="outline" className="w-full" asChild>
+          <Link to="/login">Cancel</Link>
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

@@ -7,27 +7,28 @@
 
 @layer base {
   :root {
+    color-scheme: dark;
     --font-sans: "Geist Variable", sans-serif;
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.92 0.07 83);
-    --primary-foreground: oklch(0.18 0.02 83);
-    --secondary: oklch(0.27 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.27 0 0);
-    --muted-foreground: oklch(0.72 0 0);
-    --accent: oklch(0.27 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.66 0.22 25);
-    --destructive-foreground: oklch(0.985 0 0);
-    --border: oklch(1 0 0 / 12%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.78 0.04 83);
-    --radius: 1rem;
+    --background: oklch(0.11 0.02 250);
+    --foreground: oklch(0.96 0.01 250);
+    --card: oklch(0.15 0.025 250);
+    --card-foreground: oklch(0.96 0.01 250);
+    --popover: oklch(0.15 0.025 250);
+    --popover-foreground: oklch(0.96 0.01 250);
+    --primary: oklch(0.78 0.14 195);
+    --primary-foreground: oklch(0.14 0.03 195);
+    --secondary: oklch(0.22 0.03 250);
+    --secondary-foreground: oklch(0.94 0.01 250);
+    --muted: oklch(0.2 0.025 250);
+    --muted-foreground: oklch(0.68 0.02 250);
+    --accent: oklch(0.24 0.04 195);
+    --accent-foreground: oklch(0.96 0.01 250);
+    --destructive: oklch(0.62 0.22 25);
+    --destructive-foreground: oklch(0.98 0 0);
+    --border: oklch(0.78 0.08 195 / 14%);
+    --input: oklch(0.78 0.08 195 / 18%);
+    --ring: oklch(0.78 0.14 195);
+    --radius: 0.875rem;
   }
 
   * {
@@ -38,11 +39,49 @@
     @apply font-sans antialiased;
   }
 
+  html.dark,
+  .dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply m-0 bg-background text-foreground;
+    @apply m-0 min-h-screen bg-background text-foreground antialiased;
+    background-color: var(--background);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.78 0.14 195 / 12%), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 100%, oklch(0.5 0.12 280 / 8%), transparent);
   }
 
   #root {
     min-height: 100svh;
+  }
+
+  .container {
+    width: min(1120px, calc(100% - 2rem));
+    margin-inline: auto;
+  }
+}
+
+@layer components {
+  .tech-grid {
+    background-image:
+      linear-gradient(oklch(0.78 0.14 195 / 6%) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.78 0.14 195 / 6%) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent);
+  }
+
+  .glass-panel {
+    border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+    background: color-mix(in oklch, var(--card) 70%, transparent);
+    backdrop-filter: blur(16px);
+  }
+
+  .page-title {
+    @apply bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text text-2xl font-semibold tracking-tight text-transparent;
+  }
+
+  .stat-value {
+    @apply text-2xl font-semibold tabular-nums text-primary;
   }
 }

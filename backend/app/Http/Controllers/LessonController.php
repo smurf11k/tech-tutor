@@ -21,7 +21,17 @@ class LessonController extends Controller
         $course = $module->course;
         $this->authorize('view', $course);
 
-        return response()->json($module->lessons()->get());
+        $user = request()->user();
+        $isInstructor = $user && ($user->isAdmin() || $user->id === $course->instructor_id);
+
+        $lessons = $module->lessons()->get();
+
+        // Filter unpublished lessons for non-instructors
+        if (!$isInstructor) {
+            $lessons = $lessons->filter(fn($lesson) => $lesson->is_published)->values();
+        }
+
+        return response()->json($lessons);
     }
 
     public function store(StoreLessonRequest $request, Module $module): JsonResponse
@@ -34,10 +44,18 @@ class LessonController extends Controller
         $lessonFile = $request->file('lesson_file');
         $payload = $this->prepareLessonPayload($validated, $module, null, $lessonFile);
 
+        // If position not provided, calculate it based on module content
+        $position = $validated['position'] ?? null;
+        if ($position === null) {
+            $maxLessonPos = $module->lessons()->max('position') ?? -1;
+            $maxQuizPos = $module->quizzes()->max('position') ?? -1;
+            $position = max($maxLessonPos, $maxQuizPos) + 1;
+        }
+
         $lesson = $module->lessons()->create([
             ...$payload,
             'type' => $validated['type'] ?? 'text',
-            'position' => $validated['position'] ?? 0,
+            'position' => $position,
             'is_preview' => $validated['is_preview'] ?? false,
         ]);
 
@@ -51,6 +69,14 @@ class LessonController extends Controller
         $this->authorize('view', $course);
 
         abort_unless($lesson->module_id === $module->id, 404);
+
+        $user = request()->user();
+        $isInstructor = $user && ($user->isAdmin() || $user->id === $course->instructor_id);
+
+        // Check if lesson is published for non-instructors
+        if (!$isInstructor && !$lesson->is_published) {
+            abort(403, 'This lesson is not yet available.');
+        }
 
         return response()->json($lesson);
     }
@@ -66,6 +92,12 @@ class LessonController extends Controller
         $validated = $request->validated();
         $lessonFile = $request->file('lesson_file');
         $payload = $this->prepareLessonPayload($validated, $module, $lesson, $lessonFile);
+
+        // Only admins can directly set is_published
+        //TODO: add publish/unpublish request for instructors instead of throwing error when they try to publish
+        if (array_key_exists('is_published', $payload) && !$request->user()->isAdmin()) {
+            abort(403, 'Only admins can publish/unpublish lessons.');
+        }
 
         $lesson->update($payload);
 

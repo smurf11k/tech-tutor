@@ -21,7 +21,7 @@ class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', 'min:8'],
-            'role' => ['sometimes', Rule::in(['student', 'instructor'])],
+            'role' => ['prohibited'],
             'token_name' => ['sometimes', 'string', 'max:255'],
             'captcha_token' => [Rule::requiredIf(fn(): bool => (bool) config('services.captcha.secret')), 'nullable', 'string'],
         ];

@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'sanctum.optional' => \App\Http\Middleware\OptionalSanctumAuth::class,
+        ]);
+
         $middleware->redirectGuestsTo(function (Request $request): ?string {
             if ($request->is('api/*')) {
                 return null;

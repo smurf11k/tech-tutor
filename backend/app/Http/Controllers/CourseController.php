@@ -6,6 +6,8 @@ use App\Http\Requests\StoreCourseRequest;
 use App\Http\Requests\UpdateCourseRequest;
 use App\Models\Course;
 use App\Models\PublishRequest;
+use App\Models\User;
+use App\Services\CourseProgressCalculator;
 use App\Notifications\PublishRequestHandledNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +22,7 @@ class CourseController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $request->user('sanctum') ?? $request->user();
 
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:255'],
@@ -35,13 +37,15 @@ class CourseController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
-        if (!empty($filters['q']) && config('scout.driver') === 'meilisearch' && ($filters['sort'] ?? 'newest') !== 'rating') {
+        $useScoutSearch = !empty($filters['q'])
+            && config('scout.driver') === 'meilisearch'
+            && ($filters['sort'] ?? 'newest') !== 'rating'
+            && !($user instanceof User && $user->isInstructor() && !$user->isAdmin());
+
+        if ($useScoutSearch) {
             $query = Course::search($filters['q']);
 
-            if ($user === null) {
-                $query->where('is_published', true);
-            }
-
+            $this->applyCatalogVisibilityToScout($query, $user);
             $this->applyCatalogSearchFilters($query, $filters);
 
             if (($filters['sort'] ?? 'newest') !== 'rating') {
@@ -49,15 +53,19 @@ class CourseController extends Controller
             }
 
             $query->query(
-                fn(Builder $query) => $query
-                    ->with('instructor')
-                    ->withCount([
-                        'enrollments',
-                        'reviews as published_reviews_count' => fn($query) => $query->where('is_published', true),
-                    ])
-                    ->withAvg([
-                        'reviews as average_rating' => fn($query) => $query->where('is_published', true),
-                    ], 'rating')
+                function (Builder $query) use ($user) {
+                    $this->applyCatalogVisibility($query, $user);
+
+                    return $query
+                        ->with('instructor')
+                        ->withCount([
+                            'enrollments',
+                            'reviews as published_reviews_count' => fn($query) => $query->where('is_published', true),
+                        ])
+                        ->withAvg([
+                            'reviews as average_rating' => fn($query) => $query->where('is_published', true),
+                        ], 'rating');
+                }
             );
 
             return response()->json(
@@ -74,10 +82,7 @@ class CourseController extends Controller
                 'reviews as average_rating' => fn($query) => $query->where('is_published', true),
             ], 'rating');
 
-        if ($user === null) {
-            $query->where('is_published', true);
-        }
-
+        $this->applyCatalogVisibility($query, $user);
         $this->applyCatalogFilters($query, $filters);
         $this->applyCatalogSort($query, $filters['sort'] ?? 'newest');
 
@@ -111,11 +116,7 @@ class CourseController extends Controller
         ]);
 
         if ($requestPublish && !$request->user()->isAdmin()) {
-            PublishRequest::create([
-                'course_id' => $course->id,
-                'requester_id' => $request->user()->id,
-                'status' => 'pending',
-            ]);
+            $this->createPendingPublishRequest($course, $request->user()->id);
         }
 
         return response()->json($course->load('instructor'), 201);
@@ -124,11 +125,60 @@ class CourseController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Course $course): JsonResponse
+    public function show(Request $request, Course $course, CourseProgressCalculator $progressCalculator): JsonResponse
     {
-        $this->authorize('view', $course);
+        if (!$course->is_published) {
+            $user = $request->user('sanctum') ?? $request->user();
 
-        return response()->json($course->load(['instructor', 'modules.lessons', 'quizzes.questions']));
+            abort_unless(
+                $user !== null && ($user->isAdmin() || $user->id === $course->instructor_id),
+                403
+            );
+        }
+
+        $user = $request->user('sanctum') ?? $request->user();
+
+        $course->load(['instructor', 'modules.lessons', 'modules.quizzes', 'quizzes']);
+
+        // Filter out unpublished lessons and quizzes for non-privileged users
+        $isPrivileged = $user instanceof User && ($user->isAdmin() || $user->id === $course->instructor_id);
+        if (!$isPrivileged) {
+            $course->modules->each(function ($module) {
+                $module->setRelation('lessons', $module->lessons->filter(fn($lesson) => $lesson->is_published)->values());
+                $module->setRelation('quizzes', $module->quizzes->filter(fn($quiz) => $quiz->is_published)->values());
+            });
+            $course->setRelation('quizzes', $course->quizzes->filter(fn($quiz) => $quiz->is_published)->values());
+
+            // Filter out modules with no published lessons or quizzes
+            $course->setRelation('modules', $course->modules->filter(
+                fn($module) => $module->lessons->count() > 0 || $module->quizzes->count() > 0
+            )->values());
+        }
+
+        $course->loadCount([
+            'reviews as published_reviews_count' => fn($query) => $query->where('is_published', true),
+        ]);
+        $course->loadAvg([
+            'reviews as average_rating' => fn($query) => $query->where('is_published', true),
+        ], 'rating');
+
+        // Only set enrollment/progress for regular users — admins and instructors don't enroll
+        if ($user instanceof User && !$isPrivileged) {
+            $isEnrolled = $course->enrollments()
+                ->where('user_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
+
+            $course->setAttribute('is_enrolled', $isEnrolled);
+
+            if ($isEnrolled) {
+                $progress = $progressCalculator->forUser($course, $user);
+                $course->setAttribute('progress_percent', $progress['progress_percent']);
+                $course->setAttribute('is_complete', $progress['is_complete']);
+            }
+        }
+
+        return response()->json($course);
     }
 
     /**
@@ -164,12 +214,7 @@ class CourseController extends Controller
 
         // After update: process request/accept/decline
         if ($requestPublish && !$request->user()->isAdmin()) {
-            // Create a new pending PublishRequest
-            PublishRequest::create([
-                'course_id' => $course->id,
-                'requester_id' => $request->user()->id,
-                'status' => 'pending',
-            ]);
+            $this->createPendingPublishRequest($course, $request->user()->id);
         }
 
         if (array_key_exists('is_published', $payload) && $payload['is_published'] === true && $request->user()->isAdmin()) {
@@ -239,6 +284,84 @@ class CourseController extends Controller
         }
 
         return $payload;
+    }
+
+    public function catalogOptions(Request $request): JsonResponse
+    {
+        $user = $request->user('sanctum') ?? $request->user();
+
+        $query = Course::query();
+        $this->applyCatalogVisibility($query, $user);
+
+        $categories = (clone $query)
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->values();
+
+        $levels = (clone $query)
+            ->whereNotNull('level')
+            ->where('level', '!=', '')
+            ->distinct()
+            ->orderBy('level')
+            ->pluck('level')
+            ->values();
+
+        return response()->json([
+            'categories' => $categories,
+            'levels' => $levels,
+        ]);
+    }
+
+    private function createPendingPublishRequest(Course $course, int $requesterId): void
+    {
+        $hasPending = PublishRequest::query()
+            ->where('course_id', $course->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($hasPending) {
+            return;
+        }
+
+        PublishRequest::create([
+            'course_id' => $course->id,
+            'requester_id' => $requesterId,
+            'status' => 'pending',
+        ]);
+    }
+
+    /**
+     * @param  Builder<Course>  $query
+     */
+    private function applyCatalogVisibility(Builder $query, ?User $user): void
+    {
+        if ($user === null || (!$user->isAdmin() && !$user->isInstructor())) {
+            $query->where('is_published', true);
+
+            return;
+        }
+
+        if ($user->isAdmin()) {
+            return;
+        }
+
+        $query->where(function (Builder $query) use ($user) {
+            $query->where('is_published', true)
+                ->orWhere('instructor_id', $user->id);
+        });
+    }
+
+    /**
+     * @param  ScoutBuilder<Course>  $query
+     */
+    private function applyCatalogVisibilityToScout(ScoutBuilder $query, ?User $user): void
+    {
+        if ($user === null || (!$user->isAdmin() && !$user->isInstructor())) {
+            $query->where('is_published', true);
+        }
     }
 
     /**

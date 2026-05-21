@@ -261,4 +261,75 @@ class AdminPanelFlowTest extends TestCase
             ->assertJsonPath('0.id', $reviewId)
             ->assertJsonPath('0.is_published', true);
     }
+
+    public function test_declined_reviews_are_removed_from_moderation_queue(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Declined Review Course',
+            'slug' => 'declined-review-course',
+            'description' => 'Used for moderation decline',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($student);
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+
+        $reviewId = $this->postJson("/api/courses/{$course->id}/reviews", [
+            'rating' => 2,
+            'comment' => 'Please decline this',
+        ])->assertCreated()->json('id');
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/moderation-queue/reviews/{$reviewId}", [
+            'is_published' => false,
+        ])->assertOk();
+
+        $this->getJson('/api/admin/moderation-queue')
+            ->assertOk()
+            ->assertJsonCount(0);
+    }
+
+    public function test_publish_requests_appear_in_moderation_queue_and_can_be_accepted(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        Sanctum::actingAs($instructor);
+
+        $courseId = $this->postJson('/api/courses', [
+            'title' => 'Queued Publish Course',
+            'slug' => 'queued-publish-course',
+            'price' => 0,
+            'request_publish' => true,
+        ])->assertCreated()->json('id');
+
+        Sanctum::actingAs($admin);
+
+        $queueResponse = $this->getJson('/api/admin/moderation-queue')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.content_type', 'publish_request');
+
+        $publishRequestId = $queueResponse->json('0.publish_request.id');
+
+        $this->patchJson("/api/admin/moderation-queue/publish-requests/{$publishRequestId}", [
+            'action' => 'accept',
+        ])->assertOk();
+
+        $this->getJson('/api/admin/moderation-queue')
+            ->assertOk()
+            ->assertJsonCount(0);
+
+        $this->getJson("/api/courses/{$courseId}")
+            ->assertOk()
+            ->assertJsonPath('is_published', true);
+    }
 }

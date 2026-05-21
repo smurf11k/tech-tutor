@@ -157,6 +157,7 @@ class LessonCommentFlowTest extends TestCase
             'content' => 'Lesson body',
             'position' => 1,
             'is_preview' => false,
+            'is_published' => true,
         ]);
 
         return [$course, $lesson, $instructor];

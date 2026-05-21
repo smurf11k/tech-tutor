@@ -207,9 +207,9 @@ Notes:
 
 - [x] Course catalog with database-backed search & filtering
 - [x] MeiliSearch-powered catalog indexing/search
-- [ ] Course detail / preview page
+- [x] Course detail / preview page
 - [x] Enrollment flow
-- [ ] Lesson viewer (video player, text renderer, file downloads)
+- [x] Lesson viewer (video player, text renderer, file downloads)
 - [x] Progress tracking (per lesson, per module, per course)
 - [x] Course completion certificates
 

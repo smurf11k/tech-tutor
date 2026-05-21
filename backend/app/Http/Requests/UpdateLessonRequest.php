@@ -45,6 +45,7 @@ class UpdateLessonRequest extends FormRequest
             ],
             'position' => ['sometimes', 'integer', 'min:0'],
             'is_preview' => ['sometimes', 'boolean'],
+            'is_published' => ['sometimes', 'boolean'],
         ];
     }
 

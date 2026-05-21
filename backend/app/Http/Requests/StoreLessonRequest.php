@@ -30,14 +30,14 @@ class StoreLessonRequest extends FormRequest
                 'nullable',
                 'file',
                 function (string $attribute, mixed $value, Closure $fail): void {
-                    if (! $value instanceof UploadedFile) {
+                    if (!$value instanceof UploadedFile) {
                         return;
                     }
 
                     $allowedExtensions = ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf', 'png', 'jpg', 'jpeg', 'webp', 'mp4', 'mov', 'm4v', 'mp3', 'wav', 'zip'];
                     $extension = strtolower((string) $value->getClientOriginalExtension());
 
-                    if (! in_array($extension, $allowedExtensions, true)) {
+                    if (!in_array($extension, $allowedExtensions, true)) {
                         $fail('The lesson file must be one of the supported file types.');
                     }
                 },
@@ -45,6 +45,7 @@ class StoreLessonRequest extends FormRequest
             ],
             'position' => ['sometimes', 'integer', 'min:0'],
             'is_preview' => ['sometimes', 'boolean'],
+            'is_published' => ['sometimes', 'boolean'],
         ];
     }
 

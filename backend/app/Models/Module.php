@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $position
  * @property-read Course $course
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Lesson> $lessons
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Quiz> $quizzes
  */
 class Module extends Model
 {
@@ -42,5 +43,10 @@ class Module extends Model
     public function lessons(): HasMany
     {
         return $this->hasMany(Lesson::class)->orderBy('position');
+    }
+
+    public function quizzes(): HasMany
+    {
+        return $this->hasMany(Quiz::class)->orderBy('position');
     }
 }

@@ -146,6 +146,7 @@ class DatabaseSeeder extends Seeder
             'file_path' => null,
             'position' => 1,
             'is_preview' => true,
+            'is_published' => true,
         ]);
 
         $authLesson = Lesson::create([
@@ -158,6 +159,7 @@ class DatabaseSeeder extends Seeder
             'file_path' => null,
             'position' => 2,
             'is_preview' => false,
+            'is_published' => true,
         ]);
 
         Storage::disk('public')->put(
@@ -192,14 +194,17 @@ class DatabaseSeeder extends Seeder
             'file_path' => null,
             'position' => 1,
             'is_preview' => true,
+            'is_published' => true,
         ]);
 
         $laravelQuiz = Quiz::create([
             'course_id' => $laravelCourse->id,
+            'module_id' => $laravelIntro->id,
             'title' => 'API Fundamentals Quiz',
             'description' => 'Check the core backend concepts from the first modules.',
             'pass_score' => 70,
             'is_published' => true,
+            'position' => 3,
         ]);
 
         $sanctumQuestion = $laravelQuiz->questions()->create([
@@ -366,8 +371,7 @@ class DatabaseSeeder extends Seeder
             'completed_at' => now()->subDay(),
         ]);
 
-        $this->command?->info('Seeded demo accounts (password: password)');
-        $this->command?->line('Admin can invite users (student/instructor) from the demo User management panel; invite links expire in 5 minutes.');
+        $this->command?->info('Seeded accounts (password: password)');
         $this->command?->line('admin@techtutor.test');
         $this->command?->line('instructor@techtutor.test');
         $this->command?->line('student@techtutor.test');

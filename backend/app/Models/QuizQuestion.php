@@ -31,10 +31,6 @@ class QuizQuestion extends Model
         'position',
     ];
 
-    protected $hidden = [
-        'correct_answers',
-    ];
-
     protected function casts(): array
     {
         return [

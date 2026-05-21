@@ -64,7 +64,8 @@ class QuizFlowTest extends TestCase
         $quiz = Quiz::query()->firstOrFail();
         $questionIds = $quiz->questions()->pluck('id')->values();
 
-        $quizResponse->assertJsonMissingPath('questions.0.correct_answers');
+        // correct_answers should be present when instructor creates/edits quiz
+        $quizResponse->assertJsonPath('questions.0.correct_answers', ['laravel']);
 
         Sanctum::actingAs($student);
 

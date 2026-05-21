@@ -111,9 +111,12 @@ class PaymentController extends Controller
             ], 422);
         }
 
+        $provider = (string) config('stripe.provider', 'stripe');
+
         $existingPaidPayment = Payment::query()
             ->where('user_id', $user->id)
             ->where('course_id', $course->id)
+            ->where('provider', $provider)
             ->where('status', 'paid')
             ->exists();
 
@@ -121,6 +124,45 @@ class PaymentController extends Controller
             return response()->json([
                 'message' => 'Course is already paid by this user.',
             ], 409);
+        }
+
+        $pendingPayment = Payment::query()
+            ->where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->where('provider', $provider)
+            ->where('status', 'pending')
+            ->latest()
+            ->first();
+
+        if ($pendingPayment) {
+            $sessionPayload = $pendingPayment->provider_payload ?? [];
+            $checkoutUrl = is_array($sessionPayload) ? ($sessionPayload['url'] ?? null) : null;
+
+            if ($checkoutUrl) {
+                return response()->json([
+                    'message' => 'Resuming your existing Stripe checkout session.',
+                    'payment' => $pendingPayment->load(['user', 'course']),
+                    'checkout' => [
+                        'session_id' => $pendingPayment->transaction_id,
+                        'url' => $checkoutUrl,
+                        'mode' => $sessionPayload['mode'] ?? 'payment',
+                    ],
+                ]);
+            }
+
+            if ($pendingPayment->transaction_id) {
+                try {
+                    $confirmed = $stripe->confirmSession($user, $pendingPayment->transaction_id);
+
+                    return response()->json([
+                        'message' => 'Existing checkout was already paid and has been fulfilled.',
+                        'payment' => $confirmed['payment'],
+                        'enrollment' => $confirmed['enrollment'],
+                    ]);
+                } catch (RuntimeException | RequestException) {
+                    //TODO: Session not paid yet; create a replacement checkout below.
+                }
+            }
         }
 
         try {

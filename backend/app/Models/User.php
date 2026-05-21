@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailBehavior;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,6 +23,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $role
  * @property bool $is_banned
  * @property string|null $banned_at
+ * @property bool $email_notifications_enabled
  * @property-read Collection<int, Course> $taughtCourses
  * @property-read Collection<int, Enrollment> $enrollments
  * @property-read Collection<int, Progress> $progressEntries
@@ -48,6 +50,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'role',
         'is_banned',
         'banned_at',
+        'email_notifications_enabled',
     ];
 
     /**
@@ -58,6 +61,10 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+    ];
+
+    protected $appends = [
+        'role_badge',
     ];
 
     /**
@@ -73,6 +80,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'role' => 'string',
             'is_banned' => 'boolean',
             'banned_at' => 'datetime',
+            'email_notifications_enabled' => 'boolean',
         ];
     }
 
@@ -129,6 +137,17 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isBanned(): bool
     {
         return (bool) $this->is_banned;
+    }
+
+    protected function roleBadge(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => match ($this->role) {
+                'admin' => 'Admin',
+                'instructor' => 'Instructor',
+                default => null,
+            }
+        );
     }
 
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void

@@ -19,8 +19,10 @@ class StoreQuizRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'module_id' => ['nullable', 'integer', 'exists:modules,id'],
             'pass_score' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'is_published' => ['sometimes', 'boolean'],
+            'position' => ['sometimes', 'integer', 'min:0'],
             'questions' => ['sometimes', 'array'],
             'questions.*.type' => ['required_with:questions', 'in:single_choice,multiple_choice'],
             'questions.*.prompt' => ['required_with:questions', 'string'],

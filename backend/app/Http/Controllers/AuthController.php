@@ -37,7 +37,7 @@ class AuthController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => $validated['password'],
-            'role' => $validated['role'] ?? 'student',
+            'role' => 'student',
         ]);
 
         event(new Registered($user));
@@ -64,9 +64,13 @@ class AuthController extends Controller
         return response()->json($this->tokenResponse($user, $validated['token_name'] ?? 'api-token'));
     }
 
-    public function requestVerificationCode(RequestVerificationCodeRequest $request): JsonResponse
-    {
+    public function requestVerificationCode(
+        RequestVerificationCodeRequest $request,
+        CaptchaVerifier $captchaVerifier,
+    ): JsonResponse {
         $validated = $request->validated();
+
+        $this->ensureCaptchaIsValid($request, $captchaVerifier);
 
         if (User::where('email', $validated['email'])->exists()) {
             throw ValidationException::withMessages([
@@ -108,7 +112,7 @@ class AuthController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'password' => ['required', 'confirmed', 'min:8'],
-            'role' => ['sometimes', 'in:student,instructor'],
+            'role' => ['prohibited'],
             'token_name' => ['sometimes', 'string', 'max:255'],
         ]);
 
@@ -116,7 +120,7 @@ class AuthController extends Controller
             'name' => $request->input('name'),
             'email' => $validated['email'],
             'password' => $request->input('password'),
-            'role' => $request->input('role', 'student'),
+            'role' => 'student',
         ]);
 
         $user->forceFill([
@@ -130,6 +134,17 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
+        return response()->json($request->user());
+    }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email_notifications_enabled' => ['sometimes', 'boolean'],
+        ]);
+
+        $request->user()->update($validated);
+
         return response()->json($request->user());
     }
 

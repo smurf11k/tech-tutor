@@ -26,6 +26,7 @@ class Review extends Model
         'rating',
         'comment',
         'is_published',
+        'moderated_at',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class Review extends Model
         return [
             'rating' => 'integer',
             'is_published' => 'boolean',
+            'moderated_at' => 'datetime',
         ];
     }
 

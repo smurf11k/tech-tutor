@@ -1,15 +1,18 @@
 <?php
 
+use App\Http\Controllers\InstructorPublishRequestController;
+use App\Http\Controllers\ReorderController;
 use App\Http\Controllers\AdminModerationQueueController;
 use App\Http\Controllers\AdminPlatformDashboardController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CourseCertificateController;
 use App\Http\Controllers\CourseController;
-use App\Http\Controllers\DevTokenController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\InstructorDashboardController;
+use App\Http\Controllers\LearningController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\PaymentController;
@@ -24,9 +27,14 @@ use App\Http\Controllers\UserInviteController;
 use App\Http\Middleware\EnsureUserIsNotBanned;
 use Illuminate\Support\Facades\Route;
 
-Route::apiResource('courses', CourseController::class)->only(['index', 'show']);
+Route::middleware('sanctum.optional')->group(function () {
+    Route::get('courses/catalog-options', [CourseController::class, 'catalogOptions']);
+    Route::apiResource('courses', CourseController::class)->only(['index', 'show']);
+    Route::get('courses/{course}/reviews', [ReviewController::class, 'index']);
+});
 
-Route::post('dev/token', DevTokenController::class);
+Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:contact');
+
 Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:auth');
 Route::post('auth/register/request-verification-code', [AuthController::class, 'requestVerificationCode'])->middleware('throttle:auth');
 Route::post('auth/register/verify-code', [AuthController::class, 'verifyEmailCode'])->middleware('throttle:auth');
@@ -47,6 +55,7 @@ Route::get('payments/status', [PaymentStatusController::class, 'show']);
 
 Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
+    Route::patch('auth/me', [AuthController::class, 'updateProfile']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::post('auth/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:auth-email');
     Route::get('admin/users', [AdminUserController::class, 'index']);
@@ -56,10 +65,25 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::get('admin/moderation-queue', [AdminModerationQueueController::class, 'index']);
     Route::patch('admin/moderation-queue/reviews/{review}', [AdminModerationQueueController::class, 'updateReview']);
     Route::patch('admin/moderation-queue/comments/{comment}', [AdminModerationQueueController::class, 'updateComment']);
+    Route::patch(
+        'admin/moderation-queue/publish-requests/{publishRequest}',
+        [AdminModerationQueueController::class, 'updatePublishRequest'],
+    );
     Route::get('certificates', [CourseCertificateController::class, 'index']);
     Route::get('certificates/{certificate}', [CourseCertificateController::class, 'show']);
     Route::post('courses/{course}/certificate', [CourseCertificateController::class, 'store']);
     Route::get('instructor/dashboard', [InstructorDashboardController::class, 'show']);
+    Route::get('instructor/pending-comments', [CommentController::class, 'instructorPendingComments']);
+    Route::get('learning/courses', [LearningController::class, 'courses']);
+    Route::get('learning/courses/{course}', [LearningController::class, 'show']);
+    Route::post('courses/{course}/publish-request', [InstructorPublishRequestController::class, 'store']);
+
+    // Reorder routes MUST be registered before apiResource wildcards
+    Route::patch('modules/{module}/lessons/reorder', [ReorderController::class, 'reorderLessons']);
+    Route::patch('courses/{course}/quizzes/reorder', [ReorderController::class, 'reorderQuizzes']);
+    Route::patch('modules/{module}/content/reorder', [ReorderController::class, 'reorderModuleContent']);
+    Route::patch('courses/{course}/modules/reorder', [ReorderController::class, 'reorderModules']);
+
     Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
     Route::apiResource('courses.enrollments', EnrollmentController::class)->only(['index', 'store', 'destroy']);
     Route::apiResource('courses.modules', ModuleController::class);
@@ -69,7 +93,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::apiResource('courses.quizzes', QuizController::class);
     Route::get('quizzes/{quiz}/analytics', [QuizAnalyticsController::class, 'show']);
     Route::apiResource('quizzes.attempts', QuizAttemptController::class)->only(['index', 'store']);
-    Route::apiResource('courses.reviews', ReviewController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::apiResource('courses.reviews', ReviewController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('payments', PaymentController::class)->only(['index', 'show']);
     Route::post('payments/stripe/confirm', [PaymentController::class, 'confirmStripeCheckout']);
     Route::post('courses/{course}/payments', [PaymentController::class, 'store']);

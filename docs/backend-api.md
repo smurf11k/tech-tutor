@@ -637,13 +637,455 @@ Current triggers:
 
 For local demos with SMTP/Gmail configured, these emails are sent by the same API actions listed above. Automated tests fake notifications and use the array mailer from `phpunit.xml`, so the test suite does not send real emails.
 
-## Notes
+## Controller Implementation Details
 
-- Access control is role-aware for student/instructor/admin.
-- Admin endpoints handle role changes, bans, and queued review moderation.
-- Admin moderation queue handles both review and lesson comment approval.
-- Local dev token creation expects seeded `email` and `password` credentials.
-- Progress and quiz attempt actions include enrollment/instructor checks.
-- Newly submitted course reviews enter the moderation queue unpublished until an admin approves them.
-- Newly submitted lesson comments also enter the moderation queue unpublished until an admin approves them.
-- Request validation is handled with FormRequest classes.
+### AuthController
+
+**Public Methods**:
+- `register()` - Creates new student/instructor, sends verification email
+- `login()` - Validates credentials, returns Sanctum token
+- `requestVerificationCode()` - Creates 6-digit verification code, emails to address
+- `verifyEmailCode()` - Validates code, completes registration
+- `verifyEmail()` - Marks email verified from signed URL
+- `forgotPassword()` - Sends password reset email
+- `resetPassword()` - Updates password, revokes existing tokens
+- `redirectToGoogle()` - Initiates Google OAuth flow
+- `handleGoogleCallback()` - Processes Google callback, creates/updates user
+- `resendVerification()` - Resends verification email for authenticated user
+
+**Key Features**:
+- CAPTCHA integration for registration/login
+- Multi-step email verification with 6-digit codes
+- Google OAuth with popup handshake
+- Rate limiting (60 requests/min)
+- User banning checks
+
+### CourseController
+
+**Public Methods**:
+- `index()` - List/search/filter courses with Meilisearch support
+- `store()` - Create new course (draft)
+- `show()` - Get course details
+- `update()` - Full course update
+- `destroy()` - Delete course
+- `catalogOptions()` - Get available filter options
+
+**Features**:
+- Meilisearch integration for full-text search
+- Filtering: category, level, language, price, instructor
+- Sorting: newest, oldest, title, price_asc, price_desc, rating
+- Catalog metadata: subtitle, category, level, language, thumbnail, duration
+- Publish request workflow with admin approval
+
+### EnrollmentController
+
+**Public Methods**:
+- `index()` - Get course roster (instructor/admin only)
+- `store()` - Enroll user in course
+- `destroy()` - Drop course
+
+**Key Checks**:
+- Paid courses require existing paid payment
+- Admins/instructors can enroll without payment
+- Duplicate prevention (re-enrolling doesn't create new record)
+- Enrollment notifications sent
+
+### QuizAttemptController
+
+**Public Methods**:
+- `index()` - Get user's attempts (limit 3 per student)
+- `store()` - Submit quiz attempt with answers
+
+**Scoring**:
+- Backend calculates score from answers
+- Supports multiple choice and true/false
+- Pass threshold configurable per quiz
+- Attempt limit: 3 per student (instructors unlimited)
+
+### PaymentController
+
+**Public Methods**:
+- `index()` - List user's payments
+- `show()` - Get payment details
+- `store()` - Create internal payment (manual purchase)
+- `stripeCheckout()` - Create Stripe checkout session
+- `confirmStripeCheckout()` - Confirm pending Stripe payment
+
+**Payment Flow**:
+1. Create payment with `POST /courses/{course}/payments`
+2. Mark as paid, generate receipt number (TT-RCPT-YYYYMMDD-XXXXXXXX)
+3. Create enrollment automatically
+4. Send receipt email
+
+**Stripe Flow**:
+1. Create session with `POST /courses/{course}/payments/stripe-checkout`
+2. Return checkout URL to client
+3. Client redirects to Stripe
+4. Stripe redirects back with session_id
+5. Confirm with `POST /payments/stripe/confirm`
+6. Webhook verifies payment and grants access
+
+### ProgressController
+
+**Public Methods**:
+- `store()` - Create progress record
+- `update()` - Update progress percentage
+
+**Certificate Logic**:
+- When progress reaches 100% and all lessons completed
+- Check eligibility and issue certificate idempotently
+- Send certificate email
+
+### QuizController
+
+**Public Methods**:
+- `index()` - List course quizzes
+- `store()` - Create quiz with questions
+- `show()` - Get quiz details
+- `update()` - Update quiz
+- `destroy()` - Delete quiz
+
+**Questions**:
+- Types: multiple_choice, true_false
+- Options with is_correct flags
+- Points per question
+- Answers hidden from students
+
+### ModuleController & LessonController
+
+**Features**:
+- Nested CRUD under courses/modules
+- Positional ordering
+- Draft/published states
+- File attachment support
+- Preview mode for lessons
+
+### ReviewController
+
+**Features**:
+- 1-5 star ratings
+- Optional text reviews
+- Moderation queue (unpublished by default)
+- Instructor/admin can publish
+- Average rating aggregation
+
+### CommentController
+
+**Features**:
+- Threaded comments (parent_comment_id)
+- Moderation queue
+- Instructor pending queue
+- Per-lesson comments
+- Reply notifications
+
+### AdminModerationQueueController
+
+**Features**:
+- Centralized queue for reviews, comments, publish requests
+- Approve/decline with optional reason
+- Status tracking (pending, accepted, declined)
+- Notification system for decisions
+
+### AdminPlatformDashboardController
+
+**Response Data**:
+- User counts (total, students, instructors, admins, banned)
+- Course counts (published, draft)
+- Totals: enrollments, certificates, quiz attempts, payments
+- Status breakdown for payments
+- Revenue by course
+- Recent activity feed
+- Moderation queue counts
+
+---
+
+## Request Validation Classes
+
+### StoreCourseRequest / UpdateCourseRequest
+
+**Validation Rules**:
+- title: required, string, max 255
+- slug: required, alpha_dash, unique (on creation), max 100
+- description: required, string
+- subtitle: nullable, string, max 255
+- category: nullable, in:backend,frontend,mobile,data-science,other
+- level: nullable, in:beginner,intermediate,advanced
+- language: nullable, string, max 50
+- thumbnail_path: nullable, url
+- duration_minutes: nullable, integer, min:1
+- price: nullable, numeric, min:0, max:99999.99
+- is_published: boolean
+- request_publish: boolean (triggers publish request workflow)
+
+### StoreQuizRequest / UpdateQuizRequest
+
+**Validation Rules**:
+- title: required, string, max 255
+- description: nullable, string
+- pass_score: nullable, integer, min:0, max:100 (default 70)
+- is_published: boolean
+- position: nullable, integer
+- questions: array of question objects
+  - type: required, in:multiple_choice,true_false
+  - prompt: required, string
+  - points: required, integer, min:1
+  - options: array with key, text, is_correct
+
+### StorePaymentRequest
+
+**Validation Rules**:
+- provider: required, string (e.g., stripe, manual_demo)
+- amount: required, numeric, min:0
+- currency: required, string, size:3 (ISO 4217)
+- transaction_id: required, unique per course/user
+- provider_payload: nullable, array
+
+### Auth Request Classes
+
+**LoginRequest**:
+- email: required, email
+- password: required, string
+- token_name: nullable, string
+- captcha_token: required_if CAPTCHA enabled
+
+**RegisterRequest**:
+- name: required, string, max 255
+- email: required, email, unique
+- password: required, confirmed, min 8
+- role: nullable, in:student,instructor (default student)
+- captcha_token: required_if CAPTCHA enabled
+
+**RequestVerificationCodeRequest**:
+- name: required, string, max 255
+- email: required, email, unique
+- password: required, confirmed, min 8
+- role: nullable, in:student,instructor
+- captcha_token: required_if CAPTCHA enabled
+
+**VerifyEmailCodeRequest**:
+- email: required, email
+- code: required, digits:6
+- name: required, string, max 255
+- password: required, confirmed, min 8
+- role: nullable, in:student,instructor
+- token_name: nullable, string
+
+---
+
+## Response Shapes
+
+### Course Object
+
+```json
+{
+  "id": 1,
+  "instructor_id": 2,
+  "title": "Learn Laravel",
+  "slug": "learn-laravel",
+  "description": "Full description...",
+  "subtitle": "Master modern web development",
+  "category": "backend",
+  "level": "intermediate",
+  "language": "en",
+  "price": 49.99,
+  "thumbnail_path": "https://...",
+  "duration_minutes": 240,
+  "is_published": true,
+  "published_at": "2026-05-01T10:00:00.000000Z",
+  "created_at": "2026-04-15T10:00:00.000000Z",
+  "updated_at": "2026-04-20T15:30:00.000000Z",
+  "instructor": {
+    "id": 2,
+    "name": "Jane Instructor",
+    "email": "jane@example.com",
+    "role": "instructor"
+  },
+  "enrollments_count": 42,
+  "published_reviews_count": 15,
+  "average_rating": 4.6
+}
+```
+
+### Quiz Object
+
+```json
+{
+  "id": 5,
+  "course_id": 1,
+  "module_id": 3,
+  "title": "Laravel Fundamentals Quiz",
+  "description": "Test your knowledge...",
+  "pass_score": 70,
+  "is_published": true,
+  "position": 1,
+  "questions": [
+    {
+      "id": 1,
+      "type": "multiple_choice",
+      "prompt": "What is dependency injection?",
+      "points": 2,
+      "options": [
+        {
+          "key": "option1",
+          "text": "Injecting code into dependencies",
+          "is_correct": false
+        },
+        {
+          "key": "option2",
+          "text": "Providing dependencies to a class",
+          "is_correct": true
+        }
+      ]
+    }
+  ],
+  "created_at": "2026-04-15T10:00:00Z"
+}
+```
+
+### Enrollment Object
+
+```json
+{
+  "id": 1,
+  "course_id": 1,
+  "user_id": 5,
+  "status": "active",
+  "enrolled_at": "2026-05-01T10:00:00Z",
+  "created_at": "2026-05-01T10:00:00Z",
+  "course": {
+    "id": 1,
+    "title": "Learn Laravel"
+  },
+  "user": {
+    "id": 5,
+    "name": "John Student",
+    "email": "john@example.com"
+  }
+}
+```
+
+### Progress Object
+
+```json
+{
+  "id": 1,
+  "lesson_id": 10,
+  "user_id": 5,
+  "progress_percent": 75,
+  "completed_at": null,
+  "created_at": "2026-05-01T10:00:00Z",
+  "updated_at": "2026-05-05T15:00:00Z"
+}
+```
+
+### Certificate Object
+
+```json
+{
+  "id": 1,
+  "course_id": 1,
+  "user_id": 5,
+  "certificate_number": "TT-1-5-20260505-ABC123",
+  "issued_at": "2026-05-05T10:00:00Z",
+  "course": {
+    "id": 1,
+    "title": "Learn Laravel"
+  },
+  "user": {
+    "id": 5,
+    "name": "John Student"
+  }
+}
+```
+
+### Payment Object
+
+```json
+{
+  "id": 1,
+  "course_id": 1,
+  "user_id": 5,
+  "provider": "stripe",
+  "amount": "49.99",
+  "currency": "USD",
+  "status": "paid",
+  "transaction_id": "ch_test_123",
+  "receipt_number": "TT-RCPT-20260505-ABC12345",
+  "receipt_issued_at": "2026-05-05T10:00:00.000000Z",
+  "access_granted_at": "2026-05-05T10:00:00.000000Z",
+  "provider_payload": {},
+  "created_at": "2026-05-05T09:00:00Z"
+}
+```
+
+### QuizAttempt Object
+
+```json
+{
+  "id": 1,
+  "quiz_id": 5,
+  "user_id": 5,
+  "score": 85,
+  "passed": true,
+  "answers": {
+    "1": "option2",
+    "2": ["option1", "option3"],
+    "3": "true"
+  },
+  "started_at": "2026-05-05T14:00:00Z",
+  "completed_at": "2026-05-05T14:15:00Z",
+  "created_at": "2026-05-05T14:15:00Z"
+}
+```
+
+### Review Object
+
+```json
+{
+  "id": 1,
+  "course_id": 1,
+  "user_id": 5,
+  "rating": 5,
+  "comment": "Great course! Very well structured.",
+  "is_published": true,
+  "moderated_at": "2026-05-05T15:00:00Z",
+  "created_at": "2026-05-05T10:00:00Z",
+  "updated_at": "2026-05-05T10:30:00Z",
+  "user": {
+    "id": 5,
+    "name": "John Student"
+  }
+}
+```
+
+### Comment Object
+
+```json
+{
+  "id": 1,
+  "lesson_id": 10,
+  "user_id": 5,
+  "parent_comment_id": null,
+  "body": "Question about this lesson...",
+  "is_published": true,
+  "moderated_at": "2026-05-05T15:00:00Z",
+  "created_at": "2026-05-05T10:00:00Z",
+  "replies": [
+    {
+      "id": 2,
+      "parent_comment_id": 1,
+      "user_id": 2,
+      "body": "Here's the answer...",
+      "user": {
+        "id": 2,
+        "name": "Jane Instructor",
+        "role": "instructor"
+      }
+    }
+  ],
+  "user": {
+    "id": 5,
+    "name": "John Student"
+  }
+}
+```

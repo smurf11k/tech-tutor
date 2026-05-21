@@ -383,7 +383,39 @@ class CourseFlowTest extends TestCase
 
         $this->getJson('/api/courses')
             ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.slug', 'published-course');
+
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+
+        $this->getJson('/api/courses')
+            ->assertOk()
             ->assertJsonCount(2, 'data');
+    }
+
+    public function test_admin_can_view_draft_courses(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $course = Course::create([
+            'instructor_id' => $admin->id,
+            'title' => 'Draft Admin Course',
+            'slug' => 'draft-admin-course',
+            'description' => 'Draft course for admin access testing',
+            'price' => 0,
+            'is_published' => false,
+            'published_at' => null,
+        ]);
+
+        $this->getJson("/api/courses/{$course->id}")
+            ->assertForbidden();
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson("/api/courses/{$course->id}")
+            ->assertOk()
+            ->assertJsonPath('id', $course->id)
+            ->assertJsonPath('is_published', false);
     }
 
     public function test_public_courses_index_supports_catalog_search_filters_and_sorting(): void

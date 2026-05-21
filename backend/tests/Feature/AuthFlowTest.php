@@ -57,7 +57,6 @@ class AuthFlowTest extends TestCase
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'code' => '123456',
-            'role' => 'student',
             'token_name' => 'test-verify-code',
         ])->assertCreated()
             ->assertJsonPath('token_type', 'Bearer')
@@ -109,7 +108,6 @@ class AuthFlowTest extends TestCase
             'email' => 'new.student@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'role' => 'student',
             'token_name' => 'test-register',
         ])->assertCreated()
             ->assertJsonPath('token_type', 'Bearer')

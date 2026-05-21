@@ -7,7 +7,24 @@ All notable changes to this project are documented in this file. Entries are ord
 ### Progress
 
 - Backend readiness: 95/100
-- Frontend readiness: 35/100 (demo)
+- Frontend readiness: 70/100
+
+---
+
+## 2026-05-21 — Add stable frontend
+
+### Frontend
+
+- Home page with highlights and catalog browse
+- Course catalog with search, filtering (category, level, price), and sorting
+- Course detail page with reviews, enrollment, and payment flow
+- Learning page with curriculum tree, lesson viewer, quizzes, and comments
+- Student dashboard for enrolled courses and progress tracking
+- Student certificate management page
+- Profile page with user info and password management
+- Invite acceptance flow for admin-invited users
+- Contact form on home page
+- Responsive UI across all pages with Tailwind CSS and shadcn/ui components
 
 ---
 

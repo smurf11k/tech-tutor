@@ -191,6 +191,56 @@ class CommerceFlowTest extends TestCase
         $this->getJson("/api/payments/{$paymentId}")->assertForbidden();
     }
 
+    public function test_stripe_checkout_resumes_pending_session_instead_of_creating_duplicate(): void
+    {
+        config([
+            'services.stripe.secret' => 'sk_test_mock',
+            'services.stripe.success_url' => 'https://example.test/success',
+            'services.stripe.cancel_url' => 'https://example.test/cancel',
+        ]);
+
+        Http::fake();
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Resume Checkout Course',
+            'slug' => 'resume-checkout-course',
+            'description' => 'Pending checkout resume test',
+            'price' => 42.50,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Payment::create([
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'provider' => 'stripe',
+            'amount' => 42.50,
+            'currency' => 'USD',
+            'status' => 'pending',
+            'transaction_id' => 'cs_test_resume',
+            'provider_payload' => [
+                'id' => 'cs_test_resume',
+                'url' => 'https://checkout.stripe.test/pay/cs_test_resume',
+                'mode' => 'payment',
+            ],
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/payments/stripe-checkout")
+            ->assertOk()
+            ->assertJsonPath('checkout.session_id', 'cs_test_resume')
+            ->assertJsonPath('checkout.url', 'https://checkout.stripe.test/pay/cs_test_resume');
+
+        $this->assertDatabaseCount('payments', 1);
+
+        Http::assertNothingSent();
+    }
+
     public function test_student_can_create_stripe_checkout_session_for_paid_course(): void
     {
         config([
@@ -702,5 +752,58 @@ class CommerceFlowTest extends TestCase
             ->assertJsonCount(1)
             ->assertJsonPath('0.id', $reviewId)
             ->assertJsonPath('0.is_published', false);
+    }
+
+    public function test_guest_can_read_published_reviews_without_auth(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Guest Reviews Course',
+            'slug' => 'guest-reviews-course',
+            'description' => 'Guest review access',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($student);
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+        $reviewId = $this->postJson("/api/courses/{$course->id}/reviews", [
+            'rating' => 4,
+            'comment' => 'Solid intro',
+        ])->assertCreated()->json('id');
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/courses/{$course->id}/reviews/{$reviewId}", [
+            'is_published' => true,
+        ])->assertOk();
+
+        auth()->forgetGuards();
+
+        $this->getJson("/api/courses/{$course->id}/reviews")
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.comment', 'Solid intro');
+    }
+
+    public function test_contact_form_can_be_submitted_without_auth(): void
+    {
+        $this->postJson('/api/contact', [
+            'name' => 'Alex Student',
+            'email' => 'alex@example.com',
+            'subject' => 'Course question',
+            'message' => 'How do I reset my password?',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('message', 'Thank you for your message. We will get back to you soon.');
+
+        $this->assertDatabaseHas('contact_messages', [
+            'email' => 'alex@example.com',
+            'subject' => 'Course question',
+        ]);
     }
 }

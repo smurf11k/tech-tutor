@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $file_path
  * @property int $position
  * @property bool $is_preview
+ * @property bool $is_published
  * @property-read Module $module
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Comment> $comments
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Progress> $progressEntries
@@ -42,6 +43,7 @@ class Lesson extends Model
         'file_path',
         'position',
         'is_preview',
+        'is_published',
     ];
 
     protected function casts(): array
@@ -49,6 +51,7 @@ class Lesson extends Model
         return [
             'position' => 'integer',
             'is_preview' => 'boolean',
+            'is_published' => 'boolean',
         ];
     }
 
