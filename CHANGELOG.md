@@ -7,7 +7,6 @@ All notable changes to this project are documented in this file. Entries are ord
 ### Progress
 
 - Backend readiness: 95/100
-- Frontend readiness: 70/100
 - Frontend readiness: 80/100
 
 ---
