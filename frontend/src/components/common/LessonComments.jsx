@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { ErrorAlert } from "@/components/common/ErrorAlert";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/utils";
+import { useToast } from "@/contexts/ToastContext";
 import { Badge } from "@/components/ui/badge";
 
 export function LessonComments({
@@ -20,6 +20,7 @@ export function LessonComments({
   const [newCommentBody, setNewCommentBody] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const toast = useToast();
 
   const isInstructor =
     user && (user.role === "admin" || user.id === course?.instructor_id);
@@ -63,7 +64,9 @@ export function LessonComments({
         }
         // Only show error if we're still on this lesson
         if (currentLessonId === lesson.id) {
-          setError(getApiErrorMessage(err));
+          const msg = getApiErrorMessage(err);
+          setError(msg);
+          toast.error(msg);
         }
       } finally {
         setLoading(false);
@@ -116,7 +119,9 @@ export function LessonComments({
       setNewCommentBody("");
       setReplyingTo(null);
     } catch (err) {
-      setError(getApiErrorMessage(err));
+      const msg = getApiErrorMessage(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitLoading(false);
     }
@@ -147,7 +152,9 @@ export function LessonComments({
         setComments(comments.filter((c) => c.id !== commentId));
       }
     } catch (err) {
-      setError(getApiErrorMessage(err));
+      const msg = getApiErrorMessage(err);
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -172,8 +179,7 @@ export function LessonComments({
         <CardTitle>Comments</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <ErrorAlert message={error} />
-
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {/* Comments list */}
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading comments...</p>
@@ -195,7 +201,6 @@ export function LessonComments({
             ))}
           </div>
         )}
-
         {/* Comment form */}
         <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-4">
           <p className="text-sm font-medium">

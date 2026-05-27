@@ -11,7 +11,11 @@ import IconActionButton from "@/components/common/IconActionButton";
 import PublishStatusPill from "@/components/common/PublishStatusPill";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { extractList, getApiErrorMessage } from "@/lib/utils";
+import {
+  extractList,
+  getApiErrorMessage,
+  getCourseRouteKey,
+} from "@/lib/utils";
 
 const normalize = (value) =>
   String(value ?? "")
@@ -54,7 +58,8 @@ export default function InstructorContentPage() {
 
   const togglePublish = async (course) => {
     try {
-      await client.put(`/courses/${course.id ?? course.course_id}`, {
+      const routeKey = getCourseRouteKey(course);
+      await client.put(`/courses/${routeKey}`, {
         is_published: !course.is_published,
       });
       toast.success(
@@ -67,11 +72,11 @@ export default function InstructorContentPage() {
   };
 
   const requestPublish = async (course) => {
-    const id = course.id ?? course.course_id;
-    setRequestingId(id);
+    const routeKey = getCourseRouteKey(course);
+    setRequestingId(routeKey);
     try {
-      await client.post(`/courses/${id}/publish-request`);
-      setRequestedIds((prev) => new Set([...prev, id]));
+      await client.post(`/courses/${routeKey}/publish-request`);
+      setRequestedIds((prev) => new Set([...prev, routeKey]));
       toast.success("Publish request submitted.");
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to submit publish request."));
@@ -103,12 +108,14 @@ export default function InstructorContentPage() {
 
         {!loading ? (
           <div className="space-y-6">
-            <Card>
-              <CardContent className="pt-4 space-y-4">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
+            <Card className="overflow-hidden border-border bg-card/80 shadow-none">
+              <CardContent className="p-0">
+                <div className="flex flex-col gap-4 border-b border-border px-5 py-4 md:flex-row md:items-end md:justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold">Courses</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <h2 className="text-[13px] font-medium tracking-[-0.01em] text-foreground">
+                      Courses
+                    </h2>
+                    <p className="mt-1 text-[10px] mono-ui uppercase tracking-[0.08em] text-muted-foreground">
                       {searchedCourses.length} shown · {courses.length} total
                     </p>
                   </div>
@@ -117,107 +124,109 @@ export default function InstructorContentPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Search courses..."
-                    className="w-64 h-8 text-sm"
+                    className="h-8 w-full max-w-xs text-sm md:w-72"
                   />
                 </div>
 
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="grid grid-cols-12 gap-3 px-4 py-3 border-b text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <div className="overflow-hidden">
+                  <div className="grid grid-cols-12 gap-3 border-b border-border px-5 py-3 text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground mono-ui">
                     <span className="col-span-5">Title</span>
                     <span className="col-span-2">Enrollments</span>
                     <span className="col-span-2">Status</span>
                     <span className="col-span-3 text-right">Actions</span>
                   </div>
 
-                  {searchedCourses.length === 0 && (
-                    <p className="px-4 py-6 text-sm text-muted-foreground">
+                  {searchedCourses.length === 0 ? (
+                    <p className="px-5 py-6 text-sm text-muted-foreground">
                       No courses found.
                     </p>
-                  )}
+                  ) : (
+                    searchedCourses.map((course, index) => {
+                      const routeKey = getCourseRouteKey(course);
+                      const alreadyRequested = requestedIds.has(routeKey);
+                      const isRequesting = requestingId === routeKey;
 
-                  {searchedCourses.map((course, index) => {
-                    const id = course.id ?? course.course_id;
-                    const alreadyRequested = requestedIds.has(id);
-                    const isRequesting = requestingId === id;
+                      return (
+                        <div
+                          key={routeKey}
+                          className={`grid grid-cols-12 items-center gap-3 border-b border-border px-5 py-4 transition-colors last:border-b-0 hover:bg-[#111] ${
+                            index === 0 ? "bg-[#0f0f0f]" : ""
+                          }`}
+                        >
+                          <div className="col-span-5 min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {course.title}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {course.description}
+                            </p>
+                          </div>
 
-                    return (
-                      <div
-                        key={id}
-                        className={`grid grid-cols-12 gap-3 px-4 py-4 items-center ${
-                          index !== 0 ? "border-t" : ""
-                        }`}
-                      >
-                        <div className="col-span-5 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {course.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {course.description}
-                          </p>
-                        </div>
+                          <span className="col-span-2 text-[11px] mono-ui text-muted-foreground">
+                            {course.enrollments_count ?? 0}
+                          </span>
 
-                        <span className="col-span-2 text-sm text-muted-foreground">
-                          {course.enrollments_count ?? 0}
-                        </span>
+                          <div className="col-span-2">
+                            <PublishStatusPill
+                              status={
+                                course.is_published ? "published" : "draft"
+                              }
+                            />
+                          </div>
 
-                        <div className="col-span-2">
-                          <PublishStatusPill
-                            status={course.is_published ? "published" : "draft"}
-                          />
-                        </div>
+                          <div className="col-span-3 flex items-center justify-end gap-1.5">
+                            <IconActionButton
+                              label="Edit course"
+                              onClick={() =>
+                                navigate(`/instructor/courses/${routeKey}`, {
+                                  state: { course },
+                                })
+                              }
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </IconActionButton>
 
-                        <div className="col-span-3 flex justify-end items-center gap-1">
-                          <IconActionButton
-                            label="Edit course"
-                            onClick={() =>
-                              navigate(`/instructor/courses/${id}`, {
-                                state: { course },
-                              })
-                            }
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </IconActionButton>
+                            {!course.is_published &&
+                              (isAdmin ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-[var(--radius)] text-xs"
+                                  onClick={() => togglePublish(course)}
+                                >
+                                  Publish
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-[var(--radius)] text-xs"
+                                  onClick={() => requestPublish(course)}
+                                  disabled={alreadyRequested || isRequesting}
+                                >
+                                  {alreadyRequested
+                                    ? "Requested ✓"
+                                    : isRequesting
+                                      ? "…"
+                                      : "Request publish"}
+                                </Button>
+                              ))}
 
-                          {!course.is_published &&
-                            (isAdmin ? (
+                            {course.is_published && isAdmin && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-8 text-xs rounded-[var(--radius)]"
+                                className="h-8 rounded-[var(--radius)] text-xs"
                                 onClick={() => togglePublish(course)}
                               >
-                                Publish
+                                Unpublish
                               </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 text-xs rounded-[var(--radius)]"
-                                onClick={() => requestPublish(course)}
-                                disabled={alreadyRequested || isRequesting}
-                              >
-                                {alreadyRequested
-                                  ? "Requested ✓"
-                                  : isRequesting
-                                    ? "…"
-                                    : "Request publish"}
-                              </Button>
-                            ))}
-
-                          {course.is_published && isAdmin && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 text-xs rounded-[var(--radius)]"
-                              onClick={() => togglePublish(course)}
-                            >
-                              Unpublish
-                            </Button>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </CardContent>
             </Card>

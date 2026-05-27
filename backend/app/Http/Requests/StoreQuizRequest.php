@@ -21,6 +21,8 @@ class StoreQuizRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'module_id' => ['nullable', 'integer', 'exists:modules,id'],
             'pass_score' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'estimated_time_minutes' => ['nullable', 'integer', 'min:0'],
+            'time_limit_seconds' => ['nullable', 'integer', 'min:0'],
             'is_published' => ['sometimes', 'boolean'],
             'position' => ['sometimes', 'integer', 'min:0'],
             'questions' => ['sometimes', 'array'],

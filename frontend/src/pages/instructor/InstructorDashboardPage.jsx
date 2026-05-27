@@ -1,17 +1,26 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, Pencil } from "lucide-react";
+import { Award, Eye, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/common/StatCard";
 import { LoadingState } from "@/components/common/LoadingState";
 import { PageHeader } from "@/components/common/PageHeader";
 import IconActionButton from "@/components/common/IconActionButton";
-import PublishStatusPill from "@/components/common/PublishStatusPill";
+import {
+  DashboardPanel,
+  MetricBars,
+  SparklineChart,
+} from "@/components/common/DashboardCharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { getApiErrorMessage } from "@/lib/utils";
+import {
+  formatMoney,
+  getApiErrorMessage,
+  getCourseRouteKey,
+  getStripeCurrency,
+} from "@/lib/utils";
 
 export default function InstructorDashboardPage() {
   const { client } = useAuth();
@@ -19,6 +28,7 @@ export default function InstructorDashboardPage() {
   const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const currency = getStripeCurrency();
 
   useEffect(() => {
     async function load() {
@@ -33,6 +43,21 @@ export default function InstructorDashboardPage() {
     }
     load();
   }, [client]);
+
+  const courseRows = (dashboard?.courses || []).map((course) => ({
+    id: course.course_id,
+    label: course.title,
+    value: Number(course.revenue_total || 0),
+    meta: `${course.enrollments_count || 0} enrolled • ${course.certificates_count || 0} certificates • ${course.completion_rate ?? 0}% completion`,
+  }));
+
+  const completionTrend = (dashboard?.courses || []).map((course) =>
+    Number(course.completion_rate || 0),
+  );
+  const completionLabels = (dashboard?.courses || []).map(
+    (course) => course.title,
+  );
+  const recentCertificates = dashboard?.recent_certificates || [];
 
   return (
     <TooltipProvider>
@@ -51,73 +76,147 @@ export default function InstructorDashboardPage() {
 
         {dashboard ? (
           <div className="space-y-6">
-            <section className="grid gap-4 md:grid-cols-3">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <StatCard
                 title="Courses"
                 value={dashboard.summary.courses_count}
+                hint={`${dashboard.summary.published_courses_count} published`}
+                className="h-full"
               />
               <StatCard
-                title="Enrollments"
+                title="Enrolled users"
                 value={dashboard.summary.enrollments_count}
+                hint={`${dashboard.summary.average_progress ?? 0}% avg progress`}
+                className="h-full"
+              />
+              <StatCard
+                title="Issued certificates"
+                value={dashboard.summary.certificates_count}
+                hint={`${dashboard.summary.average_quiz_score ?? 0}% avg quiz score`}
+                className="h-full"
               />
               <StatCard
                 title="Revenue"
-                value={dashboard.summary.revenue_total}
+                value={formatMoney(dashboard.summary.revenue_total, currency)}
+                hint={`${dashboard.summary.published_courses_count} live courses`}
+                className="h-full"
               />
             </section>
 
-            <Card>
-              <CardContent className="pt-4 space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold">Your Courses</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {dashboard.courses.length} total
+            <section className="grid gap-4 lg:grid-cols-2">
+              <DashboardPanel
+                title="Course revenue"
+                subtitle="your courses ranked by generated revenue"
+                right={
+                  <Badge variant="secondary">
+                    {dashboard.courses.length} courses
+                  </Badge>
+                }
+              >
+                {courseRows.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No courses yet.
                   </p>
-                </div>
+                ) : (
+                  <MetricBars
+                    rows={courseRows.slice(0, 6)}
+                    valueFormatter={(value) => formatMoney(value, currency)}
+                  />
+                )}
+              </DashboardPanel>
 
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="grid grid-cols-12 gap-3 px-4 py-3 border-b text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    <span className="col-span-6">Title</span>
-                    <span className="col-span-2">Enrollments</span>
-                    <span className="col-span-2">Status</span>
-                    <span className="col-span-2 text-right">Actions</span>
-                  </div>
+              <DashboardPanel
+                title="Completion trend"
+                subtitle="certificate progress across your course catalog"
+                right={<Badge variant="secondary">overview</Badge>}
+              >
+                {completionTrend.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No published metrics yet.
+                  </p>
+                ) : (
+                  <SparklineChart
+                    values={completionTrend}
+                    labels={completionLabels}
+                  />
+                )}
+              </DashboardPanel>
+            </section>
 
-                  {dashboard.courses.length === 0 && (
-                    <p className="px-4 py-6 text-sm text-muted-foreground">
-                      No courses yet.
+            <section className="grid gap-4 lg:grid-cols-2">
+              <DashboardPanel
+                title="Recent certificates"
+                subtitle="students' certificates issued through your courses"
+                right={
+                  <Badge variant="secondary">{recentCertificates.length}</Badge>
+                }
+              >
+                <div className="space-y-3">
+                  {recentCertificates.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No certificates yet.
                     </p>
+                  ) : (
+                    recentCertificates.map((certificate) => (
+                      <div
+                        key={certificate.id}
+                        className="flex items-start gap-3 border-b border-border pb-3 last:border-b-0 last:pb-0"
+                      >
+                        <span className="mt-0.5 inline-flex size-7 items-center justify-center rounded-md bg-[#001a0d] text-primary">
+                          <Award className="size-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium text-foreground">
+                            {certificate.user?.name || "Unknown student"}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {certificate.course?.title ||
+                              `Course #${certificate.course_id}`}
+                          </p>
+                          <p className="mt-1 text-[10px] mono-ui text-muted-foreground">
+                            #{certificate.certificate_number || certificate.id}
+                          </p>
+                        </div>
+                        <span className="text-[10px] mono-ui text-muted-foreground">
+                          {certificate.issued_at
+                            ? new Date(
+                                certificate.issued_at,
+                              ).toLocaleDateString()
+                            : "—"}
+                        </span>
+                      </div>
+                    ))
                   )}
+                </div>
+              </DashboardPanel>
 
-                  {dashboard.courses.map((course, index) => (
+              <DashboardPanel
+                title="Course status"
+                subtitle="quick access to editing and viewing the instructor catalog"
+                right={<Badge variant="secondary">live</Badge>}
+              >
+                <div className="space-y-3">
+                  {dashboard.courses.slice(0, 5).map((course) => (
                     <div
                       key={course.course_id}
-                      className={`grid grid-cols-12 gap-3 px-4 py-4 items-center ${
-                        index !== 0 ? "border-t" : ""
-                      }`}
+                      className="flex items-center gap-3 border-b border-border pb-3 last:border-b-0 last:pb-0"
                     >
-                      <div className="col-span-6 min-w-0">
-                        <p className="text-sm font-medium truncate">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-foreground">
                           {course.title}
                         </p>
+                        <p className="mt-1 text-[10px] mono-ui text-muted-foreground">
+                          {course.enrollments_count} enrolled •{" "}
+                          {course.certificates_count} certificates •{" "}
+                          {course.average_progress ?? 0}% progress
+                        </p>
                       </div>
-
-                      <span className="col-span-2 text-sm text-muted-foreground">
-                        {course.enrollments_count}
-                      </span>
-
-                      <div className="col-span-2">
-                        <PublishStatusPill
-                          status={course.is_published ? "published" : "draft"}
-                        />
-                      </div>
-
-                      <div className="col-span-2 flex justify-end gap-1">
+                      <div className="flex items-center gap-1.5">
                         <IconActionButton
                           label="Edit course"
                           onClick={() =>
                             navigate(
-                              `/instructor/courses/${course.course_id}`,
+                              `/instructor/courses/${getCourseRouteKey(course)}`,
                               { state: { course } },
                             )
                           }
@@ -128,7 +227,7 @@ export default function InstructorDashboardPage() {
                         <IconActionButton
                           label="View course"
                           onClick={() =>
-                            navigate(`/courses/${course.course_id}`, {
+                            navigate(`/courses/${getCourseRouteKey(course)}`, {
                               state: { course },
                             })
                           }
@@ -139,8 +238,8 @@ export default function InstructorDashboardPage() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </DashboardPanel>
+            </section>
           </div>
         ) : null}
       </section>

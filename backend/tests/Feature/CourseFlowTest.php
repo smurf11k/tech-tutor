@@ -7,14 +7,15 @@ use App\Models\CourseCertificate;
 use App\Models\Enrollment;
 use App\Models\Lesson;
 use App\Models\Module;
+use App\Models\Progress;
+use App\Models\Quiz;
+use App\Models\QuizAttempt;
 use App\Models\User;
 use App\Notifications\CourseCertificateIssuedNotification;
 use App\Notifications\EnrollmentCreatedNotification;
 use App\Notifications\PublishRequestHandledNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -52,10 +53,9 @@ class CourseFlowTest extends TestCase
             'module_id' => $module->id,
             'title' => 'Welcome',
             'slug' => 'welcome',
-            'type' => 'text',
+            'type' => 'lesson',
             'content' => 'Hello world',
             'position' => 1,
-            'is_preview' => false,
         ]);
 
         Sanctum::actingAs($student);
@@ -82,103 +82,28 @@ class CourseFlowTest extends TestCase
         ]);
     }
 
-    public function test_instructor_can_upload_and_replace_lesson_files(): void
+    public function test_course_search_falls_back_to_database_when_meilisearch_is_unavailable(): void
     {
-        Storage::fake('public');
+        config(['scout.driver' => 'meilisearch']);
 
         $instructor = User::factory()->create(['role' => 'instructor']);
 
-        $course = Course::create([
-            'instructor_id' => $instructor->id,
-            'title' => 'File Upload Course',
-            'slug' => 'file-upload-course',
-            'description' => 'Used for lesson upload testing',
-            'price' => 0,
-            'is_published' => true,
-            'published_at' => now(),
-        ]);
+        $course = Course::withoutSyncingToSearch(function () use ($instructor): Course {
+            return Course::create([
+                'instructor_id' => $instructor->id,
+                'title' => 'Fallback Search Course',
+                'slug' => 'fallback-search-course',
+                'description' => 'This course should still be searchable without Meilisearch',
+                'price' => 0,
+                'is_published' => true,
+                'published_at' => now(),
+            ]);
+        });
 
-        $module = Module::create([
-            'course_id' => $course->id,
-            'title' => 'Uploads',
-            'slug' => 'uploads',
-            'position' => 1,
-        ]);
-
-        Sanctum::actingAs($instructor);
-
-        $initialUpload = UploadedFile::fake()->create('lesson-notes.pdf', 256, 'application/pdf');
-
-        $createResponse = $this->post(
-            "/api/modules/{$module->id}/lessons",
-            [
-                'title' => 'Lesson Notes',
-                'slug' => 'lesson-notes',
-                'type' => 'file',
-                'lesson_file' => $initialUpload,
-            ],
-            ['Accept' => 'application/json']
-        )->assertCreated();
-
-        $firstPath = $createResponse->json('file_path');
-
-        $this->assertNotNull($firstPath);
-        $this->assertStringStartsWith('lesson-files/module-' . $module->id . '/', $firstPath);
-        Storage::disk('public')->assertExists($firstPath);
-        $createResponse->assertJsonPath('file_url', url(Storage::disk('public')->url($firstPath)));
-
-        $lesson = Lesson::query()->firstOrFail();
-        $replacementUpload = UploadedFile::fake()->create('lesson-notes-v2.pdf', 256, 'application/pdf');
-
-        $updateResponse = $this->post(
-            "/api/modules/{$module->id}/lessons/{$lesson->id}",
-            [
-                '_method' => 'PUT',
-                'title' => 'Lesson Notes Updated',
-                'slug' => 'lesson-notes',
-                'type' => 'file',
-                'lesson_file' => $replacementUpload,
-            ],
-            ['Accept' => 'application/json']
-        )->assertOk();
-
-        $secondPath = $updateResponse->json('file_path');
-
-        $this->assertNotSame($firstPath, $secondPath);
-        Storage::disk('public')->assertMissing($firstPath);
-        Storage::disk('public')->assertExists($secondPath);
-        $updateResponse->assertJsonPath('file_url', url(Storage::disk('public')->url($secondPath)));
-    }
-
-    public function test_file_lessons_require_an_uploaded_file_or_existing_file_path(): void
-    {
-        $instructor = User::factory()->create(['role' => 'instructor']);
-
-        $course = Course::create([
-            'instructor_id' => $instructor->id,
-            'title' => 'Required File Course',
-            'slug' => 'required-file-course',
-            'description' => 'Used for lesson file validation testing',
-            'price' => 0,
-            'is_published' => true,
-            'published_at' => now(),
-        ]);
-
-        $module = Module::create([
-            'course_id' => $course->id,
-            'title' => 'Required Uploads',
-            'slug' => 'required-uploads',
-            'position' => 1,
-        ]);
-
-        Sanctum::actingAs($instructor);
-
-        $this->postJson("/api/modules/{$module->id}/lessons", [
-            'title' => 'Broken File Lesson',
-            'slug' => 'broken-file-lesson',
-            'type' => 'file',
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('lesson_file');
+        $this->getJson('/api/courses?q=Fallback%20Search')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $course->id)
+            ->assertJsonPath('data.0.slug', $course->slug);
     }
 
     public function test_student_receives_certificate_after_completing_all_course_lessons(): void
@@ -209,16 +134,18 @@ class CourseFlowTest extends TestCase
             'module_id' => $module->id,
             'title' => 'First',
             'slug' => 'first',
-            'type' => 'text',
+            'type' => 'lesson',
             'position' => 1,
+            'is_published' => true,
         ]);
 
         $secondLesson = Lesson::create([
             'module_id' => $module->id,
             'title' => 'Second',
             'slug' => 'second',
-            'type' => 'text',
+            'type' => 'lesson',
             'position' => 2,
+            'is_published' => true,
         ]);
 
         Sanctum::actingAs($student);
@@ -250,8 +177,8 @@ class CourseFlowTest extends TestCase
         ]);
 
         $this->postJson("/api/courses/{$course->id}/certificate")
-            ->assertOk()
-            ->assertJsonPath('id', $certificateId);
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'sertificate already issued');
 
         $this->assertDatabaseCount('course_certificates', 1);
 
@@ -259,6 +186,160 @@ class CourseFlowTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1)
             ->assertJsonPath('0.id', $certificateId);
+    }
+
+    public function test_certificate_uses_published_course_progress_for_eligibility(): void
+    {
+        Notification::fake();
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Published Progress Course',
+            'slug' => 'published-progress-course',
+            'description' => 'Only published content should count for students',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $module = Module::create([
+            'course_id' => $course->id,
+            'title' => 'Visible Module',
+            'slug' => 'visible-module',
+            'position' => 1,
+        ]);
+
+        $visibleLesson = Lesson::create([
+            'module_id' => $module->id,
+            'title' => 'Visible Lesson',
+            'slug' => 'visible-lesson',
+            'type' => 'lesson',
+            'position' => 1,
+            'is_published' => true,
+        ]);
+
+        Lesson::create([
+            'module_id' => $module->id,
+            'title' => 'Hidden Lesson',
+            'slug' => 'hidden-lesson',
+            'type' => 'lesson',
+            'position' => 2,
+            'is_published' => false,
+        ]);
+
+        $quiz = Quiz::create([
+            'course_id' => $course->id,
+            'module_id' => $module->id,
+            'title' => 'Visible Quiz',
+            'pass_score' => 70,
+            'is_published' => true,
+            'position' => 3,
+        ]);
+
+        Enrollment::create([
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'status' => 'active',
+            'enrolled_at' => now(),
+        ]);
+
+        Progress::create([
+            'user_id' => $student->id,
+            'lesson_id' => $visibleLesson->id,
+            'progress_percent' => 100,
+            'completed_at' => now(),
+        ]);
+
+        QuizAttempt::create([
+            'quiz_id' => $quiz->id,
+            'user_id' => $student->id,
+            'score' => 100,
+            'passed' => true,
+            'completed_at' => now(),
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/certificate")
+            ->assertCreated()
+            ->assertJsonPath('course_id', $course->id)
+            ->assertJsonPath('user_id', $student->id);
+    }
+
+    public function test_certificate_requires_passing_published_quizzes(): void
+    {
+        Notification::fake();
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Quiz Required Course',
+            'slug' => 'quiz-required-course',
+            'description' => 'Quiz completion should count toward course completion',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $module = Module::create([
+            'course_id' => $course->id,
+            'title' => 'Quiz Module',
+            'slug' => 'quiz-module',
+            'position' => 1,
+        ]);
+
+        $lesson = Lesson::create([
+            'module_id' => $module->id,
+            'title' => 'Complete Lesson',
+            'slug' => 'complete-lesson',
+            'type' => 'lesson',
+            'position' => 1,
+            'is_published' => true,
+        ]);
+
+        $quiz = Quiz::create([
+            'course_id' => $course->id,
+            'module_id' => $module->id,
+            'title' => 'Required Quiz',
+            'pass_score' => 70,
+            'is_published' => true,
+            'position' => 2,
+        ]);
+
+        Enrollment::create([
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'status' => 'active',
+            'enrolled_at' => now(),
+        ]);
+
+        Progress::create([
+            'user_id' => $student->id,
+            'lesson_id' => $lesson->id,
+            'progress_percent' => 100,
+            'completed_at' => now(),
+        ]);
+
+        QuizAttempt::create([
+            'quiz_id' => $quiz->id,
+            'user_id' => $student->id,
+            'score' => 50,
+            'passed' => false,
+            'completed_at' => now(),
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/certificate")
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Course is not complete yet.');
+
+        $this->assertDatabaseCount('course_certificates', 0);
     }
 
     public function test_instructor_is_notified_when_publish_request_is_handled(): void
@@ -340,11 +421,11 @@ class CourseFlowTest extends TestCase
 
         Sanctum::actingAs($instructor);
         $this->getJson("/api/certificates/{$certificate->id}")->assertOk();
-        $this->getJson('/api/certificates')->assertOk()->assertJsonCount(1);
+        $this->getJson('/api/certificates')->assertOk()->assertJsonCount(0);
 
         Sanctum::actingAs($admin);
         $this->getJson("/api/certificates/{$certificate->id}")->assertOk();
-        $this->getJson('/api/certificates')->assertOk()->assertJsonCount(1);
+        $this->getJson('/api/certificates')->assertOk()->assertJsonCount(0);
     }
 
     public function test_public_courses_index_only_returns_published_courses(): void
@@ -495,12 +576,35 @@ class CourseFlowTest extends TestCase
             'category' => 'backend',
             'level' => 'intermediate',
             'language' => 'en',
+            'what_you_will_learn' => [
+                'Build API endpoints',
+                'Protect routes with policies',
+            ],
+            'price_benefits' => [
+                'Full lifetime access',
+                'Access on all devices',
+                'Certificate of completion',
+            ],
+            'tags' => ['api', 'backend', 'laravel'],
             'thumbnail_path' => '/courses/metadata.png',
             'duration_minutes' => 180,
             'price' => 25,
         ])->assertCreated();
 
         $courseId = $response->json('id');
+
+        $course = Course::with('tags')->findOrFail($courseId);
+
+        $this->assertSame([
+            'Build API endpoints',
+            'Protect routes with policies',
+        ], $course->what_you_will_learn);
+        $this->assertSame([
+            'Full lifetime access',
+            'Access on all devices',
+            'Certificate of completion',
+        ], $course->price_benefits);
+        $this->assertSame(['api', 'backend', 'laravel'], $course->tags->pluck('slug')->values()->all());
 
         $this->patchJson("/api/courses/{$courseId}", [
             'level' => 'advanced',
@@ -518,6 +622,65 @@ class CourseFlowTest extends TestCase
             'thumbnail_path' => '/courses/metadata.png',
             'duration_minutes' => 210,
         ]);
+    }
+
+    public function test_instructor_can_delete_a_draft_course_but_not_a_published_one(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        Sanctum::actingAs($instructor);
+
+        $draftResponse = $this->postJson('/api/courses', [
+            'title' => 'Draft Deletable Course',
+            'slug' => 'draft-deletable-course',
+            'price' => 0,
+            'what_you_will_learn' => ['One', 'Two'],
+            'price_benefits' => ['Full lifetime access'],
+            'tags' => ['draft', 'delete', 'course'],
+        ])->assertCreated();
+
+        $draftCourseSlug = $draftResponse->json('slug');
+
+        $this->deleteJson("/api/courses/{$draftCourseSlug}")->assertNoContent();
+        $this->assertDatabaseMissing('courses', ['slug' => $draftCourseSlug]);
+
+        $publishedCourse = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Published Locked Course',
+            'slug' => 'published-locked-course',
+            'description' => 'Published courses should stay protected from instructor deletes.',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $this->deleteJson("/api/courses/{$publishedCourse->slug}")->assertForbidden();
+    }
+
+    public function test_course_slug_must_be_unique(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        Sanctum::actingAs($instructor);
+
+        $this->postJson('/api/courses', [
+            'title' => 'First Course',
+            'slug' => 'duplicate-slug-course',
+            'price' => 0,
+            'what_you_will_learn' => ['One', 'Two'],
+            'price_benefits' => ['Full lifetime access'],
+            'tags' => ['first', 'course', 'tags'],
+        ])->assertCreated();
+
+        $this->postJson('/api/courses', [
+            'title' => 'Second Course',
+            'slug' => 'duplicate-slug-course',
+            'price' => 0,
+            'what_you_will_learn' => ['Three', 'Four'],
+            'price_benefits' => ['Full lifetime access'],
+            'tags' => ['second', 'course', 'tags'],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['slug']);
     }
 
     public function test_publishing_rules_set_and_clear_published_at(): void

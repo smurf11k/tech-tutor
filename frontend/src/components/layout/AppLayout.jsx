@@ -1,45 +1,25 @@
-import { useEffect, useState } from "react";
-import {
-  Link,
-  NavLink,
-  Outlet,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { useEffect } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { scrollToHash } from "@/lib/scroll";
-import { BookOpen, User } from "lucide-react";
+import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { Moon, Sun } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { resolveBackendAssetUrl } from "@/lib/api";
 
 const navLinkClass = ({ isActive }) =>
   cn(
-    "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+    "rounded-[5px] px-2.5 py-1.5 text-[12px] text-muted-foreground transition-colors mono-ui",
     isActive
-      ? "bg-primary/15 text-primary shadow-inner shadow-primary/10"
-      : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+      ? "border border-[#003a1a] bg-[#001a0d] text-primary"
+      : "hover:bg-[#111] hover:text-foreground",
   );
 
 export function AppLayout() {
-  const { user, isAuthenticated, isAdmin, isInstructor, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user, isAuthenticated, isAdmin, isInstructor } = useAuth();
   const location = useLocation();
-
-  const THEME_STORAGE_KEY = "tech-tutor-theme";
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    return saved === "light" ? "light" : "dark";
-  });
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle("light", theme === "light");
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  }, [theme]);
+  const profileImage = resolveBackendAssetUrl(user?.avatar_url);
 
   useEffect(() => {
     if (location.hash) {
@@ -47,109 +27,113 @@ export function AppLayout() {
     }
   }, [location.pathname, location.hash]);
 
-  async function handleLogout() {
-    await logout();
-    navigate("/", { replace: true });
-  }
-
   return (
     <div className="relative flex min-h-screen flex-col text-foreground">
       <div
-        className="pointer-events-none fixed inset-0 tech-grid opacity-30"
+        className="pointer-events-none fixed inset-0 tech-grid opacity-20"
         aria-hidden
       />
 
-      <header className="sticky top-0 z-50 border-b border-border/60 glass-panel">
-        <div className="container flex items-center gap-4 py-3">
-          <div className="flex items-center gap-4">
-            <Link
-              to="/"
-              className="flex items-center gap-2 font-semibold tracking-tight"
-            >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                <BookOpen className="size-4" />
-              </span>
-              <span>
-                Tech<span className="text-primary">Tutor</span>
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="home-shell flex h-[52px] items-center gap-4">
+          <div className="flex items-center gap-5">
+            <Link to="/" className="flex items-center gap-2">
+              <img
+                src="/favicon.svg"
+                alt="TechTutor"
+                className="h-5 w-5 p-[2px]"
+              />
+              <span className="text-[13px] font-medium tracking-[-0.01em]">
+                TechTutor
               </span>
             </Link>
-          </div>
 
-          <nav className="flex-1 flex justify-center">
-            <div className="flex flex-wrap items-center gap-1">
+            <nav className="hidden items-center gap-1 sm:flex">
               <NavLink to="/" className={navLinkClass} end>
-                Home
+                home
+              </NavLink>
+              <NavLink to="/courses" className={navLinkClass}>
+                courses
               </NavLink>
               {isAuthenticated ? (
                 <>
                   <NavLink to="/learning" className={navLinkClass}>
-                    My learning
+                    learning
                   </NavLink>
                   <NavLink to="/certificates" className={navLinkClass}>
-                    Certificates
-                  </NavLink>
-                  <NavLink to="/payments" className={navLinkClass}>
-                    Payments
+                    certificates
                   </NavLink>
                 </>
               ) : null}
               {isInstructor ? (
                 <NavLink to="/instructor" className={navLinkClass}>
-                  Instructor
+                  instructor
                 </NavLink>
               ) : null}
               {isAdmin ? (
                 <NavLink to="/admin" className={navLinkClass}>
-                  Admin
+                  admin
                 </NavLink>
               ) : null}
-            </div>
-          </nav>
+            </nav>
+          </div>
 
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-[var(--radius)]"
-              onClick={() =>
-                setTheme((p) => (p === "light" ? "dark" : "light"))
-              }
-            >
-              {theme === "light" ? (
-                <>
-                  <Moon className="h-4 w-4" />
-                  Dark
-                </>
-              ) : (
-                <>
-                  <Sun className="h-4 w-4" />
-                  Light
-                </>
-              )}
-            </Button>
-
+          <div className="ml-auto flex items-center gap-2">
             {isAuthenticated ? (
               <>
-                <Badge variant="outline" className="text-xs capitalize">
-                  {isAdmin ? "admin" : isInstructor ? "instructor" : "user"}
-                </Badge>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/profile">
-                    <User className="mr-1 size-4" />
-                    {user.name}
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
-                  Log out
-                </Button>
+                <Link
+                  to="/profile"
+                  className="
+                  flex items-center justify-center
+                  rounded-full
+                  transition-all
+                  hover:scale-[1.03]
+                "
+                >
+                  {profileImage ? (
+                    <img
+                      src={profileImage}
+                      alt={user?.name || "Profile"}
+                      className="
+                      h-9 w-9
+                      rounded-full
+                      border border-border
+                      object-cover
+                    "
+                    />
+                  ) : (
+                    <div
+                      className="
+                      flex h-9 w-9 items-center justify-center
+                      rounded-full
+                      border border-border
+                      bg-muted
+                      text-[12px]
+                      font-semibold
+                      text-muted-foreground
+                      mono-ui
+                      transition-colors
+                      hover:border-border
+                      hover:bg-muted/80
+                    "
+                    >
+                      {(user?.name || "TT")
+                        .split(" ")
+                        .map((part) => part[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </div>
+                  )}
+                </Link>
               </>
             ) : (
               <>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link to="/login">Log in</Link>
+                  <Link to="/login">sign_in</Link>
                 </Button>
                 <Button size="sm" asChild>
-                  <Link to="/register">Sign up</Link>
+                  <Link to="/register">get_started</Link>
                 </Button>
               </>
             )}
@@ -157,7 +141,7 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="container relative flex-1 py-8">
+      <main className="relative flex-1">
         <Outlet />
       </main>
 

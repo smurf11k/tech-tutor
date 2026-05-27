@@ -20,6 +20,9 @@ class AdminPlatformDashboardController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
+        $recentCertificates = CourseCertificate::query()->with(['user', 'course'])
+            ->latest('issued_at')
+            ->get();
         $payments = Payment::query()->with(['course', 'user'])->latest()->get();
         $paidPayments = $payments->where('status', 'paid');
 
@@ -44,6 +47,7 @@ class AdminPlatformDashboardController extends Controller
             ],
             'payment_statuses' => $this->paymentStatuses($payments),
             'revenue_by_course' => $this->revenueByCourse($paidPayments),
+            'recent_certificates' => $recentCertificates,
             'recent_activity' => $this->recentActivity(),
         ]);
     }
@@ -56,7 +60,7 @@ class AdminPlatformDashboardController extends Controller
     {
         return $payments
             ->groupBy('status')
-            ->map(fn ($items, string $status): array => [
+            ->map(fn($items, string $status): array => [
                 'status' => $status,
                 'count' => $items->count(),
                 'amount' => number_format((float) $items->sum('amount'), 2, '.', ''),
@@ -73,13 +77,13 @@ class AdminPlatformDashboardController extends Controller
     {
         return $payments
             ->groupBy('course_id')
-            ->map(fn ($items): array => [
+            ->map(fn($items): array => [
                 'course_id' => $items->first()->course_id,
                 'course_title' => $items->first()->course?->title,
                 'payments_count' => $items->count(),
                 'revenue_total' => number_format((float) $items->sum('amount'), 2, '.', ''),
             ])
-            ->sortByDesc(fn (array $row): float => (float) $row['revenue_total'])
+            ->sortByDesc(fn(array $row): float => (float) $row['revenue_total'])
             ->values()
             ->all();
     }

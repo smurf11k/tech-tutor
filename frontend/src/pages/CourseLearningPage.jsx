@@ -9,12 +9,16 @@ import { Button } from "@/components/ui/button";
 import { CourseCurriculumTree } from "@/components/instructor/CourseCurriculumTree";
 import { LoadingState } from "@/components/common/LoadingState";
 import { MarkdownContent } from "@/components/markdown/MarkdownContent";
-import { PageHeader } from "@/components/common/PageHeader";
 import { LessonComments } from "@/components/common/LessonComments";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { buildCurriculumItems } from "@/lib/curriculum";
-import { getApiErrorMessage } from "@/lib/utils";
+import {
+  formatMinutes,
+  getApiErrorMessage,
+  getCourseRouteKey,
+  resolveBackendAssetUrl,
+} from "@/lib/utils";
 
 const MAX_QUIZ_ATTEMPTS = 3;
 
@@ -35,16 +39,55 @@ export default function CourseLearningPage() {
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizResult, setQuizResult] = useState(null);
   const [quizLocked, setQuizLocked] = useState(false);
-  const [error, setError] = useState("");
+  const [, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const curriculumItems = useMemo(() => buildCurriculumItems(course), [course]);
 
+  const [issuingCertificate, setIssuingCertificate] = useState(false);
+
   const activeIndex = curriculumItems.findIndex(
     (item) => item.key === activeKey,
   );
   const activeItem = activeIndex >= 0 ? curriculumItems[activeIndex] : null;
+  const completedItems = useMemo(() => {
+    const completedLessons = new Set(completedLessonIds.map(String)).size;
+    const passedQuizzes = curriculumItems.filter((item) => {
+      if (item.type !== "quiz") {
+        return false;
+      }
+
+      const summary = quizSummaries[item.id] || quizSummaries[String(item.id)];
+      return Boolean(summary?.passed);
+    }).length;
+
+    return completedLessons + passedQuizzes;
+  }, [completedLessonIds, curriculumItems, quizSummaries]);
+  const progressPercent = Math.min(
+    100,
+    Math.round((completedItems / Math.max(1, curriculumItems.length)) * 100),
+  );
+  const activeQuizSummary =
+    activeItem?.type === "quiz"
+      ? quizSummaries[activeItem.id] || quizSummaries[String(activeItem.id)]
+      : null;
+  const activeQuizIsFinished = Boolean(
+    activeQuizSummary?.latest_attempt &&
+    (activeQuizSummary.passed ||
+      activeQuizSummary.attempts_count >= MAX_QUIZ_ATTEMPTS),
+  );
+  const activeEstimatedTime =
+    activeItem?.type === "lesson"
+      ? formatMinutes(activeItem.lesson?.estimated_time_minutes)
+      : activeItem?.type === "quiz"
+        ? formatMinutes(activeItem.quiz?.estimated_time_minutes)
+        : "";
+  const topBarTimeLabel =
+    activeEstimatedTime ||
+    course?.duration ||
+    formatMinutes(course?.total_estimated_minutes) ||
+    "";
 
   const loadLearningState = useCallback(async () => {
     setLoading(true);
@@ -111,6 +154,23 @@ export default function CourseLearningPage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [quizLocked]);
 
+  useEffect(() => {
+    if (activeItem?.type !== "quiz" || quizLocked) {
+      return;
+    }
+
+    const summary =
+      quizSummaries[activeItem.id] || quizSummaries[String(activeItem.id)];
+    const latest = summary?.latest_attempt;
+
+    if (
+      latest &&
+      (summary.passed || summary.attempts_count >= MAX_QUIZ_ATTEMPTS)
+    ) {
+      setQuizResult(latest);
+    }
+  }, [activeItem, quizLocked, quizSummaries]);
+
   function setQuizAnswer(question, optionKey, checked) {
     setQuizAnswers((current) => {
       if (question.type === "multiple_choice") {
@@ -133,7 +193,7 @@ export default function CourseLearningPage() {
   }
 
   function selectItem(key) {
-    if (quizLocked && key !== activeKey) {
+    if (quizLocked && key !== activeKey && !activeQuizIsFinished) {
       toast.error("Finish the quiz before leaving this page.");
       return;
     }
@@ -203,14 +263,11 @@ export default function CourseLearningPage() {
     const nextItem = curriculumItems[activeIndex + 1];
     if (nextItem) {
       selectItem(nextItem.key);
-      if (nextItem.type === "quiz") {
-        setQuizLocked(true);
-      }
     }
   }
 
   function goPrevious() {
-    if (quizLocked) {
+    if (quizLocked && !activeQuizIsFinished) {
       toast.error("Finish the quiz before leaving this page.");
       return;
     }
@@ -264,6 +321,25 @@ export default function CourseLearningPage() {
     setQuizLocked(false);
   }
 
+  async function issueCertificate() {
+    setIssuingCertificate(true);
+
+    try {
+      await client.post(`/courses/${courseId}/certificate`);
+      toast.success("Certificate issued successfully!");
+    } catch (err) {
+      const msg = getApiErrorMessage(err);
+
+      if (msg.toLowerCase().includes("already issued")) {
+        toast.error("Certificate was already issued for this course.");
+      } else {
+        toast.error(msg || "Failed to issue certificate.");
+      }
+    } finally {
+      setIssuingCertificate(false);
+    }
+  }
+
   if (!isAuthenticated) {
     return (
       <section className="space-y-4">
@@ -296,81 +372,120 @@ export default function CourseLearningPage() {
   const hasPrevious = activeIndex > 0;
 
   return (
-    <section className="space-y-6">
-      <PageHeader
-        title={course.title}
-        description="Work through lessons and quizzes at your own pace."
-        actions={
-          <>
-            <Button variant="outline" asChild>
-              <Link to={`/courses/${courseId}`}>Course overview</Link>
-            </Button>
-            {canManage ? (
-              <Button variant="outline" asChild>
-                <Link to={`/instructor/courses/${course.id}`}>
-                  Manage course
-                </Link>
-              </Button>
-            ) : null}
-          </>
-        }
-      />
+    <section className="w-full overflow-hidden border border-border bg-card">
+      <div className="grid min-h-[calc(100vh-170px)] lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-6">
+        <aside className="border-r border-border bg-card/80">
+          <div className="border-b border-border p-3.5 space-y-3">
+            <p className="mb-1.5 text-xs font-medium leading-tight">
+              {course.title}
+            </p>
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <CourseCurriculumTree
-            course={course}
-            completedLessonIds={completedLessonIds}
-            interactive
-            activeKey={activeKey}
-            onSelect={selectItem}
-            quizSummaries={quizSummaries}
-          />
+            {/* Progress bar */}
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground mono-ui">
+              <div className="h-1.5 flex-1 overflow-hidden rounded bg-border">
+                <div
+                  className="h-full rounded bg-primary"
+                  style={{
+                    width: `${progressPercent}%`,
+                  }}
+                />
+              </div>
+              <span>{progressPercent}% complete</span>
+            </div>
+
+            {/* ✅ Issue certificate button */}
+            <Button
+              size="sm"
+              className="w-full"
+              variant="outline"
+              disabled={issuingCertificate}
+              onClick={issueCertificate}
+            >
+              {issuingCertificate
+                ? "Issuing certificate..."
+                : "Issue certificate"}
+            </Button>
+          </div>
+
+          <div className="h-[calc(100%-68px)] overflow-y-auto p-2">
+            <CourseCurriculumTree
+              course={course}
+              completedLessonIds={completedLessonIds}
+              interactive
+              activeKey={activeKey}
+              onSelect={selectItem}
+              quizSummaries={quizSummaries}
+            />
+          </div>
         </aside>
 
-        <div className="min-h-[420px] rounded-xl border border-border/60 glass-panel p-6">
-          {!activeItem ? (
-            <p className="text-sm text-muted-foreground">
-              Select a lesson or quiz from the curriculum.
+        <div className="flex min-h-[620px] min-w-0 flex-col overflow-hidden">
+          <div className="flex h-12 items-center justify-between border-b border-border bg-card px-5">
+            <p className="text-[13px] font-medium">
+              {activeItem?.title || course.title}
             </p>
-          ) : null}
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground mono-ui">
+              <span className="inline-flex items-center gap-1">
+                <i className="ti ti-clock" style={{ fontSize: 12 }} />
+                {topBarTimeLabel || "—"}
+              </span>
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/courses/${courseId}`}>overview</Link>
+              </Button>
+              {canManage ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/instructor/courses/${getCourseRouteKey(course)}`}>
+                    manage
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
+          </div>
 
-          {activeItem?.type === "lesson" ? (
-            <LessonPanel
-              lesson={activeItem.lesson}
-              busy={busy}
-              hasPrevious={hasPrevious}
-              hasNext={hasNext}
-              onPrevious={goPrevious}
-              onNext={goNext}
-              client={client}
-              isAuthenticated={isAuthenticated}
-              course={course}
-              user={user}
-            />
-          ) : null}
+          <div className="flex-1 overflow-y-auto p-7">
+            {!activeItem ? (
+              <p className="text-sm text-muted-foreground">
+                Select a lesson or quiz from the curriculum.
+              </p>
+            ) : null}
 
-          {activeItem?.type === "quiz" ? (
-            <QuizPanel
-              quiz={activeItem.quiz}
-              quizAnswers={quizAnswers}
-              quizResult={quizResult}
-              quizLocked={quizLocked}
-              busy={busy}
-              summary={
-                quizSummaries[activeItem.id] ||
-                quizSummaries[String(activeItem.id)]
-              }
-              hasPrevious={hasPrevious}
-              hasNext={hasNext && !quizLocked}
-              onPrevious={goPrevious}
-              onNext={goNext}
-              onSetQuizAnswer={setQuizAnswer}
-              onSubmit={handleQuizSubmit}
-              onRetake={startQuizRetake}
-              onCancel={cancelQuiz}
-            />
-          ) : null}
+            {activeItem?.type === "lesson" ? (
+              <LessonPanel
+                lesson={activeItem.lesson}
+                busy={busy}
+                hasPrevious={hasPrevious}
+                hasNext={hasNext}
+                onPrevious={goPrevious}
+                onNext={goNext}
+                client={client}
+                isAuthenticated={isAuthenticated}
+                course={course}
+                user={user}
+              />
+            ) : null}
+
+            {activeItem?.type === "quiz" ? (
+              <QuizPanel
+                quiz={activeItem.quiz}
+                quizAnswers={quizAnswers}
+                quizResult={quizResult}
+                quizLocked={quizLocked}
+                busy={busy}
+                summary={
+                  quizSummaries[activeItem.id] ||
+                  quizSummaries[String(activeItem.id)]
+                }
+                hasPrevious={hasPrevious}
+                hasNext={hasNext && (!quizLocked || activeQuizIsFinished)}
+                onPrevious={goPrevious}
+                onSetQuizAnswer={setQuizAnswer}
+                onSubmit={handleQuizSubmit}
+                onRetake={startQuizRetake}
+                onCancel={cancelQuiz}
+                onSkip={goNext}
+              />
+            ) : null}
+          </div>
         </div>
       </div>
     </section>
@@ -389,37 +504,41 @@ function LessonPanel({
   course,
   user,
 }) {
+  const hasInlineVideo =
+    /\[[^\]]+\]\([^)]*\.(?:mp4|mov|webm|m4v|avi|mkv)(?:\?[^)]*)?\)/i.test(
+      lesson.content || "",
+    );
+
   return (
-    <article className="flex h-full flex-col gap-6">
-      <header className="space-y-2 border-b border-border/60 pb-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+    <article className="mx-auto flex h-full max-w-4xl flex-col gap-6">
+      <header className="space-y-2 pb-2">
+        <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground mono-ui">
           Lesson
+          {lesson.estimated_time_minutes
+            ? ` · ${formatMinutes(lesson.estimated_time_minutes)}`
+            : ""}
         </p>
-        <h2 className="text-2xl font-semibold">{lesson.title}</h2>
+        <h2 className="text-2xl font-semibold tracking-[-0.02em]">
+          {lesson.title}
+        </h2>
       </header>
 
       <div className="flex-1 space-y-4">
+        {!hasInlineVideo && lesson.video_url ? (
+          <figure className="overflow-hidden rounded-xl border border-border bg-black/95 shadow-sm">
+            <video
+              controls
+              preload="metadata"
+              className="w-full max-h-[70vh] bg-black"
+              src={resolveBackendAssetUrl(lesson.video_url)}
+            />
+            <figcaption className="border-t border-white/10 px-4 py-2 text-xs text-muted-foreground">
+              {lesson.video_path?.split("/").pop() || "Uploaded lesson video"}
+            </figcaption>
+          </figure>
+        ) : null}
+
         <MarkdownContent content={lesson.content} />
-        {lesson.video_url ? (
-          <a
-            href={lesson.video_url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm text-primary hover:underline"
-          >
-            Open video resource
-          </a>
-        ) : null}
-        {lesson.file_url ? (
-          <a
-            href={lesson.file_url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm text-primary hover:underline"
-          >
-            Download attachment
-          </a>
-        ) : null}
       </div>
 
       <LessonComments
@@ -430,7 +549,7 @@ function LessonPanel({
         user={user}
       />
 
-      <footer className="flex flex-wrap justify-between gap-2 border-t border-border/60 pt-4">
+      <footer className="flex flex-wrap justify-between gap-2 border-t border-border pt-4">
         <Button
           variant="outline"
           disabled={!hasPrevious || busy}
@@ -439,7 +558,7 @@ function LessonPanel({
           Previous
         </Button>
         <Button disabled={!hasNext || busy} onClick={onNext}>
-          {hasNext ? "Next" : "Finish"}
+          {hasNext ? "Next lesson" : "Finish"}
         </Button>
       </footer>
     </article>
@@ -456,11 +575,11 @@ function QuizPanel({
   hasPrevious,
   hasNext,
   onPrevious,
-  onNext,
   onSetQuizAnswer,
   onSubmit,
   onRetake,
   onCancel,
+  onSkip,
 }) {
   const attemptsCount = summary?.attempts_count || 0;
   const canRetake =
@@ -472,6 +591,9 @@ function QuizPanel({
         <header className="space-y-2 border-b border-border/60 pb-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Quiz result
+            {quiz.estimated_time_minutes
+              ? ` · ${formatMinutes(quiz.estimated_time_minutes)}`
+              : ""}
           </p>
           <h2 className="text-2xl font-semibold">{quiz.title}</h2>
         </header>
@@ -496,7 +618,7 @@ function QuizPanel({
           ) : null}
           {quizResult.passed ? (
             <>
-              {hasNext && <Button onClick={onNext}>Continue to next</Button>}
+              {hasNext && <Button onClick={onSkip}>Skip quiz</Button>}
               {hasPrevious && (
                 <Button variant="outline" onClick={onPrevious}>
                   Back
@@ -510,14 +632,21 @@ function QuizPanel({
   }
 
   return (
-    <article className="flex h-full flex-col gap-6">
-      <header className="space-y-2 border-b border-border/60 pb-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+    <article className="mx-auto flex h-full max-w-3xl flex-col gap-6">
+      <header className="space-y-2 pb-2">
+        <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground mono-ui">
           Quiz
+          {quiz.estimated_time_minutes
+            ? ` · ${formatMinutes(quiz.estimated_time_minutes)}`
+            : ""}
         </p>
-        <h2 className="text-2xl font-semibold">{quiz.title}</h2>
+        <h2 className="text-[18px] font-semibold tracking-[-0.02em]">
+          {quiz.title}
+        </h2>
         {quiz.description ? (
-          <p className="text-sm text-muted-foreground">{quiz.description}</p>
+          <p className="text-xs text-muted-foreground mono-ui">
+            {quiz.description}
+          </p>
         ) : null}
         {quizLocked ? (
           <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -527,43 +656,79 @@ function QuizPanel({
       </header>
 
       <div className="flex-1 space-y-4">
+        {/* TODO: Implement per-question countdown timer and timeout behavior like the design mockup. */}
+        <div className="mb-2 text-[11px] text-muted-foreground mono-ui">
+          {summary?.attempts_count
+            ? `attempts: ${summary.attempts_count}`
+            : "attempts: 0"}
+        </div>
+
         {(quiz.questions || []).map((question) => (
           <div
             key={question.id}
             className="space-y-3 rounded-md border border-border p-4"
           >
-            <p className="text-sm font-medium">{question.prompt}</p>
+            <p className="text-sm font-medium leading-relaxed">
+              {question.prompt}
+            </p>
             <div className="space-y-2">
               {(question.options || []).map((option) => {
                 const currentAnswer = quizAnswers[question.id];
                 const isChecked = Array.isArray(currentAnswer)
                   ? currentAnswer.includes(option.key)
                   : currentAnswer === option.key;
+                const isMulti = question.type === "multiple_choice";
 
                 return (
                   <label
                     key={option.key}
-                    className="flex cursor-pointer items-start gap-3 rounded-md border border-border px-3 py-2 text-sm"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 12px",
+                      borderRadius: 6,
+                      border: `1px solid ${isChecked ? "var(--primary)" : "var(--border)"}`,
+                      background: isChecked ? "var(--accent)" : "transparent",
+                      cursor: "pointer",
+                      transition: "border-color .12s, background .12s",
+                      fontSize: 13,
+                    }}
                   >
                     <input
-                      type={
-                        question.type === "multiple_choice"
-                          ? "checkbox"
-                          : "radio"
-                      }
+                      type={isMulti ? "checkbox" : "radio"}
                       name={`question-${question.id}`}
                       checked={isChecked}
-                      onChange={(event) =>
-                        onSetQuizAnswer(
-                          question,
-                          option.key,
-                          event.target.checked,
-                        )
+                      onChange={(e) =>
+                        onSetQuizAnswer(question, option.key, e.target.checked)
                       }
-                      className="mt-1"
+                      style={{ display: "none" }}
                     />
-                    <span>
-                      <span className="mr-2 font-medium">{option.key}.</span>
+                    <i
+                      className={
+                        isChecked
+                          ? isMulti
+                            ? "ti ti-checkbox"
+                            : "ti ti-circle-dot"
+                          : isMulti
+                            ? "ti ti-square"
+                            : "ti ti-circle"
+                      }
+                      style={{
+                        fontSize: 16,
+                        flexShrink: 0,
+                        color: isChecked
+                          ? "var(--primary)"
+                          : "var(--muted-foreground)",
+                      }}
+                    />
+                    <span
+                      style={{
+                        color: isChecked
+                          ? "var(--foreground)"
+                          : "var(--muted-foreground)",
+                      }}
+                    >
                       {option.text}
                     </span>
                   </label>
@@ -574,7 +739,7 @@ function QuizPanel({
         ))}
       </div>
 
-      <footer className="flex flex-wrap justify-between gap-2 border-t border-border/60 pt-4">
+      <footer className="flex flex-wrap justify-between gap-2 border-t border-border pt-4">
         <div className="flex gap-2">
           <Button
             variant="outline"

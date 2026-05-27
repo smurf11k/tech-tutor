@@ -45,6 +45,22 @@ class AdminPanelFlowTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_delete_user_account(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        Sanctum::actingAs($admin);
+
+        $this->deleteJson("/api/admin/users/{$student->id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'User deleted.');
+
+        $this->assertDatabaseMissing('users', [
+            'id' => $student->id,
+        ]);
+    }
+
     public function test_non_admin_cannot_access_admin_user_management_or_moderation_queue(): void
     {
         $student = User::factory()->create(['role' => 'student']);
@@ -60,6 +76,7 @@ class AdminPanelFlowTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $instructor = User::factory()->create(['role' => 'instructor']);
+        $otherInstructor = User::factory()->create(['role' => 'instructor']);
         $student = User::factory()->create(['role' => 'student']);
         $banned = User::factory()->create(['role' => 'student', 'is_banned' => true, 'banned_at' => now()]);
 
@@ -95,6 +112,23 @@ class AdminPanelFlowTest extends TestCase
             'user_id' => $student->id,
             'certificate_number' => 'TT-ADMIN-MONITOR',
             'issued_at' => now(),
+        ]);
+
+        $otherCourse = Course::create([
+            'instructor_id' => $otherInstructor->id,
+            'title' => 'Admin Monitor Other Course',
+            'slug' => 'admin-monitor-other-course',
+            'description' => 'Another course for dashboard certificate coverage',
+            'price' => 25,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        CourseCertificate::create([
+            'course_id' => $otherCourse->id,
+            'user_id' => $student->id,
+            'certificate_number' => 'TT-ADMIN-MONITOR-2',
+            'issued_at' => now()->subMinute(),
         ]);
 
         Payment::create([
@@ -147,16 +181,16 @@ class AdminPanelFlowTest extends TestCase
 
         $this->getJson('/api/admin/platform-dashboard')
             ->assertOk()
-            ->assertJsonPath('summary.users_count', 4)
+            ->assertJsonPath('summary.users_count', 5)
             ->assertJsonPath('summary.students_count', 2)
-            ->assertJsonPath('summary.instructors_count', 1)
+            ->assertJsonPath('summary.instructors_count', 2)
             ->assertJsonPath('summary.admins_count', 1)
             ->assertJsonPath('summary.banned_users_count', 1)
-            ->assertJsonPath('summary.courses_count', 2)
-            ->assertJsonPath('summary.published_courses_count', 1)
+            ->assertJsonPath('summary.courses_count', 3)
+            ->assertJsonPath('summary.published_courses_count', 2)
             ->assertJsonPath('summary.draft_courses_count', 1)
             ->assertJsonPath('summary.enrollments_count', 1)
-            ->assertJsonPath('summary.certificates_count', 1)
+            ->assertJsonPath('summary.certificates_count', 2)
             ->assertJsonPath('summary.quiz_attempts_count', 1)
             ->assertJsonPath('summary.pending_reviews_count', 1)
             ->assertJsonPath('summary.payments_count', 2)
@@ -173,6 +207,8 @@ class AdminPanelFlowTest extends TestCase
                 'payments_count' => 1,
                 'revenue_total' => '40.00',
             ])
+            ->assertJsonPath('recent_certificates.0.certificate_number', 'TT-ADMIN-MONITOR')
+            ->assertJsonPath('recent_certificates.1.certificate_number', 'TT-ADMIN-MONITOR-2')
             ->assertJsonFragment([
                 'type' => 'payment_recorded',
             ]);

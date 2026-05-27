@@ -14,13 +14,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  BookOpen,
-  FileQuestion,
-  Pencil,
-  Trash2,
-  ChevronDown,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,55 +22,302 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import PublishStatusPill from "@/components/common/PublishStatusPill";
 import {
   LessonEditorForm,
   QuizEditorForm,
-  makeEmptyQuestion,
   questionToForm,
 } from "@/components/instructor/ContentEditors";
 import { buildModuleContentItems } from "@/components/instructor/buildCourseContentItems";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { getApiErrorMessage, slugify } from "@/lib/utils";
+import {
+  getApiErrorMessage,
+  resolveBackendAssetUrl,
+  slugify,
+} from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
+const TRACK_OPTIONS = [
+  { value: "frontend", label: "Frontend" },
+  { value: "backend", label: "Backend" },
+  { value: "ml/ai", label: "ML/AI" },
+  { value: "devops", label: "DevOps" },
+];
+
+const LEGACY_TRACK_MAP = {
+  "web-development": "frontend",
+  "client-server-development": "backend",
+  "software-engineering": "backend",
+  cybersecurity: "devops",
+};
+
+function normalizeTrack(value) {
+  const input = String(value || "")
+    .trim()
+    .toLowerCase();
+  const normalized = LEGACY_TRACK_MAP[input] || input;
+
+  if (TRACK_OPTIONS.some((option) => option.value === normalized)) {
+    return normalized;
+  }
+
+  return TRACK_OPTIONS[0].value;
+}
+
+const DEFAULT_PRICE_BENEFITS = [
+  "Full lifetime access",
+  "Access on all devices",
+  "Certificate of completion",
+];
+
 const EMPTY_COURSE = {
   title: "",
   slug: "",
   description: "",
-  subtitle: "",
-  category: "",
+  category: TRACK_OPTIONS[0].value,
   level: "beginner",
   language: "en",
+  what_you_will_learn: [],
+  price_benefits: [...DEFAULT_PRICE_BENEFITS],
+  tags: [],
   price: 0,
   is_published: false,
 };
 
-const EMPTY_LESSON = { title: "", content: "", is_published: false };
-const EMPTY_QUIZ_FORM = { title: "", pass_score: 70, is_published: false };
+const EMPTY_LESSON = {
+  title: "",
+  content: "",
+  estimated_time_minutes: 0,
+  is_published: false,
+  videoFile: null,
+  video_name: "",
+  video_path: "",
+  video_url: "",
+  remove_video: false,
+};
+const EMPTY_QUIZ_FORM = {
+  title: "",
+  pass_score: 70,
+  estimated_time_minutes: 0,
+  time_limit_seconds: 0,
+  is_published: false,
+};
 
 function pendingCourseKey(id) {
   return `techtutor_pending_course_${id}`;
 }
 
+function normalizeCourseList(items) {
+  return Array.from(
+    new Set(
+      (Array.isArray(items) ? items : [])
+        .map((item) => String(item ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function normalizeCourseTag(value) {
+  return slugify(value || "");
+}
+
+function courseRouteKey(course) {
+  return (
+    course?.slug || course?.course_slug || course?.id || course?.course_id || ""
+  );
+}
+
+function extractFieldErrors(error) {
+  return error?.response?.data?.errors ?? {};
+}
+
 function courseToForm(course) {
+  const courseTags = Array.isArray(course?.tags)
+    ? course.tags.map((tag) => String(tag?.slug || tag?.name || tag || ""))
+    : [];
+
   return {
     title: course.title || "",
     slug: course.slug || "",
     description: course.description || "",
-    subtitle: course.subtitle || "",
-    category: course.category || "",
+    category: normalizeTrack(course.category),
     level: course.level || "beginner",
     language: course.language || "en",
+    what_you_will_learn: normalizeCourseList(course.what_you_will_learn),
+    price_benefits: normalizeCourseList(
+      course.price_benefits?.length
+        ? course.price_benefits
+        : DEFAULT_PRICE_BENEFITS,
+    ),
+    tags: normalizeCourseList(courseTags).map(normalizeCourseTag),
     price: course.price || 0,
     is_published: Boolean(course.is_published),
   };
+}
+
+function ListEditorField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  helperText,
+  error,
+  maxItems = 10,
+  normalizeItem = (input) => input,
+}) {
+  const [draft, setDraft] = useState("");
+
+  const addItem = () => {
+    const nextItem = normalizeItem(draft);
+    if (!nextItem || value.length >= maxItems) {
+      return;
+    }
+
+    if (value.includes(nextItem)) {
+      setDraft("");
+      return;
+    }
+
+    onChange([...value, nextItem]);
+    setDraft("");
+  };
+
+  const removeItem = (index) => {
+    onChange(value.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="space-y-1">
+        <Label>{label}</Label>
+        <div className="flex gap-2">
+          <Input
+            value={draft}
+            placeholder={placeholder}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === ",") {
+                event.preventDefault();
+                addItem();
+              }
+            }}
+            onBlur={addItem}
+          />
+          <Button type="button" variant="outline" onClick={addItem}>
+            Add
+          </Button>
+        </div>
+      </div>
+
+      {helperText ? (
+        <p className="text-xs text-muted-foreground">{helperText}</p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        {value.map((item, index) => (
+          <Badge
+            key={`${item}-${index}`}
+            variant="secondary"
+            className="flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-normal"
+          >
+            <span>{item}</span>
+            <button
+              type="button"
+              onClick={() => removeItem(index)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label={`Remove ${item}`}
+            >
+              <i className="ti ti-x" style={{ fontSize: 10 }} />
+            </button>
+          </Badge>
+        ))}
+      </div>
+
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
+}
+
+function lessonToForm(lesson) {
+  return {
+    title: lesson.title || "",
+    content: lesson.content || "",
+    estimated_time_minutes: lesson.estimated_time_minutes ?? 0,
+    is_published: lesson.is_published ?? false,
+    videoFile: null,
+    video_name:
+      lesson.video_path?.split("/").pop() ||
+      lesson.video_url?.split("/").pop() ||
+      "",
+    video_path: lesson.video_path || "",
+    video_url: lesson.video_url || "",
+    remove_video: false,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Saved status indicator — reacts to dirty state + save cycles
+// ---------------------------------------------------------------------------
+
+function SavedIndicator({ dirty, saving }) {
+  // dirty = unsaved changes exist; saving = in-flight request
+  if (saving) {
+    return (
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          color: "var(--muted-foreground)",
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+        }}
+      >
+        <i
+          className="ti ti-loader-2"
+          style={{ fontSize: 11, animation: "spin 1s linear infinite" }}
+        />
+        saving…
+      </span>
+    );
+  }
+  if (dirty) {
+    return (
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          color: "#d97706",
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+        }}
+      >
+        <i className="ti ti-circle-dot" style={{ fontSize: 11 }} />
+        unsaved changes
+      </span>
+    );
+  }
+  return (
+    <span
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: 10,
+        color: "var(--primary)",
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+      }}
+    >
+      <i className="ti ti-circle-check" style={{ fontSize: 11 }} />
+      saved
+    </span>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -99,41 +340,101 @@ function SortableContentItem({ item, onEdit, onDelete }) {
     opacity: isDragging ? 0.4 : 1,
   };
 
-  const Icon = item._type === "lesson" ? BookOpen : FileQuestion;
+  const isLesson = item._type === "lesson";
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className="group flex items-center gap-2 px-3 py-2 rounded-md border bg-card text-sm"
+      style={{
+        ...style,
+        display: "flex",
+        alignItems: "center",
+        gap: 7,
+        padding: "6px 10px 6px 22px",
+        fontSize: 11,
+        fontFamily: "var(--font-mono)",
+        color: "var(--muted-foreground)",
+        cursor: "pointer",
+        borderBottom: "1px solid var(--border)",
+        transition: "background .12s",
+      }}
     >
       <span
         {...attributes}
         {...listeners}
-        className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground select-none shrink-0"
+        style={{
+          cursor: "grab",
+          color: "#3a3a3a",
+          fontSize: 11,
+          flexShrink: 0,
+        }}
       >
-        ⠿
+        <i className="ti ti-grip-vertical" />
       </span>
-      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span className="flex-1 truncate">{item.title}</span>
+      <i
+        className={`ti ${isLesson ? "ti-player-play" : "ti-help-circle"}`}
+        style={{ fontSize: 11, color: "#3a3a3a", flexShrink: 0 }}
+      />
+      <span
+        style={{
+          flex: 1,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {item.title}
+      </span>
       <PublishStatusPill status={item.is_published ? "published" : "draft"} />
-      <div className="hidden group-hover:flex gap-1 shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
+      <div style={{ gap: 2, flexShrink: 0, display: "flex" }}>
+        <button
           onClick={onEdit}
+          title="Edit"
+          style={{
+            width: 22,
+            height: 22,
+            background: "transparent",
+            border: "none",
+            color: "var(--muted-foreground)",
+            fontSize: 12,
+            borderRadius: 3,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = "var(--secondary)";
+            e.currentTarget.style.color = "var(--text)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--muted-foreground)";
+          }}
         >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-destructive hover:text-destructive"
+          <i className="ti ti-pencil" />
+        </button>
+        <button
           onClick={onDelete}
+          title="Delete"
+          style={{
+            width: 22,
+            height: 22,
+            background: "transparent",
+            border: "none",
+            color: "#f87171",
+            fontSize: 12,
+            borderRadius: 3,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.background = "#1a0808")}
+          onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
         >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+          <i className="ti ti-trash" />
+        </button>
       </div>
     </div>
   );
@@ -213,149 +514,317 @@ function ModuleSection({
   const isEditing = editingModuleId === module.id;
 
   return (
-    <Card>
-      <CardContent className="pt-4 space-y-3">
+    <div
+      className="struct-module"
+      style={{
+        background: "var(--bg)",
+        border: "1px solid var(--border)",
+        borderRadius: 6,
+        marginBottom: 6,
+        overflow: "hidden",
+      }}
+    >
+      {/* Module header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "8px 10px",
+          borderBottom: isCollapsed ? "none" : "1px solid var(--border)",
+          minWidth: 0,
+        }}
+      >
+        {dragListeners && dragAttributes && (
+          <span
+            {...dragAttributes}
+            {...dragListeners}
+            title="Drag to reorder"
+            style={{
+              cursor: "grab",
+              color: "#3a3a3a",
+              fontSize: 13,
+              flexShrink: 0,
+              display: "flex",
+            }}
+          >
+            <i className="ti ti-grip-vertical" />
+          </span>
+        )}
+
+        <button
+          onClick={() => onToggleCollapse(module.id)}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "#3a3a3a",
+            cursor: "pointer",
+            padding: 0,
+            display: "flex",
+            flexShrink: 0,
+          }}
+        >
+          <i
+            className="ti ti-chevron-right"
+            style={{
+              fontSize: 13,
+              transition: "transform .15s",
+              transform: isCollapsed ? "rotate(0deg)" : "rotate(90deg)",
+            }}
+          />
+        </button>
+
         {isEditing ? (
           <form
-            className="flex items-center gap-2"
             onSubmit={(e) => onRename(e, module)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              flex: 1,
+              minWidth: 0,
+            }}
           >
-            <Input
+            <input
               autoFocus
               value={editingModuleTitle}
               onChange={(e) => setEditingModuleTitle(e.target.value)}
-              className="h-8 text-sm flex-1"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                height: 24,
+                padding: "0 7px",
+                border: "1px solid var(--ring)",
+                borderRadius: 4,
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                background: "var(--card)",
+                color: "var(--text)",
+                outline: "none",
+              }}
             />
-            <Button
+            <button
               type="submit"
-              size="sm"
-              className="rounded-[var(--radius)]"
               disabled={saving}
+              title="Save"
+              style={{
+                width: 24,
+                height: 24,
+                background: "var(--primary)",
+                color: "#001a0d",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
             >
-              Save
-            </Button>
-            <Button
+              <i className="ti ti-check" style={{ fontSize: 13 }} />
+            </button>
+            <button
               type="button"
-              size="sm"
-              variant="ghost"
               onClick={() => onRename(null, null)}
+              title="Cancel"
+              style={{
+                width: 24,
+                height: 24,
+                background: "transparent",
+                color: "var(--muted-foreground)",
+                border: "1px solid var(--border)",
+                borderRadius: 4,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
             >
-              Cancel
-            </Button>
+              <i className="ti ti-x" style={{ fontSize: 13 }} />
+            </button>
           </form>
         ) : (
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-1">
-              {dragListeners && dragAttributes && (
-                <span
-                  {...dragAttributes}
-                  {...dragListeners}
-                  className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground select-none shrink-0"
-                >
-                  ⠿
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 p-0"
-                onClick={() => onToggleCollapse(module.id)}
-              >
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${
-                    isCollapsed ? "-rotate-90" : ""
-                  }`}
-                />
-              </Button>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                {module.title}
-              </p>
-            </div>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => onRename("start", module)}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-destructive hover:text-destructive"
-                onClick={() => onDelete(module)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {!isCollapsed && (
           <>
-            {items.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No lessons or quizzes yet.
-              </p>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={items.map((i) => i._dnd_id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="space-y-1.5">
-                    {items.map((item) => (
-                      <SortableContentItem
-                        key={item._dnd_id}
-                        item={item}
-                        onEdit={() =>
-                          item._type === "lesson"
-                            ? onEditLesson(item, module)
-                            : onEditQuiz(item, module)
-                        }
-                        onDelete={() =>
-                          item._type === "lesson"
-                            ? onDeleteLesson(item, module)
-                            : onDeleteQuiz(item, module)
-                        }
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            )}
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              {module.title}
+            </span>
+            <button
+              onClick={() => onRename("start", module)}
+              title="Rename module"
+              style={{
+                width: 22,
+                height: 22,
+                background: "transparent",
+                border: "none",
+                color: "#3a3a3a",
+                fontSize: 12,
+                borderRadius: 3,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "var(--text)";
+                e.currentTarget.style.background = "var(--secondary)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "#3a3a3a";
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              <i className="ti ti-pencil" />
+            </button>
+            <button
+              onClick={() => onDelete(module)}
+              title="Delete module"
+              style={{
+                width: 22,
+                height: 22,
+                background: "transparent",
+                border: "none",
+                color: "#3a3a3a",
+                fontSize: 12,
+                borderRadius: 3,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "#f87171";
+                e.currentTarget.style.background = "#1a0808";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "#3a3a3a";
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              <i className="ti ti-trash" />
+            </button>
           </>
         )}
+      </div>
 
-        <Separator />
+      {/* Lessons / quizzes */}
+      {!isCollapsed && (
+        <>
+          {items.length === 0 ? (
+            <p
+              style={{
+                padding: "8px 22px",
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                color: "#3a3a3a",
+              }}
+            >
+              No lessons or quizzes yet.
+            </p>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={items.map((i) => i._dnd_id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {items.map((item) => (
+                  <SortableContentItem
+                    key={item._dnd_id}
+                    item={item}
+                    onEdit={() =>
+                      item._type === "lesson"
+                        ? onEditLesson(item, module)
+                        : onEditQuiz(item, module)
+                    }
+                    onDelete={() =>
+                      item._type === "lesson"
+                        ? onDeleteLesson(item, module)
+                        : onDeleteQuiz(item, module)
+                    }
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          )}
 
-        {!isCollapsed && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-[var(--radius)]"
+          <div style={{ display: "flex", gap: 6, padding: "6px 10px" }}>
+            <button
               onClick={() => onAddLesson(module)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "4px 10px 4px 0",
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                color: "#3a3a3a",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "var(--primary)";
+                e.currentTarget.style.background = "var(--accent)";
+                e.currentTarget.style.borderRadius = "4px";
+                e.currentTarget.style.paddingLeft = "6px";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "#3a3a3a";
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.paddingLeft = "0";
+              }}
             >
-              + Lesson
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-[var(--radius)]"
+              <i className="ti ti-plus" style={{ fontSize: 12 }} /> Add lesson
+            </button>
+            <button
               onClick={() => onAddQuiz(module)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "4px 10px 4px 0",
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                color: "#3a3a3a",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "var(--primary)";
+                e.currentTarget.style.background = "var(--accent)";
+                e.currentTarget.style.borderRadius = "4px";
+                e.currentTarget.style.paddingLeft = "6px";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "#3a3a3a";
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.paddingLeft = "0";
+              }}
             >
-              + Quiz
-            </Button>
+              <i className="ti ti-plus" style={{ fontSize: 12 }} /> Add quiz
+            </button>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -373,7 +842,7 @@ export default function InstructorCoursePage() {
 
   const seededCourse = (() => {
     const fromState = location.state?.course;
-    if (fromState && String(fromState.id) === String(courseId))
+    if (fromState && String(courseRouteKey(fromState)) === String(courseId))
       return fromState;
     if (!courseId) return null;
     const cached = sessionStorage.getItem(pendingCourseKey(courseId));
@@ -381,7 +850,9 @@ export default function InstructorCoursePage() {
     try {
       const parsed = JSON.parse(cached);
       sessionStorage.removeItem(pendingCourseKey(courseId));
-      return String(parsed.id) === String(courseId) ? parsed : null;
+      return String(courseRouteKey(parsed)) === String(courseId)
+        ? parsed
+        : null;
     } catch {
       return null;
     }
@@ -395,6 +866,10 @@ export default function InstructorCoursePage() {
     seededCourse ? courseToForm(seededCourse) : EMPTY_COURSE,
   );
   const [course, setCourse] = useState(seededCourse);
+  const [courseErrors, setCourseErrors] = useState({});
+
+  // Dirty tracking — set true on any form change, false after a successful save
+  const [dirty, setDirty] = useState(false);
 
   const [panel, setPanel] = useState("course");
   const [editingLesson, setEditingLesson] = useState(null);
@@ -415,6 +890,26 @@ export default function InstructorCoursePage() {
   const [saving, setSaving] = useState(false);
   const [publishRequested, setPublishRequested] = useState(false);
   const [requestingPublish, setRequestingPublish] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // Dirty-aware form setters
+  // ---------------------------------------------------------------------------
+
+  const setCourseFormDirty = (updater) => {
+    setCourseForm(updater);
+    setDirty(true);
+    setCourseErrors({});
+  };
+
+  const setLessonFormDirty = (updater) => {
+    setLessonForm(updater);
+    setDirty(true);
+  };
+
+  const setQuizFormDirty = (updater) => {
+    setQuizForm(updater);
+    setDirty(true);
+  };
 
   // ---------------------------------------------------------------------------
   // Sensors for drag-and-drop
@@ -453,10 +948,19 @@ export default function InstructorCoursePage() {
 
   async function saveCourse(targetPublished) {
     setSaving(true);
+    setCourseErrors({});
 
     const payload = {
       ...courseForm,
       slug: courseForm.slug || slugify(courseForm.title),
+      category: normalizeTrack(courseForm.category),
+      what_you_will_learn: normalizeCourseList(courseForm.what_you_will_learn),
+      price_benefits: normalizeCourseList(
+        courseForm.price_benefits?.length
+          ? courseForm.price_benefits
+          : DEFAULT_PRICE_BENEFITS,
+      ),
+      tags: normalizeCourseList(courseForm.tags).map(normalizeCourseTag),
       price: Number(courseForm.price),
     };
 
@@ -469,18 +973,60 @@ export default function InstructorCoursePage() {
     try {
       if (isNew) {
         const { data } = await client.post("/courses", payload);
-        sessionStorage.setItem(pendingCourseKey(data.id), JSON.stringify(data));
-        navigate(`/instructor/courses/${data.id}`, {
+        const routeKey = courseRouteKey(data);
+        sessionStorage.setItem(
+          pendingCourseKey(routeKey),
+          JSON.stringify(data),
+        );
+        navigate(`/instructor/courses/${routeKey}`, {
           replace: true,
           state: { course: data },
         });
+        setDirty(false);
         return;
       }
-      await client.put(`/courses/${courseId}`, payload);
-      await loadCourse();
+      const { data: updatedCourse } = await client.put(
+        `/courses/${courseId}`,
+        payload,
+      );
+      if (
+        courseRouteKey(updatedCourse) &&
+        courseRouteKey(updatedCourse) !== courseId
+      ) {
+        setCourse(updatedCourse);
+        setCourseForm(courseToForm(updatedCourse));
+        navigate(`/instructor/courses/${courseRouteKey(updatedCourse)}`, {
+          replace: true,
+          state: { course: updatedCourse },
+        });
+      } else {
+        await loadCourse();
+      }
+      setDirty(false);
       toast.success("Course saved.");
     } catch (err) {
+      const validationErrors = extractFieldErrors(err);
+      if (Object.keys(validationErrors).length > 0) {
+        setCourseErrors(validationErrors);
+      }
       toast.error(getApiErrorMessage(err, "Failed to save course."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteCourse() {
+    if (!window.confirm("Delete this draft course? This cannot be undone.")) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await client.delete(`/courses/${courseId}`);
+      toast.success("Course deleted.");
+      navigate("/instructor/content", { replace: true });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to delete course."));
     } finally {
       setSaving(false);
     }
@@ -629,17 +1175,15 @@ export default function InstructorCoursePage() {
     setLessonForm(EMPTY_LESSON);
     setEditingLesson(null);
     setEditingModule(module);
+    setDirty(false);
     setPanel("lesson");
   }
 
   function openEditLesson(lesson, module) {
-    setLessonForm({
-      title: lesson.title,
-      content: lesson.content || "",
-      is_published: lesson.is_published ?? false,
-    });
+    setLessonForm(lessonToForm(lesson));
     setEditingLesson(lesson);
     setEditingModule(module);
+    setDirty(false);
     setPanel("lesson");
   }
 
@@ -680,11 +1224,55 @@ export default function InstructorCoursePage() {
         title: lessonForm.title,
         slug: slugify(lessonForm.title),
         content: lessonForm.content,
-        type: "text",
+        type: "lesson",
+        estimated_time_minutes:
+          lessonForm.estimated_time_minutes > 0
+            ? lessonForm.estimated_time_minutes
+            : null,
         is_published: isAdmin ? isPublished : false,
         position: nextPosition,
       };
-      if (editingLesson) {
+
+      const hasVideoUpload = Boolean(
+        lessonForm.videoFile || lessonForm.remove_video,
+      );
+
+      if (hasVideoUpload) {
+        const formData = new FormData();
+
+        if (editingLesson) {
+          formData.append("_method", "PUT");
+        }
+
+        Object.entries(payload).forEach(([key, value]) => {
+          if (value === null || value === undefined) {
+            return;
+          }
+
+          formData.append(key, String(value));
+        });
+
+        if (lessonForm.video_name) {
+          formData.append("video_name", lessonForm.video_name);
+        }
+
+        if (lessonForm.remove_video) {
+          formData.append("remove_video", "1");
+        }
+
+        if (lessonForm.videoFile) {
+          formData.append("video", lessonForm.videoFile);
+        }
+
+        if (editingLesson) {
+          await client.post(
+            `/modules/${editingModule.id}/lessons/${editingLesson.id}`,
+            formData,
+          );
+        } else {
+          await client.post(`/modules/${editingModule.id}/lessons`, formData);
+        }
+      } else if (editingLesson) {
         await client.put(
           `/modules/${editingModule.id}/lessons/${editingLesson.id}`,
           payload,
@@ -693,6 +1281,7 @@ export default function InstructorCoursePage() {
         await client.post(`/modules/${editingModule.id}/lessons`, payload);
       }
       await loadCourse();
+      setDirty(false);
       setPanel("course");
       setEditingLesson(null);
 
@@ -780,7 +1369,7 @@ export default function InstructorCoursePage() {
     }));
 
     try {
-      await client.patch(`/courses/${course.id}/modules/reorder`, {
+      await client.patch(`/courses/${courseRouteKey(course)}/modules/reorder`, {
         ids: reorderedModules.map((m) => m.id),
       });
     } catch (err) {
@@ -798,19 +1387,32 @@ export default function InstructorCoursePage() {
     setEditingQuiz(null);
     setEditingModule(module);
     setQuizQuestions([]);
+    setDirty(false);
     setPanel("quiz");
   }
 
-  function openEditQuiz(quiz, module) {
+  async function openEditQuiz(quiz, module) {
+    setPanel("quiz");
+    setEditingModule(module);
+    setEditingQuiz(quiz);
     setQuizForm({
       title: quiz.title,
       pass_score: quiz.pass_score ?? 70,
+      estimated_time_minutes: quiz.estimated_time_minutes ?? 0,
+      time_limit_seconds: quiz.time_limit_seconds ?? 0,
       is_published: quiz.is_published ?? false,
     });
-    setEditingQuiz(quiz);
-    setEditingModule(module);
-    setQuizQuestions((quiz.questions ?? []).map(questionToForm));
-    setPanel("quiz");
+    setQuizQuestions([]);
+    setDirty(false);
+    // Fetch full quiz with questions — the module listing doesn't include them
+    try {
+      const { data } = await client.get(
+        `/courses/${courseId}/quizzes/${quiz.id}`,
+      );
+      setQuizQuestions((data.questions ?? []).map(questionToForm));
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to load quiz questions."));
+    }
   }
 
   async function saveQuiz(payload) {
@@ -861,6 +1463,7 @@ export default function InstructorCoursePage() {
         await client.post(`/courses/${courseId}/quizzes`, fullPayload);
       }
       await loadCourse();
+      setDirty(false);
       setPanel("course");
       setEditingQuiz(null);
 
@@ -878,7 +1481,7 @@ export default function InstructorCoursePage() {
     }
   }
 
-  async function deleteQuiz(quiz, module) {
+  async function deleteQuiz(quiz) {
     if (!confirm("Delete this quiz and all its questions?")) return;
     try {
       await client.delete(`/courses/${courseId}/quizzes/${quiz.id}`);
@@ -896,12 +1499,27 @@ export default function InstructorCoursePage() {
   // Derived
   // ---------------------------------------------------------------------------
 
-  const modules = course?.modules || [];
-  const totalItems = modules.reduce(
-    (sum, m) => sum + (m.lessons?.length ?? 0) + (m.quizzes?.length ?? 0),
-    0,
-  );
+  const modules = useMemo(() => course?.modules || [], [course?.modules]);
   const isPublished = course?.is_published ?? false;
+  const lessonVideos = useMemo(
+    () =>
+      modules.flatMap((module) =>
+        (module.lessons || [])
+          .filter((lesson) => lesson.video_url || lesson.video_path)
+          .map((lesson) => ({
+            courseTitle: course?.title || "",
+            moduleTitle: module.title || "",
+            module,
+            lesson,
+            videoName:
+              lesson.video_name ||
+              lesson.video_path?.split("/").pop() ||
+              lesson.video_url?.split("/").pop() ||
+              "Uploaded video",
+          })),
+      ),
+    [course?.title, modules],
+  );
 
   if (loading) return <LoadingState />;
 
@@ -911,31 +1529,221 @@ export default function InstructorCoursePage() {
 
   return (
     <TooltipProvider>
-      <section>
-        <PageHeader
-          title={isNew ? "Create course" : "Edit course"}
-          description="Manage course metadata, modules, lessons and quizzes."
-          actions={
-            !isNew ? (
-              <Button variant="outline" asChild>
-                <Link to={`/courses/${courseId}`}>View public page</Link>
-              </Button>
-            ) : null
-          }
-        />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-        <div className="grid grid-cols-2 gap-6 items-start">
-          <div className="space-y-4">
-            {panel === "course" && (
-              <Card>
-                <CardContent className="pt-6 space-y-4">
-                  <button
-                    type="button"
+      <section
+        style={{
+          width: "100%",
+          overflow: "hidden",
+          border: "1px solid var(--border)",
+          display: "grid",
+          gridTemplateRows: "48px 1fr",
+          height: "100vh",
+        }}
+      >
+        {/* ── TOP BAR ── */}
+        <div
+          style={{
+            background: "var(--card)",
+            borderBottom: "1px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 16px",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 500 }}>
+              {courseForm.title || (isNew ? "New course" : "Untitled course")}
+            </span>
+            <SavedIndicator dirty={dirty} saving={saving} />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 10,
+                fontFamily: "var(--font-mono)",
+                fontWeight: 500,
+                padding: "2px 8px",
+                borderRadius: 3,
+                letterSpacing: ".04em",
+                ...(isPublished
+                  ? {
+                      background: "var(--accent)",
+                      color: "var(--primary)",
+                      border: "1px solid var(--ring)",
+                    }
+                  : {
+                      background: "#1a0f00",
+                      color: "#d97706",
+                      border: "1px solid #3a2000",
+                    }),
+              }}
+            >
+              {isPublished ? "PUBLISHED" : "DRAFT"}
+            </span>
+
+            {!isNew && (
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/courses/${courseId}`}>
+                  <i
+                    className="ti ti-eye"
+                    style={{ fontSize: 12, marginRight: 5 }}
+                  />
+                  Preview
+                </Link>
+              </Button>
+            )}
+
+            {!isNew && !isAdmin && !isPublished && (
+              <Button
+                size="sm"
+                onClick={requestPublish}
+                disabled={requestingPublish || publishRequested}
+              >
+                {publishRequested ? (
+                  <>
+                    <i
+                      className="ti ti-circle-check"
+                      style={{ marginRight: 5, fontSize: 12 }}
+                    />
+                    review_requested
+                  </>
+                ) : requestingPublish ? (
+                  "Requesting…"
+                ) : (
+                  <>
+                    Submit for review{" "}
+                    <i
+                      className="ti ti-arrow-right"
+                      style={{ marginLeft: 4, fontSize: 12 }}
+                    />
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* ── BODY ── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 320px",
+            overflow: "hidden",
+          }}
+        >
+          {/* LEFT: Editor panel */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              borderRight: "1px solid var(--border)",
+            }}
+          >
+            {/* Tab bar */}
+            <div
+              style={{
+                display: "flex",
+                borderBottom: "1px solid var(--border)",
+                background: "var(--card)",
+              }}
+            >
+              {[
+                {
+                  key: "course",
+                  icon: "ti-settings",
+                  label: "course_settings",
+                  onClick: () => setPanel("course"),
+                },
+                {
+                  key: "lesson",
+                  icon: "ti-player-play",
+                  label: "lesson_content",
+                  onClick: () => {
+                    if (panel === "lesson") return;
+                    const firstModule = modules[0] ?? null;
+                    setLessonForm(EMPTY_LESSON);
+                    setEditingLesson(null);
+                    setEditingModule(firstModule);
+                    setDirty(false);
+                    setPanel("lesson");
+                  },
+                },
+                {
+                  key: "quiz",
+                  icon: "ti-help-circle",
+                  label: "quiz",
+                  onClick: () => {
+                    if (panel === "quiz") return;
+                    const firstModule = modules[0] ?? null;
+                    setQuizForm(EMPTY_QUIZ_FORM);
+                    setEditingQuiz(null);
+                    setEditingModule(firstModule);
+                    setQuizQuestions([]);
+                    setDirty(false);
+                    setPanel("quiz");
+                  },
+                },
+              ].map(({ key, icon, label, onClick }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={onClick}
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    color:
+                      panel === key
+                        ? "var(--primary)"
+                        : "var(--muted-foreground)",
+                    padding: "9px 14px",
+                    cursor: "pointer",
+                    /* split border so shorthand doesn't kill the bottom line */
+                    borderTop: "none",
+                    borderLeft: "none",
+                    borderRight: "none",
+                    borderBottom:
+                      panel === key
+                        ? "2px solid var(--primary)"
+                        : "2px solid transparent",
+                    marginBottom: -1,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: "transparent",
+                    transition: "color .12s",
+                  }}
+                >
+                  <i className={`ti ${icon}`} style={{ fontSize: 12 }} />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+              {/* ── COURSE SETTINGS panel ── */}
+              {panel === "course" && (
+                <div className="space-y-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => navigate("/instructor/content")}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-muted-foreground px-0 hover:bg-transparent hover:text-foreground"
                   >
-                    ← Content
-                  </button>
+                    <i
+                      className="ti ti-arrow-left"
+                      style={{ fontSize: 12, marginRight: 6 }}
+                    />
+                    Back to content
+                  </Button>
 
                   <h2 className="text-lg font-semibold">
                     {isNew
@@ -943,14 +1751,14 @@ export default function InstructorCoursePage() {
                       : `Edit: ${courseForm.title || "Untitled"}`}
                   </h2>
 
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div className="space-y-1">
                       <Label>Title</Label>
                       <Input
                         required
                         value={courseForm.title}
                         onChange={(e) =>
-                          setCourseForm((f) => ({
+                          setCourseFormDirty((f) => ({
                             ...f,
                             title: e.target.value,
                           }))
@@ -964,33 +1772,161 @@ export default function InstructorCoursePage() {
                         value={courseForm.slug}
                         placeholder={slugify(courseForm.title)}
                         onChange={(e) =>
-                          setCourseForm((f) => ({ ...f, slug: e.target.value }))
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label>Price</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={courseForm.price}
-                        onChange={(e) =>
-                          setCourseForm((f) => ({
+                          setCourseFormDirty((f) => ({
                             ...f,
-                            price: e.target.value,
+                            slug: e.target.value,
                           }))
                         }
                       />
+                      {courseErrors.slug?.[0] ? (
+                        <p className="text-xs text-destructive">
+                          {courseErrors.slug[0]}
+                        </p>
+                      ) : null}
                     </div>
+
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                      <div className="space-y-1">
+                        <Label>Track</Label>
+                        <select
+                          value={courseForm.category || TRACK_OPTIONS[0].value}
+                          onChange={(e) =>
+                            setCourseFormDirty((f) => ({
+                              ...f,
+                              category: e.target.value,
+                            }))
+                          }
+                          style={{
+                            height: 34,
+                            padding: "0 12px",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius)",
+                            fontSize: 12,
+                            fontFamily: "var(--font-mono)",
+                            background: "var(--card)",
+                            color: "var(--foreground)",
+                            outline: "none",
+                            width: "100%",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {TRACK_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Level</Label>
+                        <select
+                          value={courseForm.level}
+                          onChange={(e) =>
+                            setCourseFormDirty((f) => ({
+                              ...f,
+                              level: e.target.value,
+                            }))
+                          }
+                          style={{
+                            height: 34,
+                            padding: "0 12px",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius)",
+                            fontSize: 12,
+                            fontFamily: "var(--font-mono)",
+                            background: "var(--card)",
+                            color: "var(--foreground)",
+                            outline: "none",
+                            width: "100%",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <option value="beginner">Beginner</option>
+                          <option value="intermediate">Intermediate</option>
+                          <option value="advanced">Advanced</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Language</Label>
+                        <Input
+                          value={courseForm.language}
+                          onChange={(e) =>
+                            setCourseFormDirty((f) => ({
+                              ...f,
+                              language: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={courseForm.price}
+                          onChange={(e) =>
+                            setCourseFormDirty((f) => ({
+                              ...f,
+                              price: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <ListEditorField
+                      label="What you'll learn"
+                      value={courseForm.what_you_will_learn || []}
+                      onChange={(items) =>
+                        setCourseFormDirty((f) => ({
+                          ...f,
+                          what_you_will_learn: items,
+                        }))
+                      }
+                      placeholder="Add a learning outcome and press Enter"
+                      helperText="Add concise outcomes that describe what students will know after completing the course."
+                      error={courseErrors.what_you_will_learn?.[0]}
+                      maxItems={12}
+                    />
+
+                    <ListEditorField
+                      label="Included in the price section"
+                      value={courseForm.price_benefits || []}
+                      onChange={(items) =>
+                        setCourseFormDirty((f) => ({
+                          ...f,
+                          price_benefits: items,
+                        }))
+                      }
+                      placeholder="Add a pricing benefit"
+                      helperText="These items appear beside the price card. Keep the default course benefits or replace them with subscription perks later."
+                      error={courseErrors.price_benefits?.[0]}
+                      maxItems={6}
+                    />
+
+                    <ListEditorField
+                      label="Tags"
+                      value={courseForm.tags || []}
+                      onChange={(items) =>
+                        setCourseFormDirty((f) => ({
+                          ...f,
+                          tags: items,
+                        }))
+                      }
+                      placeholder="Add a tag and press Enter"
+                      helperText="Use 3-5 tags. They are normalized to lowercase, GitHub-style slugs."
+                      error={courseErrors.tags?.[0]}
+                      maxItems={5}
+                      normalizeItem={normalizeCourseTag}
+                    />
 
                     <div className="space-y-1">
                       <Label>Description</Label>
                       <Textarea
                         value={courseForm.description}
                         onChange={(e) =>
-                          setCourseForm((f) => ({
+                          setCourseFormDirty((f) => ({
                             ...f,
                             description: e.target.value,
                           }))
@@ -1027,6 +1963,15 @@ export default function InstructorCoursePage() {
                             : "Save course"}
                       </Button>
                     )}
+                    {!isNew && !isPublished ? (
+                      <Button
+                        variant="destructive"
+                        onClick={deleteCourse}
+                        disabled={saving}
+                      >
+                        Delete draft
+                      </Button>
+                    ) : null}
                     <Button
                       variant="ghost"
                       onClick={() => navigate("/instructor/content")}
@@ -1059,165 +2004,432 @@ export default function InstructorCoursePage() {
                       </div>
                     </>
                   )}
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              )}
 
-            {panel === "lesson" && (
-              <LessonEditorForm
-                mode={editingLesson ? "edit" : "create"}
-                backLabel="Back to Course"
-                title={editingLesson ? "Edit Lesson" : "New Lesson"}
-                form={lessonForm}
-                setForm={setLessonForm}
-                onBack={() => {
-                  setPanel("course");
-                  setEditingLesson(null);
-                }}
-                onPublish={() => saveLesson(true)}
-                onDraft={() => saveLesson(false)}
-                onCancel={() => {
-                  setPanel("course");
-                  setEditingLesson(null);
-                }}
-                onDelete={
-                  editingLesson
-                    ? () => deleteLesson(editingLesson, editingModule)
-                    : undefined
-                }
-                saving={saving}
-              />
-            )}
+              {/* ── LESSON CONTENT panel ── */}
+              {panel === "lesson" && (
+                <LessonEditorForm
+                  mode={editingLesson ? "edit" : "create"}
+                  title={editingLesson ? "Edit Lesson" : "New Lesson"}
+                  form={lessonForm}
+                  setForm={(updater) => setLessonFormDirty(updater)}
+                  videoContext={{
+                    courseSlug: course?.slug || "course",
+                    moduleId: editingModule?.id,
+                    lessonTitleFallback: lessonForm.title,
+                  }}
+                  onPublish={() => saveLesson(true)}
+                  onDraft={() => saveLesson(false)}
+                  onCancel={() => {
+                    setPanel("course");
+                    setEditingLesson(null);
+                  }}
+                  onDelete={
+                    editingLesson
+                      ? () => deleteLesson(editingLesson, editingModule)
+                      : undefined
+                  }
+                  saving={saving}
+                />
+              )}
 
-            {panel === "quiz" && (
-              <QuizEditorForm
-                mode={editingQuiz ? "edit" : "create"}
-                backLabel="Back to Course"
-                title={editingQuiz ? "Edit Quiz" : "New Quiz"}
-                form={quizForm}
-                setForm={setQuizForm}
-                questions={quizQuestions}
-                setQuestions={setQuizQuestions}
-                onBack={() => {
-                  setPanel("course");
-                  setEditingQuiz(null);
-                }}
-                onSave={saveQuiz}
-                onCancel={() => {
-                  setPanel("course");
-                  setEditingQuiz(null);
-                }}
-                onDelete={
-                  editingQuiz
-                    ? () => deleteQuiz(editingQuiz, editingModule)
-                    : undefined
-                }
-                saving={saving}
-              />
-            )}
+              {/* ── QUIZ panel ── */}
+              {panel === "quiz" && (
+                <QuizEditorForm
+                  mode={editingQuiz ? "edit" : "create"}
+                  title={editingQuiz ? "Edit Quiz" : "New Quiz"}
+                  form={quizForm}
+                  setForm={(updater) => setQuizFormDirty(updater)}
+                  questions={quizQuestions}
+                  setQuestions={(updater) => {
+                    setQuizQuestions(updater);
+                    setDirty(true);
+                  }}
+                  onSave={saveQuiz}
+                  onCancel={() => {
+                    setPanel("course");
+                    setEditingQuiz(null);
+                  }}
+                  onDelete={
+                    editingQuiz
+                      ? () => deleteQuiz(editingQuiz, editingModule)
+                      : undefined
+                  }
+                  saving={saving}
+                />
+              )}
+            </div>
           </div>
 
-          <div className="space-y-3">
-            {!isNew && (
-              <>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">
-                    Course Content ({totalItems} item
-                    {totalItems !== 1 ? "s" : ""})
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Drag to reorder
-                  </p>
-                </div>
+          {/* RIGHT: Course structure panel */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              background: "var(--card)",
+            }}
+          >
+            <div
+              style={{
+                padding: "12px 14px",
+                borderBottom: "1px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  color: "var(--muted-foreground)",
+                  letterSpacing: ".06em",
+                }}
+              >
+                // COURSE STRUCTURE
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                  color: "#3a3a3a",
+                }}
+              >
+                drag to reorder
+              </span>
+            </div>
 
-                {modules.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    No modules yet. Add one below.
-                  </p>
-                )}
+            <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
+              {!isNew ? (
+                <>
+                  {modules.length === 0 && (
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-mono)",
+                        color: "#3a3a3a",
+                        padding: "6px 4px",
+                      }}
+                    >
+                      No modules yet. Add one below.
+                    </p>
+                  )}
 
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={({ active, over }) => {
-                    if (!over || active.id === over.id) return;
-                    const oldIndex = modules.findIndex(
-                      (m) => `module-${m.id}` === active.id,
-                    );
-                    const newIndex = modules.findIndex(
-                      (m) => `module-${m.id}` === over.id,
-                    );
-                    handleModuleReorder(arrayMove(modules, oldIndex, newIndex));
-                  }}
-                >
-                  <SortableContext
-                    items={modules.map((m) => `module-${m.id}`)}
-                    strategy={verticalListSortingStrategy}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={({ active, over }) => {
+                      if (!over || active.id === over.id) return;
+                      const oldIndex = modules.findIndex(
+                        (m) => `module-${m.id}` === active.id,
+                      );
+                      const newIndex = modules.findIndex(
+                        (m) => `module-${m.id}` === over.id,
+                      );
+                      handleModuleReorder(
+                        arrayMove(modules, oldIndex, newIndex),
+                      );
+                    }}
                   >
-                    {modules.map((module) => (
-                      <SortableModule
-                        key={module.id}
-                        module={module}
-                        onEditLesson={openEditLesson}
-                        onEditQuiz={openEditQuiz}
-                        onDeleteLesson={deleteLesson}
-                        onDeleteQuiz={deleteQuiz}
-                        onReorder={handleReorder}
-                        onAddLesson={openNewLesson}
-                        onAddQuiz={openNewQuiz}
-                        onRename={handleModuleRename}
-                        onDelete={deleteModule}
-                        editingModuleId={editingModuleId}
-                        editingModuleTitle={editingModuleTitle}
-                        setEditingModuleTitle={setEditingModuleTitle}
-                        saving={saving}
-                        isCollapsed={collapsedModules[module.id] || false}
-                        onToggleCollapse={(moduleId) =>
-                          setCollapsedModules((prev) => ({
-                            ...prev,
-                            [moduleId]: !prev[moduleId],
-                          }))
-                        }
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
+                    <SortableContext
+                      items={modules.map((m) => `module-${m.id}`)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {modules.map((module) => (
+                        <SortableModule
+                          key={module.id}
+                          module={module}
+                          onEditLesson={openEditLesson}
+                          onEditQuiz={openEditQuiz}
+                          onDeleteLesson={deleteLesson}
+                          onDeleteQuiz={deleteQuiz}
+                          onReorder={handleReorder}
+                          onAddLesson={openNewLesson}
+                          onAddQuiz={openNewQuiz}
+                          onRename={handleModuleRename}
+                          onDelete={deleteModule}
+                          editingModuleId={editingModuleId}
+                          editingModuleTitle={editingModuleTitle}
+                          setEditingModuleTitle={setEditingModuleTitle}
+                          saving={saving}
+                          isCollapsed={collapsedModules[module.id] || false}
+                          onToggleCollapse={(moduleId) =>
+                            setCollapsedModules((prev) => ({
+                              ...prev,
+                              [moduleId]: !prev[moduleId],
+                            }))
+                          }
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
 
-                <Card>
-                  <CardContent className="pt-4 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {/* Add module */}
+                  <div
+                    style={{
+                      background: "var(--bg)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      marginTop: 4,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                        color: "#3a3a3a",
+                        letterSpacing: ".08em",
+                        marginBottom: 8,
+                        textTransform: "uppercase",
+                      }}
+                    >
                       Add module
                     </p>
-                    <form className="flex items-end gap-2" onSubmit={addModule}>
-                      <div className="flex-1 space-y-1">
-                        <Label>Module title</Label>
-                        <Input
-                          required
-                          value={moduleTitle}
-                          onChange={(e) => setModuleTitle(e.target.value)}
-                        />
-                      </div>
-                      <Button
+                    <form
+                      style={{ display: "flex", gap: 6 }}
+                      onSubmit={addModule}
+                    >
+                      <input
+                        required
+                        value={moduleTitle}
+                        onChange={(e) => setModuleTitle(e.target.value)}
+                        placeholder="Module title"
+                        style={{
+                          flex: 1,
+                          height: 30,
+                          padding: "0 10px",
+                          border: "1px solid var(--border)",
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontFamily: "var(--font-mono)",
+                          background: "var(--card)",
+                          color: "var(--text)",
+                          outline: "none",
+                        }}
+                      />
+                      <button
                         type="submit"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-[var(--radius)]"
                         disabled={saving}
+                        style={{
+                          height: 30,
+                          padding: "0 10px",
+                          background: "transparent",
+                          color: "var(--muted-foreground)",
+                          border: "1px solid #2a2a2a",
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontFamily: "var(--font-mono)",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
                       >
-                        + Module
-                      </Button>
+                        <i
+                          className="ti ti-plus"
+                          style={{ fontSize: 12, marginRight: 4 }}
+                        />
+                        Add
+                      </button>
                     </form>
-                  </CardContent>
-                </Card>
-              </>
-            )}
+                  </div>
 
-            {isNew && (
-              <div className="rounded-lg border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-                Modules, lessons and quizzes will appear here after you create
-                the course.
-              </div>
-            )}
+                  <div
+                    style={{
+                      background: "var(--bg)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      marginTop: 8,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                        color: "#3a3a3a",
+                        letterSpacing: ".08em",
+                        marginBottom: 8,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Lesson videos
+                    </p>
+
+                    {lessonVideos.length === 0 ? (
+                      <p
+                        style={{
+                          fontSize: 11,
+                          fontFamily: "var(--font-mono)",
+                          color: "#3a3a3a",
+                        }}
+                      >
+                        No uploaded videos in this course yet.
+                      </p>
+                    ) : (
+                      <div style={{ overflowX: "auto" }}>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1.2fr 1fr 1fr 1.2fr auto",
+                            gap: 8,
+                            minWidth: 720,
+                            fontSize: 11,
+                            fontFamily: "var(--font-mono)",
+                            color: "var(--muted-foreground)",
+                            paddingBottom: 6,
+                            borderBottom: "1px solid var(--border)",
+                          }}
+                        >
+                          <span>Course</span>
+                          <span>Module</span>
+                          <span>Lesson</span>
+                          <span>Video file</span>
+                          <span>Actions</span>
+                        </div>
+
+                        {lessonVideos.map(
+                          ({
+                            lesson,
+                            module,
+                            videoName,
+                            courseTitle,
+                            moduleTitle,
+                          }) => {
+                            const watchUrl = resolveBackendAssetUrl(
+                              lesson.video_url ||
+                                (lesson.video_path
+                                  ? `/storage/${lesson.video_path}`
+                                  : ""),
+                            );
+
+                            return (
+                              <div
+                                key={lesson.id}
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns:
+                                    "1.2fr 1fr 1fr 1.2fr auto",
+                                  gap: 8,
+                                  alignItems: "center",
+                                  padding: "8px 0",
+                                  borderBottom: "1px solid var(--border)",
+                                  minWidth: 720,
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    color: "var(--foreground)",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {courseTitle}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    color: "var(--foreground)",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {moduleTitle}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    color: "var(--foreground)",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {lesson.title}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    color: "var(--foreground)",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {videoName}
+                                </span>
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs rounded-[var(--radius)]"
+                                  >
+                                    <Link
+                                      to={`/learning/${courseId}?lesson=${lesson.id}`}
+                                    >
+                                      Watch
+                                    </Link>
+                                  </Button>
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs rounded-[var(--radius)]"
+                                  >
+                                    <a
+                                      href={watchUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      File
+                                    </a>
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs rounded-[var(--radius)]"
+                                    onClick={() =>
+                                      openEditLesson(lesson, module)
+                                    }
+                                  >
+                                    Edit
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          },
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={{
+                    border: "1px dashed #2a2a2a",
+                    borderRadius: 6,
+                    padding: "36px 24px",
+                    textAlign: "center",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 11,
+                      color: "#3a3a3a",
+                    }}
+                  >
+                    Modules, lessons and quizzes will appear here after you
+                    create the course.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>

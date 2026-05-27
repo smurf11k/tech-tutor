@@ -8,6 +8,35 @@ All notable changes to this project are documented in this file. Entries are ord
 
 - Backend readiness: 95/100
 - Frontend readiness: 70/100
+- Frontend readiness: 80/100
+
+---
+
+## 2026-05-28 — New frontend design (stable)
+
+### Frontend
+
+- New UI design and layout refinements
+- Fixed hardcoded design issues and responsive tweaks
+- Fix navigation for already-passed quiz page
+- Instructor content editor: video upload (drag & drop), auto-naming, insert into lesson markdown, replace/remove support
+- Lesson viewer: inline HTML5 video player and markdown-embedded video rendering
+- Profile settings: avatar upload/preview/remove UI and multipart `PATCH /auth/me`; billing tab loads payment history
+- Instructor/Admin dashboards: dynamic stats and charts via `/instructor/dashboard` and `/admin/platform-dashboard`
+- Added instructor course/lesson management pages and lesson video listing
+
+### Backend
+
+- video upload pipeline and lesson file attachment handling (store, replace, delete)
+- profile picture upload + avatar removal; profile update (`PATCH /auth/me`) and account deletion (`DELETE /auth/me`)
+- strengthened password policy and nickname uniqueness/generation
+- added `bio` and `nickname` user fields
+- lesson tags and improved lesson update logic
+- course slug handling and resilient course routing (slug or id)
+- internal payments endpoint and Stripe integration: checkout session creation, `POST /stripe/webhook`, and `POST /payments/stripe/confirm` (webhook verification and idempotent fulfillment)
+- payment status lookup `GET /payments/status`
+- updated seeded/demo accounts and test data for local development
+- API: reorder endpoints and publish-request workflow refinements
 
 ---
 

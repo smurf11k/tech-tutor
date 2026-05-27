@@ -15,13 +15,15 @@ class CourseProgressCalculator
      */
     public function forUser(Course $course, User $user): array
     {
-        $course->loadMissing(['modules.lessons', 'quizzes']);
+        $course->loadMissing(['modules.lessons', 'modules.quizzes']);
 
         $lessonIds = $course->modules
             ->flatMap(fn ($module) => $module->lessons)
             ->pluck('id');
 
-        $quizIds = $course->quizzes->pluck('id');
+        $quizIds = $course->modules
+            ->flatMap(fn ($module) => $module->quizzes)
+            ->pluck('id');
         $totalItems = $lessonIds->count() + $quizIds->count();
 
         if ($totalItems === 0) {

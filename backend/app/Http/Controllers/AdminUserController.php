@@ -43,4 +43,14 @@ class AdminUserController extends Controller
 
         return response()->json($user->fresh());
     }
+
+    public function destroy(Request $request, User $user): JsonResponse
+    {
+        $admin = $request->user();
+        abort_unless($admin?->isAdmin(), 403);
+
+        $user->deleteAccount();
+
+        return response()->json(['message' => 'User deleted.']);
+    }
 }

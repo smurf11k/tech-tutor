@@ -19,8 +19,12 @@ class UpdateQuizRequest extends FormRequest
         return [
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'module_id' => ['nullable', 'integer', 'exists:modules,id'],
             'pass_score' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'estimated_time_minutes' => ['nullable', 'integer', 'min:0'],
+            'time_limit_seconds' => ['nullable', 'integer', 'min:0'],
             'is_published' => ['sometimes', 'boolean'],
+            'position' => ['sometimes', 'integer', 'min:0'],
             'questions' => ['sometimes', 'array'],
             'questions.*.type' => ['required_with:questions', 'in:single_choice,multiple_choice'],
             'questions.*.prompt' => ['required_with:questions', 'string'],

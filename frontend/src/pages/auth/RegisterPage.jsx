@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState("request");
   const [form, setForm] = useState({
     name: "",
+    nickname: "",
     email: "",
     password: "",
     password_confirmation: "",
@@ -26,6 +27,23 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const passwordChecks = useMemo(() => {
+    const password = form.password;
+    const checks = [
+      { label: "8+ characters", ok: password.length >= 8 },
+      { label: "1 lowercase letter", ok: /[a-z]/.test(password) },
+      { label: "1 uppercase letter", ok: /[A-Z]/.test(password) },
+      { label: "1 number", ok: /\d/.test(password) },
+      { label: "1 special symbol", ok: /[^A-Za-z0-9]/.test(password) },
+    ];
+
+    return {
+      checks,
+      score: checks.filter((check) => check.ok).length,
+      complete: checks.every((check) => check.ok),
+    };
+  }, [form.password]);
 
   async function requestCode(event) {
     event.preventDefault();
@@ -38,6 +56,7 @@ export default function RegisterPage() {
         "/auth/register/request-verification-code",
         {
           name: form.name,
+          nickname: form.nickname,
           email: form.email,
           password: form.password,
           password_confirmation: form.password_confirmation,
@@ -65,6 +84,7 @@ export default function RegisterPage() {
         email: form.email,
         code: form.code,
         name: form.name,
+        nickname: form.nickname,
         password: form.password,
         password_confirmation: form.password_confirmation,
         token_name: "web",
@@ -112,6 +132,21 @@ export default function RegisterPage() {
             />
           </label>
           <label className="block space-y-2">
+            <Label htmlFor="nickname">Nickname</Label>
+            <Input
+              id="nickname"
+              required
+              minLength={3}
+              value={form.nickname}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  nickname: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className="block space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
@@ -141,6 +176,32 @@ export default function RegisterPage() {
                 }))
               }
             />
+            <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground mono-ui">
+                <span>Password strength</span>
+                <span>{passwordChecks.score}/5</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-border">
+                <div
+                  className={`h-full rounded-full transition-all ${passwordChecks.complete ? "bg-primary" : passwordChecks.score >= 3 ? "bg-amber-500" : "bg-destructive"}`}
+                  style={{ width: `${(passwordChecks.score / 5) * 100}%` }}
+                />
+              </div>
+              <div className="grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
+                {passwordChecks.checks.map((check) => (
+                  <div key={check.label} className="flex items-center gap-2">
+                    <span
+                      className={
+                        check.ok ? "text-primary" : "text-muted-foreground"
+                      }
+                    >
+                      {check.ok ? "✓" : "•"}
+                    </span>
+                    <span>{check.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </label>
           <label className="block space-y-2">
             <Label htmlFor="password_confirmation">Confirm password</Label>
@@ -161,7 +222,12 @@ export default function RegisterPage() {
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || !captcha.ready}
+            disabled={
+              loading ||
+              !captcha.ready ||
+              !passwordChecks.complete ||
+              form.password !== form.password_confirmation
+            }
           >
             {loading ? "Sending code..." : "Send verification code"}
           </Button>

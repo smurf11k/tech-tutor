@@ -10,7 +10,11 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import api from "@/lib/api";
-import { extractList, getApiErrorMessage } from "@/lib/utils";
+import {
+  extractList,
+  getApiErrorMessage,
+  getCourseRouteKey,
+} from "@/lib/utils";
 
 const defaultFilters = {
   q: "",
@@ -137,10 +141,13 @@ export function CatalogSection({ previewOnly = true }) {
     <section id="catalog" className="scroll-mt-24 space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <p className="text-[10px] tracking-[0.12em] text-primary/70 mono-ui uppercase">
+            // FEATURED
+          </p>
+          <h2 className="text-[20px] font-semibold tracking-[-0.02em]">
             Course catalog
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs text-[#555] mono-ui">
             {catalogDescription}
           </p>
         </div>
@@ -151,7 +158,7 @@ export function CatalogSection({ previewOnly = true }) {
         ) : null}
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Card className="glass-panel">
+      <Card>
         <CardContent className="grid gap-4 pt-6 md:grid-cols-5">
           <label className="md:col-span-2 space-y-2 block">
             <Label htmlFor="q">Search</Label>
@@ -232,7 +239,12 @@ export function CatalogSection({ previewOnly = true }) {
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {(previewOnly ? courses.slice(0, visibleCount) : courses).map(
               (course) => (
-                <CourseCard key={course.id} course={course} />
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  href={`/courses/${getCourseRouteKey(course)}`}
+                  actionLabel="view_course"
+                />
               ),
             )}
           </section>

@@ -1,6 +1,11 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+const backendOrigin = new URL(apiBaseUrl, "http://localhost:8000").origin;
+const stripeCurrency = (import.meta.env.VITE_STRIPE_CURRENCY || "USD").trim();
+
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
@@ -11,6 +16,32 @@ export function slugify(value) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+export function getCourseRouteKey(course) {
+  return (
+    course?.slug || course?.course_slug || course?.id || course?.course_id || ""
+  );
+}
+
+export function resolveBackendAssetUrl(url) {
+  if (!url) {
+    return "";
+  }
+
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("blob:") ||
+    url.startsWith("data:")
+  ) {
+    return url;
+  }
+
+  return new URL(
+    url.startsWith("/") ? url : `/${url}`,
+    backendOrigin,
+  ).toString();
 }
 
 export function extractList(payload) {
@@ -28,6 +59,29 @@ export function extractList(payload) {
 export function formatMoney(amount, currency = "USD") {
   const numeric = Number(amount ?? 0);
   return `${currency} ${Number.isFinite(numeric) ? numeric.toFixed(2) : "0.00"}`;
+}
+
+export function getStripeCurrency() {
+  return stripeCurrency.toUpperCase() || "USD";
+}
+
+export function formatMinutes(minutes) {
+  const numeric = Number(minutes ?? 0);
+
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "";
+  }
+
+  const rounded = Math.round(numeric);
+
+  if (rounded < 60) {
+    return `${rounded}m`;
+  }
+
+  const hours = Math.floor(rounded / 60);
+  const remainingMinutes = rounded % 60;
+
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
 export function getApiErrorMessage(error, fallback = "Something went wrong.") {

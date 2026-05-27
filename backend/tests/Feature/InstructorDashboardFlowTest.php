@@ -59,7 +59,7 @@ class InstructorDashboardFlowTest extends TestCase
             'module_id' => $module->id,
             'title' => 'First',
             'slug' => 'first-dashboard',
-            'type' => 'text',
+            'type' => 'lesson',
             'position' => 1,
         ]);
 
@@ -67,7 +67,7 @@ class InstructorDashboardFlowTest extends TestCase
             'module_id' => $module->id,
             'title' => 'Second',
             'slug' => 'second-dashboard',
-            'type' => 'text',
+            'type' => 'lesson',
             'position' => 2,
         ]);
 
@@ -113,6 +113,13 @@ class InstructorDashboardFlowTest extends TestCase
             'user_id' => $studentA->id,
             'certificate_number' => 'TT-DASHBOARD-1',
             'issued_at' => now(),
+        ]);
+
+        CourseCertificate::create([
+            'course_id' => $otherCourse->id,
+            'user_id' => $studentC->id,
+            'certificate_number' => 'TT-DASHBOARD-OTHER',
+            'issued_at' => now()->subMinute(),
         ]);
 
         Payment::create([
@@ -184,7 +191,8 @@ class InstructorDashboardFlowTest extends TestCase
             ->assertJsonPath('courses.0.average_progress', 75)
             ->assertJsonPath('courses.0.average_quiz_score', 70)
             ->assertJsonPath('courses.0.payments_count', 2)
-            ->assertJsonPath('courses.0.revenue_total', '100.00');
+            ->assertJsonPath('courses.0.revenue_total', '100.00')
+            ->assertJsonPath('recent_certificates.0.certificate_number', 'TT-DASHBOARD-1');
 
         Sanctum::actingAs($otherInstructor);
         $this->getJson('/api/instructor/dashboard')

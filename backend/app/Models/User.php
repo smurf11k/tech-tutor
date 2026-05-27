@@ -12,18 +12,23 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property int $id
  * @property string $name
+ * @property string $nickname
  * @property string $email
  * @property string|null $email_verified_at
  * @property string $password
  * @property string $role
+ * @property string|null $bio
  * @property bool $is_banned
  * @property string|null $banned_at
  * @property bool $email_notifications_enabled
+ * @property string|null $avatar_path
  * @property-read Collection<int, Course> $taughtCourses
  * @property-read Collection<int, Enrollment> $enrollments
  * @property-read Collection<int, Progress> $progressEntries
@@ -45,12 +50,15 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $fillable = [
         'name',
+        'nickname',
         'email',
+        'bio',
         'password',
         'role',
         'is_banned',
         'banned_at',
         'email_notifications_enabled',
+        'avatar_path',
     ];
 
     /**
@@ -65,6 +73,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $appends = [
         'role_badge',
+        'avatar_url',
     ];
 
     /**
@@ -150,8 +159,46 @@ class User extends Authenticatable implements MustVerifyEmail
         );
     }
 
+    protected function avatarUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => $this->avatar_path
+            ? rtrim((string) config('app.url', 'http://localhost'), '/') . '/storage/' . ltrim($this->avatar_path, '/')
+            : null,
+        );
+    }
+
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
     {
         $this->notify(new ResetPasswordNotification($token));
+    }
+
+    public static function generateUniqueNickname(string $seed, ?int $ignoreUserId = null): string
+    {
+        $base = Str::slug(trim($seed), '-') ?: 'user';
+        $candidate = $base;
+        $suffix = 2;
+
+        while (
+            static::query()
+                ->when($ignoreUserId, fn($query) => $query->whereKeyNot($ignoreUserId))
+                ->where('nickname', $candidate)
+                ->exists()
+        ) {
+            $candidate = $base . '-' . $suffix;
+            $suffix++;
+        }
+
+        return $candidate;
+    }
+
+    public function deleteAccount(): void
+    {
+        if ($this->avatar_path) {
+            Storage::disk('public')->delete($this->avatar_path);
+        }
+
+        $this->tokens()->delete();
+        $this->delete();
     }
 }

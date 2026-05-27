@@ -1,7 +1,5 @@
-import { BookOpen, CheckCircle2, ClipboardList } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { CheckCircle2, ChevronDown, ChevronRight, Play } from "lucide-react";
+import { cn, formatMinutes } from "@/lib/utils";
 
 export function CourseCurriculumTree({
   course,
@@ -42,99 +40,105 @@ export function CourseCurriculumTree({
     });
 
   return (
-    <Card className="glass-panel">
-      <CardHeader>
-        <CardTitle className="text-base">What you will learn</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {modules.map((module) => (
-          <section key={module.id} className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">
-              {module.title}
-            </p>
-            <ul className="space-y-1 border-l border-border/80 pl-3">
-              {module._content.map((item) => {
-                const isLesson = item._type === "lesson";
-                const isQuiz = item._type === "quiz";
-                const itemKey = isLesson
-                  ? `lesson-${item.id}`
-                  : `quiz-${item.id}`;
-                const isDone = isLesson && completedSet.has(String(item.id));
-                const summary =
-                  isQuiz &&
-                  (quizSummaries[item.id] || quizSummaries[String(item.id)]);
-                const isPassed = summary?.passed;
-                const isActive = activeKey === itemKey;
+    <div className="space-y-2">
+      {modules.map((module, moduleIndex) => {
+        const opened = moduleIndex === 0 || interactive;
+        const moduleMinutes = module._content.reduce(
+          (sum, item) => sum + Number(item.estimated_time_minutes || 0),
+          0,
+        );
 
-                return (
-                  <li key={itemKey}>
-                    {interactive ? (
-                      <button
-                        type="button"
-                        onClick={() => onSelect?.(itemKey)}
-                        className={cn(
-                          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-                          isActive
-                            ? "bg-primary/15 text-primary"
-                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                        )}
-                      >
-                        {isLesson ? (
-                          <>
-                            <LessonIcon done={isDone} />
-                            <span className="flex-1">{item.title}</span>
-                            <Badge variant="outline" className="text-[10px]">
-                              {item.type}
-                            </Badge>
-                          </>
-                        ) : (
-                          <>
-                            {isPassed ? (
-                              <CheckCircle2 className="size-4 shrink-0 text-primary" />
-                            ) : (
-                              <ClipboardList className="size-4 shrink-0" />
-                            )}
-                            <span className="flex-1">{item.title}</span>
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
-                        {isLesson ? (
-                          <>
-                            <LessonIcon done={isDone} />
-                            <span className="flex-1">{item.title}</span>
-                            <Badge variant="outline" className="text-[10px]">
-                              {item.type}
-                            </Badge>
-                            {item.is_preview ? (
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px]"
-                              >
-                                Preview
-                              </Badge>
-                            ) : null}
-                          </>
-                        ) : (
-                          <>
-                            <ClipboardList className="size-4 shrink-0" />
-                            <span className="flex-1">{item.title}</span>
-                            <Badge variant="outline" className="text-[10px]">
-                              Quiz
-                            </Badge>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+        return (
+          <section
+            key={module.id}
+            className="overflow-hidden rounded-[6px] border border-border"
+          >
+            <div className="flex items-center justify-between bg-card px-3.5 py-3">
+              <div>
+                <p className="text-[13px] font-medium">{module.title}</p>
+                <p className="text-[10px] text-muted-foreground mono-ui">
+                  {module._content.length} item
+                  {module._content.length === 1 ? "" : "s"}
+                  {moduleMinutes > 0
+                    ? ` · ${formatMinutes(moduleMinutes)}`
+                    : ""}
+                </p>
+              </div>
+              {opened ? (
+                <ChevronDown className="size-4 text-[#3a3a3a]" />
+              ) : (
+                <ChevronRight className="size-4 text-[#3a3a3a]" />
+              )}
+            </div>
+
+            {opened ? (
+              <ul>
+                {module._content.map((item) => {
+                  const isLesson = item._type === "lesson";
+                  const isQuiz = item._type === "quiz";
+                  const itemKey = isLesson
+                    ? `lesson-${item.id}`
+                    : `quiz-${item.id}`;
+                  const isDone = isLesson && completedSet.has(String(item.id));
+                  const summary =
+                    isQuiz &&
+                    (quizSummaries[item.id] || quizSummaries[String(item.id)]);
+                  const isPassed = summary?.passed;
+                  const isActive = activeKey === itemKey;
+
+                  const content = (
+                    <>
+                      {isLesson ? (
+                        <LessonIcon done={isDone} />
+                      ) : isPassed ? (
+                        <CheckCircle2 className="size-3.5 text-primary" />
+                      ) : (
+                        <i
+                          className="ti ti-help-circle"
+                          style={{ fontSize: 14, color: "#3a3a3a" }}
+                        />
+                      )}
+
+                      <span className="flex-1 truncate">{item.title}</span>
+
+                      <span className="shrink-0 text-[10px] text-[#3a3a3a] mono-ui">
+                        {isQuiz ? "quiz" : "lesson"}
+                        {item.estimated_time_minutes
+                          ? ` · ${formatMinutes(item.estimated_time_minutes)}`
+                          : ""}
+                      </span>
+                    </>
+                  );
+
+                  return (
+                    <li key={itemKey} className="border-t border-border">
+                      {interactive ? (
+                        <button
+                          type="button"
+                          onClick={() => onSelect?.(itemKey)}
+                          className={cn(
+                            "flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-[12px] text-muted-foreground mono-ui transition-colors",
+                            isActive
+                              ? "bg-[#001a0d] text-primary"
+                              : "hover:bg-[#111] hover:text-foreground",
+                          )}
+                        >
+                          {content}
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3.5 py-2.5 text-[12px] text-muted-foreground mono-ui">
+                          {content}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
           </section>
-        ))}
-      </CardContent>
-    </Card>
+        );
+      })}
+    </div>
   );
 }
 
@@ -143,5 +147,5 @@ function LessonIcon({ done }) {
     return <CheckCircle2 className="size-4 shrink-0 text-primary" />;
   }
 
-  return <BookOpen className="size-4 shrink-0 opacity-60" />;
+  return <Play className="size-4 shrink-0 opacity-60" />;
 }

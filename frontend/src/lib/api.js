@@ -34,6 +34,26 @@ export function postFormData(client, url, formData) {
   return client.post(url, formData);
 }
 
+export function resolveBackendAssetUrl(url) {
+  if (!url) {
+    return "";
+  }
+
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("blob:") ||
+    url.startsWith("data:")
+  ) {
+    return url;
+  }
+
+  return new URL(
+    url.startsWith("/") ? url : `/${url}`,
+    backendOrigin,
+  ).toString();
+}
+
 export function readStoredSession() {
   const token = localStorage.getItem(STORAGE_TOKEN_KEY);
   const userRaw = localStorage.getItem(STORAGE_USER_KEY);

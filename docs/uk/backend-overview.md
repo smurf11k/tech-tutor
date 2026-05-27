@@ -149,10 +149,13 @@ TechTutor підтримує безшовний Google OAuth логін для �
 
 ### Тестові дані
 
-Сідинг БД включає користувачів із ролями:
+Сідинг БД включає користувачів із ролями (пароль: `password`):
 
 - `admin@techtutor.test`
-- `instructor@techtutor.test`
+- `backend@techtutor.test`
+- `frontend@techtutor.test`
+- `ml@techtutor.test`
+- `devops@techtutor.test`
 - `student@techtutor.test`
 - `student2@techtutor.test`
 - `banned@techtutor.test`

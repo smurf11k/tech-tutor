@@ -54,17 +54,17 @@ tests/
 
 ### Test Coverage Summary
 
-| Feature | Tests | Location |
-|---------|-------|----------|
-| **Authentication** | Register, login, OAuth, password reset, email verification | AuthFlowTest |
-| **Course Management** | CRUD, publishing, enrollment, progress | CourseFlowTest |
-| **Learning Path** | Enrollment → Progress → Certificate | CourseFlowTest |
-| **Payments** | Internal payment, Stripe checkout, receipt generation | CommerceFlowTest |
-| **Quizzes** | Creation, attempts, scoring, analytics | QuizFlowTest |
-| **Instructor Dashboard** | Metrics, analytics, certificates | InstructorDashboardFlowTest |
-| **Admin Panel** | User management, moderation, dashboard | AdminPanelFlowTest |
-| **Comments** | Creation, threads, replies, moderation | LessonCommentFlowTest |
-| **User Invites** | Invite creation, acceptance, role assignment | UserInviteFlowTest |
+| Feature                  | Tests                                                      | Location                    |
+| ------------------------ | ---------------------------------------------------------- | --------------------------- |
+| **Authentication**       | Register, login, OAuth, password reset, email verification | AuthFlowTest                |
+| **Course Management**    | CRUD, publishing, enrollment, progress                     | CourseFlowTest              |
+| **Learning Path**        | Enrollment → Progress → Certificate                        | CourseFlowTest              |
+| **Payments**             | Internal payment, Stripe checkout, receipt generation      | CommerceFlowTest            |
+| **Quizzes**              | Creation, attempts, scoring, analytics                     | QuizFlowTest                |
+| **Instructor Dashboard** | Metrics, analytics, certificates                           | InstructorDashboardFlowTest |
+| **Admin Panel**          | User management, moderation, dashboard                     | AdminPanelFlowTest          |
+| **Comments**             | Creation, threads, replies, moderation                     | LessonCommentFlowTest       |
+| **User Invites**         | Invite creation, acceptance, role assignment               | UserInviteFlowTest          |
 
 ### Test Environment Setup
 
@@ -82,6 +82,7 @@ Test configuration in `phpunit.xml`:
 ```
 
 **Benefits**:
+
 - **Fast**: No real database I/O
 - **Isolated**: Fresh database for each test
 - **No Side Effects**: No real emails sent
@@ -96,7 +97,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class AuthFlowTest extends TestCase {
     use RefreshDatabase;  // Fresh DB state for each test
-    
+
     public function test_user_can_register() {
         // Test code
     }
@@ -203,7 +204,7 @@ Notification::assertSentTimes(
 ```php
 public function test_student_cannot_edit_others_review() {
     $review = Review::factory()->for($user1)->create();
-    
+
     $this->actingAs($user2, 'sanctum')
         ->patchJson("/api/courses/{$review->course_id}/reviews/{$review->id}", [...])
         ->assertStatus(403);
@@ -212,7 +213,7 @@ public function test_student_cannot_edit_others_review() {
 public function test_admin_can_edit_any_review() {
     $review = Review::factory()->create();
     $admin = User::factory()->admin()->create();
-    
+
     $this->actingAs($admin, 'sanctum')
         ->patchJson("/api/courses/{$review->course_id}/reviews/{$review->id}", [...])
         ->assertStatus(200);
@@ -239,15 +240,15 @@ public function test_registration_requires_email() {
 public function test_payment_grants_enrollment_access() {
     $user = User::factory()->create();
     $course = Course::factory()->create(['price' => 99.99]);
-    
+
     // Before payment - can't enroll
     $this->actingAs($user, 'sanctum')
         ->postJson("/api/courses/{$course->id}/enrollments", [])
         ->assertStatus(402);
-    
+
     // Create payment
     Payment::factory()->paid()->for($user)->for($course)->create();
-    
+
     // After payment - can enroll
     $this->actingAs($user, 'sanctum')
         ->postJson("/api/courses/{$course->id}/enrollments", [])
@@ -738,7 +739,7 @@ curl -s -X POST "$BASE_URL/dev/token" \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -H "X-Dev-Key: $DEV_TOKEN_KEY" \
-  -d '{"email":"instructor@techtutor.test","password":"password","token_name":"dev-instructor"}'
+  -d '{"email":"backend@techtutor.test","password":"password","token_name":"dev-instructor"}'
 ```
 
 2. Instructor creates a draft and requests publishing:

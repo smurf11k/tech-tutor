@@ -152,7 +152,7 @@ TechTutor supports seamless Google OAuth login for students and existing users.
 Database seeding includes role-based users:
 
 - `admin@techtutor.test`
-- `instructor@techtutor.test`
+- `backend@techtutor.test` (seeded instructor)
 - `student@techtutor.test`
 - `student2@techtutor.test`
 - `banned@techtutor.test`
@@ -195,6 +195,7 @@ backend/
 ### Key Components
 
 #### Controllers (25 total)
+
 - **Auth** - Registration, login, OAuth, password reset
 - **Course** - CRUD, publishing, catalog with Meilisearch
 - **Content** - Modules, lessons, quizzes (nested resources)
@@ -205,6 +206,7 @@ backend/
 - **Instructor** - Dashboard, analytics, publish requests
 
 #### Request Classes (28 total)
+
 - **Auth Requests** - Login, register (multi-step), password reset
 - **Content Requests** - Course, module, lesson, quiz CRUD
 - **Interaction Requests** - Reviews, comments with publication flags
@@ -212,6 +214,7 @@ backend/
 - **Admin Requests** - User management, moderation decisions
 
 #### Models (17 total)
+
 - **Core** - User, Course, Module, Lesson
 - **Learning** - Enrollment, Progress, CourseCertificate
 - **Interaction** - Review, Comment (threaded)
@@ -221,6 +224,7 @@ backend/
 - **Contact** - ContactMessage
 
 #### Services (6 total)
+
 - `CourseEnrollmentService` - Enrollment logic and notifications
 - `PaymentFulfillmentService` - Payment processing and receipt generation
 - `CourseCertificateIssuer` - Certificate eligibility and issuance
@@ -231,17 +235,20 @@ backend/
 ## Authorization Model
 
 ### Roles & Hierarchy
+
 - **Student** - Can enroll, complete courses, submit reviews/comments, purchase
 - **Instructor** - Can create/edit courses, view analytics, request publishing, moderate own content
 - **Admin** - Full platform access, content moderation, user management, platform analytics
 
 ### Access Control Pattern
+
 1. **Route Middleware** - `auth:sanctum` guards protected endpoints
 2. **Controller-Level** - Manual authorization checks via `authorize()` and role checks
 3. **Resource Ownership** - Users can only access/modify their own resources
 4. **Content Visibility** - Non-privileged users only see published content
 
 ### Banning System
+
 - Admins can ban users globally via `is_banned` flag
 - Banned users cannot login and are blocked from protected routes
 - `EnsureUserIsNotBanned` middleware enforces bans on all protected endpoints
@@ -249,6 +256,7 @@ backend/
 ## Content Publishing Workflow
 
 ### Draft → Published Flow
+
 1. **Creation** - Instructors create courses/lessons/quizzes as drafts
 2. **Preparation** - Add content, configure settings, set `is_published = false`
 3. **Request Publishing** - Call `POST /courses/{course}/publish-request`
@@ -257,6 +265,7 @@ backend/
 6. **Notification** - Instructor notified of decision
 
 ### Moderation Queue
+
 - Reviews and lesson comments go unpublished until admin approval
 - Centralized moderation dashboard showing all pending content
 - Admins can approve, decline, or request edits
@@ -265,16 +274,16 @@ backend/
 
 ### Feature Tests (8 suites)
 
-| Test File | Tests | Coverage |
-|---|---|---|
-| **AuthFlowTest** | Registration, email verification, login, password reset, OAuth | Authentication workflows |
-| **CourseFlowTest** | Course CRUD, enrollment, progress, certificates | Core learning path |
-| **CommerceFlowTest** | Payments, reviews, purchase verification | E-commerce workflows |
-| **QuizFlowTest** | Quiz CRUD, attempts, scoring, limits | Assessment system |
-| **InstructorDashboardFlowTest** | Metrics, analytics, certificates | Instructor analytics |
-| **AdminPanelFlowTest** | Dashboard, user management, moderation | Admin operations |
-| **LessonCommentFlowTest** | Comments, threads, moderation, instructor queue | Comment system |
-| **UserInviteFlowTest** | Invitations, token acceptance, role assignment | Invite system |
+| Test File                       | Tests                                                          | Coverage                 |
+| ------------------------------- | -------------------------------------------------------------- | ------------------------ |
+| **AuthFlowTest**                | Registration, email verification, login, password reset, OAuth | Authentication workflows |
+| **CourseFlowTest**              | Course CRUD, enrollment, progress, certificates                | Core learning path       |
+| **CommerceFlowTest**            | Payments, reviews, purchase verification                       | E-commerce workflows     |
+| **QuizFlowTest**                | Quiz CRUD, attempts, scoring, limits                           | Assessment system        |
+| **InstructorDashboardFlowTest** | Metrics, analytics, certificates                               | Instructor analytics     |
+| **AdminPanelFlowTest**          | Dashboard, user management, moderation                         | Admin operations         |
+| **LessonCommentFlowTest**       | Comments, threads, moderation, instructor queue                | Comment system           |
+| **UserInviteFlowTest**          | Invitations, token acceptance, role assignment                 | Invite system            |
 
 ### Running Tests
 
@@ -298,6 +307,7 @@ php artisan test --watch
 ### Test Environment Setup
 
 Tests use SQLite in-memory database with:
+
 - Array mailer (no real emails sent)
 - Array cache/session store
 - Sync queue processing

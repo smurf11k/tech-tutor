@@ -74,13 +74,16 @@ php artisan serve
 
 ## Seeded Demo Accounts
 
-After `php artisan migrate --seed` or `composer db:fresh`, these local demo accounts are available:
+After `php artisan migrate --seed` or `composer db:fresh`, these local demo accounts are available (password: `password`):
 
-- `admin@techtutor.test`
-- `instructor@techtutor.test`
-- `student@techtutor.test`
-- `student2@techtutor.test`
-- `banned@techtutor.test`
+- `admin@techtutor.test` — admin
+- `backend@techtutor.test` — instructor (backend course owner)
+- `frontend@techtutor.test` — instructor (frontend course owner)
+- `ml@techtutor.test` — instructor (ml course owner)
+- `devops@techtutor.test` — instructor (devops course owner)
+- `student@techtutor.test` — student (enrolled in seeded courses)
+- `student2@techtutor.test` — student (additional student)
+- `banned@techtutor.test` — banned student (for ban enforcement tests)
 
 Shared password for all demo accounts:
 

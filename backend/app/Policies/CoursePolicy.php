@@ -33,6 +33,10 @@ class CoursePolicy
 
     public function delete(User $user, Course $course): bool
     {
-        return $this->update($user, $course);
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $user->id === $course->instructor_id && !$course->is_published;
     }
 }

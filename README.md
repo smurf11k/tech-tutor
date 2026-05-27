@@ -109,6 +109,7 @@ It supports course management, payments, quizzes, and progress tracking.
 - CAPTCHA on registration/login
 - Input validation and sanitization audit
 - Protection against XSS / SQL Injection
+- Profile picture upload, profile update (nickname, bio, email notification pref), and account-delete endpoint implemented on the backend
 
 ---
 
@@ -259,7 +260,7 @@ Notes:
 - [x] Course management overview
 - [x] Student progress per course
 - [x] Revenue & enrollment analytics
-- [ ] Content upload & management
+- [x] Content upload & management
 
 ### Admin Panel
 

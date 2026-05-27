@@ -19,8 +19,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
 use Throwable;
@@ -35,6 +38,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => $validated['name'],
+            'nickname' => User::generateUniqueNickname($validated['nickname']),
             'email' => $validated['email'],
             'password' => $validated['password'],
             'role' => 'student',
@@ -111,13 +115,15 @@ class AuthController extends Controller
 
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'password' => ['required', 'confirmed', 'min:8'],
+            'nickname' => ['required', 'string', 'lowercase', 'max:255', 'alpha_dash', 'unique:users,nickname'],
+            'password' => ['required', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()->symbols()],
             'role' => ['prohibited'],
             'token_name' => ['sometimes', 'string', 'max:255'],
         ]);
 
         $user = User::create([
             'name' => $request->input('name'),
+            'nickname' => User::generateUniqueNickname($request->input('nickname')),
             'email' => $validated['email'],
             'password' => $request->input('password'),
             'role' => 'student',
@@ -140,12 +146,67 @@ class AuthController extends Controller
     public function updateProfile(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'nickname' => ['sometimes', 'required', 'string', 'lowercase', 'max:255', 'alpha_dash', Rule::unique('users', 'nickname')->ignore($request->user()->id)],
+            'bio' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'email_notifications_enabled' => ['sometimes', 'boolean'],
+            'avatar' => ['sometimes', 'file', 'image', 'max:2048'],
+            'remove_avatar' => ['sometimes', 'boolean'],
         ]);
 
-        $request->user()->update($validated);
+        $user = $request->user();
 
-        return response()->json($request->user());
+        if (array_key_exists('name', $validated)) {
+            $user->name = $validated['name'];
+        }
+
+        if (array_key_exists('nickname', $validated)) {
+            $user->nickname = $validated['nickname'];
+        }
+
+        if (array_key_exists('bio', $validated)) {
+            $user->bio = trim((string) $validated['bio']) !== '' ? $validated['bio'] : null;
+        }
+
+        if (array_key_exists('email_notifications_enabled', $validated)) {
+            $user->email_notifications_enabled = $validated['email_notifications_enabled'];
+        }
+
+        if ($request->boolean('remove_avatar')) {
+            if ($user->avatar_path) {
+                Storage::disk('public')->delete($user->avatar_path);
+            }
+
+            $user->avatar_path = null;
+        }
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar_path) {
+                Storage::disk('public')->delete($user->avatar_path);
+            }
+
+            $user->avatar_path = $request
+                ->file('avatar')
+                ->store('avatars', 'public');
+        }
+
+        $user->save();
+
+        return response()->json($user->fresh());
+    }
+
+    public function destroyAccount(Request $request): JsonResponse
+    {
+        $request->user()?->deleteAccount();
+
+        return response()->json(['message' => 'Account deleted.']);
+    }
+
+    public function payments(Request $request): JsonResponse
+    {
+        return response()->json(
+            $request->user()->payments()->with('course')->latest()->get()
+        );
     }
 
     public function logout(Request $request): JsonResponse
@@ -199,10 +260,18 @@ class AuthController extends Controller
 
         if (!$user->exists) {
             $user->name = $displayName;
+            $user->nickname = User::generateUniqueNickname($googleUser->getNickname() ?: $displayName);
             $user->password = Str::random(40);
             $user->role = 'student';
         } elseif (!$user->name) {
             $user->name = $displayName;
+        }
+
+        if (!$user->nickname) {
+            $user->nickname = User::generateUniqueNickname(
+                $googleUser->getNickname() ?: $displayName,
+                $user->exists ? $user->id : null,
+            );
         }
 
         if ($user->isBanned()) {

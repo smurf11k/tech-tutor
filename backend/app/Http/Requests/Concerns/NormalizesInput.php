@@ -34,6 +34,47 @@ trait NormalizesInput
         }));
     }
 
+    protected function normalizeStringArrayFields(array $fields): void
+    {
+        $normalized = [];
+
+        foreach ($fields as $field) {
+            if (!$this->has($field)) {
+                continue;
+            }
+
+            $value = $this->input($field);
+            if (!is_array($value)) {
+                continue;
+            }
+
+            $normalized[$field] = array_values(array_filter(array_map(function ($item): string {
+                return trim(strip_tags((string) $item));
+            }, $value), fn(string $item): bool => $item !== ''));
+        }
+
+        if (!empty($normalized)) {
+            $this->merge($normalized);
+        }
+    }
+
+    protected function normalizeBooleanFields(array $fields): void
+    {
+        $normalized = [];
+
+        foreach ($fields as $field) {
+            if (!$this->has($field)) {
+                continue;
+            }
+
+            $normalized[$field] = filter_var($this->input($field), FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (!empty($normalized)) {
+            $this->merge($normalized);
+        }
+    }
+
     /**
      * @param array<int, string> $fields
      * @return array<string, mixed>

@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $title
  * @property string|null $description
  * @property int $pass_score
+ * @property int|null $estimated_time_minutes
+ * @property int|null $time_limit_seconds
  * @property bool $is_published
  * @property int $position
  * @property-read Course $course
@@ -32,6 +34,8 @@ class Quiz extends Model
         'title',
         'description',
         'pass_score',
+        'estimated_time_minutes',
+        'time_limit_seconds',
         'is_published',
         'position',
     ];
@@ -40,6 +44,8 @@ class Quiz extends Model
     {
         return [
             'pass_score' => 'integer',
+            'estimated_time_minutes' => 'integer',
+            'time_limit_seconds' => 'integer',
             'is_published' => 'boolean',
             'position' => 'integer',
         ];

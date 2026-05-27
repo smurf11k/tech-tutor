@@ -19,7 +19,6 @@ Base URL during local backend development:
 - `POST /auth/forgot-password`
 - `POST /auth/reset-password`
 - `GET /auth/email/verify/{id}/{hash}`
-- `POST /dev/token` (local debug helper for seeded demo accounts)
 
 ### Auth
 
@@ -230,10 +229,29 @@ Banned users are blocked from protected routes.
 ### Authenticated User
 
 - `GET /auth/me`
+- `PATCH /auth/me` — update authenticated user's profile (see details below)
+- `DELETE /auth/me` — deletes the authenticated user's account (data cleanup applied)
 - `POST /auth/logout`
 - `POST /auth/email/resend`
 
 `POST /auth/logout` deletes the current Sanctum access token.
+
+Profile update (`PATCH /auth/me`)
+
+Accepts `multipart/form-data` for avatar uploads and the following fields (all optional):
+
+- `name` (string) — full display name
+- `nickname` (string) — unique lowercase nickname (alpha_dash)
+- `bio` (string, nullable) — short user bio (up to 1000 chars)
+- `email_notifications_enabled` (boolean) — toggle email notifications
+- `avatar` (file) — image upload (max 2048 KB); stored on the public disk under `avatars/`
+- `remove_avatar` (boolean) — when truthy, removes the existing avatar
+
+Response: returns the fresh `user` resource after update.
+
+Account delete (`DELETE /auth/me`)
+
+Deletes the authenticated user's account and performs configured cleanup (owned content may be anonymized or removed depending on retention rules). Response: `{ "message": "Account deleted." }`.
 
 ### Admin
 
@@ -642,6 +660,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### AuthController
 
 **Public Methods**:
+
 - `register()` - Creates new student/instructor, sends verification email
 - `login()` - Validates credentials, returns Sanctum token
 - `requestVerificationCode()` - Creates 6-digit verification code, emails to address
@@ -654,6 +673,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 - `resendVerification()` - Resends verification email for authenticated user
 
 **Key Features**:
+
 - CAPTCHA integration for registration/login
 - Multi-step email verification with 6-digit codes
 - Google OAuth with popup handshake
@@ -663,6 +683,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### CourseController
 
 **Public Methods**:
+
 - `index()` - List/search/filter courses with Meilisearch support
 - `store()` - Create new course (draft)
 - `show()` - Get course details
@@ -671,6 +692,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 - `catalogOptions()` - Get available filter options
 
 **Features**:
+
 - Meilisearch integration for full-text search
 - Filtering: category, level, language, price, instructor
 - Sorting: newest, oldest, title, price_asc, price_desc, rating
@@ -680,11 +702,13 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### EnrollmentController
 
 **Public Methods**:
+
 - `index()` - Get course roster (instructor/admin only)
 - `store()` - Enroll user in course
 - `destroy()` - Drop course
 
 **Key Checks**:
+
 - Paid courses require existing paid payment
 - Admins/instructors can enroll without payment
 - Duplicate prevention (re-enrolling doesn't create new record)
@@ -693,10 +717,12 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### QuizAttemptController
 
 **Public Methods**:
+
 - `index()` - Get user's attempts (limit 3 per student)
 - `store()` - Submit quiz attempt with answers
 
 **Scoring**:
+
 - Backend calculates score from answers
 - Supports multiple choice and true/false
 - Pass threshold configurable per quiz
@@ -705,6 +731,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### PaymentController
 
 **Public Methods**:
+
 - `index()` - List user's payments
 - `show()` - Get payment details
 - `store()` - Create internal payment (manual purchase)
@@ -712,12 +739,14 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 - `confirmStripeCheckout()` - Confirm pending Stripe payment
 
 **Payment Flow**:
+
 1. Create payment with `POST /courses/{course}/payments`
 2. Mark as paid, generate receipt number (TT-RCPT-YYYYMMDD-XXXXXXXX)
 3. Create enrollment automatically
 4. Send receipt email
 
 **Stripe Flow**:
+
 1. Create session with `POST /courses/{course}/payments/stripe-checkout`
 2. Return checkout URL to client
 3. Client redirects to Stripe
@@ -728,10 +757,12 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### ProgressController
 
 **Public Methods**:
+
 - `store()` - Create progress record
 - `update()` - Update progress percentage
 
 **Certificate Logic**:
+
 - When progress reaches 100% and all lessons completed
 - Check eligibility and issue certificate idempotently
 - Send certificate email
@@ -739,6 +770,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### QuizController
 
 **Public Methods**:
+
 - `index()` - List course quizzes
 - `store()` - Create quiz with questions
 - `show()` - Get quiz details
@@ -746,6 +778,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 - `destroy()` - Delete quiz
 
 **Questions**:
+
 - Types: multiple_choice, true_false
 - Options with is_correct flags
 - Points per question
@@ -754,6 +787,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### ModuleController & LessonController
 
 **Features**:
+
 - Nested CRUD under courses/modules
 - Positional ordering
 - Draft/published states
@@ -763,6 +797,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### ReviewController
 
 **Features**:
+
 - 1-5 star ratings
 - Optional text reviews
 - Moderation queue (unpublished by default)
@@ -772,6 +807,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### CommentController
 
 **Features**:
+
 - Threaded comments (parent_comment_id)
 - Moderation queue
 - Instructor pending queue
@@ -781,6 +817,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### AdminModerationQueueController
 
 **Features**:
+
 - Centralized queue for reviews, comments, publish requests
 - Approve/decline with optional reason
 - Status tracking (pending, accepted, declined)
@@ -789,6 +826,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### AdminPlatformDashboardController
 
 **Response Data**:
+
 - User counts (total, students, instructors, admins, banned)
 - Course counts (published, draft)
 - Totals: enrollments, certificates, quiz attempts, payments
@@ -804,6 +842,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### StoreCourseRequest / UpdateCourseRequest
 
 **Validation Rules**:
+
 - title: required, string, max 255
 - slug: required, alpha_dash, unique (on creation), max 100
 - description: required, string
@@ -820,6 +859,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### StoreQuizRequest / UpdateQuizRequest
 
 **Validation Rules**:
+
 - title: required, string, max 255
 - description: nullable, string
 - pass_score: nullable, integer, min:0, max:100 (default 70)
@@ -834,6 +874,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### StorePaymentRequest
 
 **Validation Rules**:
+
 - provider: required, string (e.g., stripe, manual_demo)
 - amount: required, numeric, min:0
 - currency: required, string, size:3 (ISO 4217)
@@ -843,12 +884,14 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 ### Auth Request Classes
 
 **LoginRequest**:
+
 - email: required, email
 - password: required, string
 - token_name: nullable, string
 - captcha_token: required_if CAPTCHA enabled
 
 **RegisterRequest**:
+
 - name: required, string, max 255
 - email: required, email, unique
 - password: required, confirmed, min 8
@@ -856,6 +899,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 - captcha_token: required_if CAPTCHA enabled
 
 **RequestVerificationCodeRequest**:
+
 - name: required, string, max 255
 - email: required, email, unique
 - password: required, confirmed, min 8
@@ -863,6 +907,7 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
 - captcha_token: required_if CAPTCHA enabled
 
 **VerifyEmailCodeRequest**:
+
 - email: required, email
 - code: required, digits:6
 - name: required, string, max 255
@@ -997,6 +1042,23 @@ For local demos with SMTP/Gmail configured, these emails are sent by the same AP
   }
 }
 ```
+
+---
+
+## Seeded demo accounts (local development)
+
+The project includes a database seeder that creates several demo accounts for local testing. All seeded accounts use the password `password` (see `backend/database/seeders/DatabaseSeeder.php`).
+
+- `admin@techtutor.test` — admin (use for admin endpoints and moderation)
+- `backend@techtutor.test` — instructor (backend course owner)
+- `frontend@techtutor.test` — instructor (frontend course owner)
+- `ml@techtutor.test` — instructor (ml course owner)
+- `devops@techtutor.test` — instructor (devops course owner)
+- `student@techtutor.test` — student (enrolled in seeded courses)
+- `student2@techtutor.test` — student (additional student, has completed some courses)
+- `banned@techtutor.test` — banned student (used to test ban enforcement)
+
+Tip: run `php artisan migrate:fresh --seed` from the backend folder to recreate the database and seed these accounts.
 
 ### Payment Object
 

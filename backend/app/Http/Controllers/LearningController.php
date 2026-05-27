@@ -24,12 +24,13 @@ class LearningController extends Controller
             })
             ->with('instructor')
             ->withCount([
+                'enrollments',
                 'reviews as published_reviews_count' => fn($query) => $query->where('is_published', true),
             ])
             ->withAvg([
                 'reviews as average_rating' => fn($query) => $query->where('is_published', true),
             ], 'rating')
-            ->with(['modules.lessons', 'quizzes'])
+            ->with(['modules.lessons', 'modules.quizzes', 'quizzes'])
             ->latest('updated_at')
             ->paginate($request->integer('per_page', 50) ?: 50);
 
@@ -42,11 +43,16 @@ class LearningController extends Controller
             if (!$isPrivileged) {
                 $course->modules->each(function ($module) {
                     $module->setRelation('lessons', $module->lessons->filter(fn($lesson) => $lesson->is_published)->values());
+                    if ($module->relationLoaded('quizzes')) {
+                        $module->setRelation('quizzes', $module->quizzes->filter(fn($quiz) => $quiz->is_published)->values());
+                    }
                 });
                 $course->setRelation('quizzes', $course->quizzes->filter(fn($quiz) => $quiz->is_published)->values());
 
-                // Filter out modules with no published lessons
-                $course->setRelation('modules', $course->modules->filter(fn($module) => $module->lessons->count() > 0)->values());
+                // Filter out modules with no published lessons or quizzes.
+                $course->setRelation('modules', $course->modules->filter(
+                    fn($module) => $module->lessons->count() > 0 || ($module->relationLoaded('quizzes') && $module->quizzes->count() > 0)
+                )->values());
             }
 
             $progress = $progressCalculator->forUser($course, $user);

@@ -24,8 +24,19 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\PaymentStatusController;
 use App\Http\Controllers\UserInviteController;
+use App\Models\Course;
 use App\Http\Middleware\EnsureUserIsNotBanned;
 use Illuminate\Support\Facades\Route;
+
+Route::bind('course', function (string $value) {
+    $query = Course::query()->where('slug', $value);
+
+    if (is_numeric($value)) {
+        $query->orWhere('id', (int) $value);
+    }
+
+    return $query->firstOrFail();
+});
 
 Route::middleware('sanctum.optional')->group(function () {
     Route::get('courses/catalog-options', [CourseController::class, 'catalogOptions']);
@@ -56,11 +67,14 @@ Route::get('payments/status', [PaymentStatusController::class, 'show']);
 Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::patch('auth/me', [AuthController::class, 'updateProfile']);
+    Route::delete('auth/me', [AuthController::class, 'destroyAccount']);
+    Route::get('auth/me/payments', [AuthController::class, 'payments']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::post('auth/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:auth-email');
     Route::get('admin/users', [AdminUserController::class, 'index']);
     Route::post('admin/users/invites', [UserInviteController::class, 'store']);
     Route::patch('admin/users/{user}', [AdminUserController::class, 'update']);
+    Route::delete('admin/users/{user}', [AdminUserController::class, 'destroy']);
     Route::get('admin/platform-dashboard', [AdminPlatformDashboardController::class, 'show']);
     Route::get('admin/moderation-queue', [AdminModerationQueueController::class, 'index']);
     Route::patch('admin/moderation-queue/reviews/{review}', [AdminModerationQueueController::class, 'updateReview']);
@@ -88,7 +102,6 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::apiResource('courses.enrollments', EnrollmentController::class)->only(['index', 'store', 'destroy']);
     Route::apiResource('courses.modules', ModuleController::class);
     Route::apiResource('modules.lessons', LessonController::class);
-    Route::get('lessons/{lesson}/attachment', [LessonController::class, 'downloadAttachment']);
     Route::apiResource('lessons.comments', CommentController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::apiResource('courses.quizzes', QuizController::class);
     Route::get('quizzes/{quiz}/analytics', [QuizAnalyticsController::class, 'show']);

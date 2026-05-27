@@ -1,6 +1,12 @@
 import { Link } from "react-router-dom";
 import { BookOpen } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export function AuthShell({ title, description, children, footer }) {
   return (
@@ -19,14 +25,16 @@ export function AuthShell({ title, description, children, footer }) {
           to="/"
           className="mx-auto flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
         >
-          <BookOpen className="size-4 text-primary" />
+          <img src="/favicon.svg" alt="TechTutor" className="h-5 w-5 p-[2px]" />
           TechTutor
         </Link>
 
         <Card className="glass-panel border-primary/20 shadow-xl shadow-primary/5">
           <CardHeader>
             <CardTitle>{title}</CardTitle>
-            {description ? <CardDescription>{description}</CardDescription> : null}
+            {description ? (
+              <CardDescription>{description}</CardDescription>
+            ) : null}
           </CardHeader>
           <CardContent className="space-y-4">{children}</CardContent>
         </Card>

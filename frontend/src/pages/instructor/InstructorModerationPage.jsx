@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/common/PageHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/utils";
@@ -74,30 +75,27 @@ export default function InstructorModerationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Pending Comments</h1>
-
-        <p className="text-muted-foreground">
-          {totalComments === 0
+      <PageHeader
+        title="Pending Comments"
+        description={
+          totalComments === 0
             ? "All caught up! No pending comments."
-            : `${totalComments} comment${
-                totalComments !== 1 ? "s" : ""
-              } waiting for review`}
-        </p>
-      </div>
+            : `${totalComments} comment${totalComments !== 1 ? "s" : ""} waiting for review`
+        }
+      />
 
       {loading ? (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
+        <Card className="border-border bg-card/80 shadow-none">
+          <CardContent className="py-8">
+            <p className="text-center text-sm text-muted-foreground mono-ui">
               Loading comments...
             </p>
           </CardContent>
         </Card>
       ) : totalComments === 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
+        <Card className="border-border bg-card/80 shadow-none">
+          <CardContent className="py-8">
+            <p className="text-center text-sm text-muted-foreground mono-ui">
               No pending comments. Keep your courses engaged!
             </p>
           </CardContent>
@@ -105,84 +103,87 @@ export default function InstructorModerationPage() {
       ) : (
         <div className="space-y-6">
           {Object.entries(comments).map(([courseId, courseComments]) => (
-            <div key={courseId}>
-              <h2 className="text-xl font-semibold mb-4 text-foreground/80">
-                {Object.values(courseComments).flat().at(0)?.lesson?.module
-                  ?.course?.title || "Course"}
-              </h2>
+            <div key={courseId} className="space-y-3">
+              <div className="flex items-end justify-between gap-3">
+                <h2 className="text-[13px] font-medium tracking-[-0.01em] text-foreground">
+                  {Object.values(courseComments).flat().at(0)?.lesson?.module
+                    ?.course?.title || "Course"}
+                </h2>
+                <Badge variant="secondary">
+                  {Object.values(courseComments).flat().length}
+                </Badge>
+              </div>
 
               <div className="space-y-4">
                 {Object.entries(courseComments).map(
                   ([lessonId, lessonComments]) => (
-                    <div key={lessonId}>
-                      <h3 className="text-sm font-medium mb-3 text-muted-foreground">
+                    <div key={lessonId} className="space-y-3">
+                      <h3 className="mb-3 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground mono-ui">
                         Lesson: {lessonComments[0]?.lesson?.title}
                       </h3>
 
                       <div className="space-y-3">
                         {lessonComments.map((comment) => (
-                          <Card key={comment.id} className="overflow-hidden">
-                            <CardContent className="pt-4">
-                              <div className="space-y-3">
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                      <p className="font-medium text-sm">
-                                        {comment.user?.name}
-                                      </p>
-
-                                      {comment.user?.role_badge && (
-                                        <Badge
-                                          variant="secondary"
-                                          className="text-xs"
-                                        >
-                                          {comment.user.role_badge}
-                                        </Badge>
-                                      )}
-                                    </div>
-
-                                    <p className="text-xs text-muted-foreground mb-3">
-                                      {new Date(
-                                        comment.created_at,
-                                      ).toLocaleString()}
-                                    </p>
-
-                                    <p className="text-sm text-foreground/90 break-words">
-                                      {comment.body}
-                                    </p>
-                                  </div>
-
-                                  <Badge
-                                    variant="outline"
-                                    className="text-xs bg-yellow-50/50 text-yellow-700 shrink-0"
-                                  >
-                                    Pending
-                                  </Badge>
+                          <Card
+                            key={comment.id}
+                            className="overflow-hidden border-border bg-card/80 shadow-none"
+                          >
+                            <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border px-5 py-4">
+                              <CardTitle className="min-w-0 flex-1 text-[13px] font-medium tracking-[-0.01em] text-foreground">
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                  <span className="truncate">
+                                    {comment.user?.name || "Unknown user"}
+                                  </span>
+                                  {comment.user?.role_badge ? (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px]"
+                                    >
+                                      {comment.user.role_badge}
+                                    </Badge>
+                                  ) : null}
                                 </div>
+                                <span className="block text-[10px] mono-ui uppercase tracking-[0.08em] text-muted-foreground">
+                                  {new Date(
+                                    comment.created_at,
+                                  ).toLocaleString()}
+                                </span>
+                              </CardTitle>
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 border-[#3a2d00] bg-[#1a1200] text-[10px] text-[#f59e0b]"
+                              >
+                                Pending
+                              </Badge>
+                            </CardHeader>
 
-                                <div className="flex gap-3 pt-2 border-t border-border/60">
-                                  <a
-                                    href={`/learning/${comment.lesson?.module?.course?.id}?lesson=${comment.lesson?.id}`}
-                                    className="text-xs text-primary hover:underline"
-                                  >
-                                    Go to Lesson
-                                  </a>
+                            <CardContent className="space-y-4 px-5 py-4">
+                              <p className="break-words text-sm leading-6 text-foreground/90">
+                                {comment.body}
+                              </p>
 
-                                  <button
-                                    onClick={() =>
-                                      handleDeleteComment(
-                                        comment.lesson_id,
-                                        comment.id,
-                                      )
-                                    }
-                                    disabled={deleting === comment.id}
-                                    className="text-xs text-destructive hover:underline disabled:opacity-50"
-                                  >
-                                    {deleting === comment.id
-                                      ? "Deleting..."
-                                      : "Delete"}
-                                  </button>
-                                </div>
+                              <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3">
+                                <a
+                                  href={`/learning/${comment.lesson?.module?.course?.id}?lesson=${comment.lesson?.id}`}
+                                  className="inline-flex items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-[11px] mono-ui text-muted-foreground transition-colors hover:border-border2 hover:text-foreground"
+                                >
+                                  Go to Lesson
+                                </a>
+
+                                <button
+                                  onClick={() =>
+                                    handleDeleteComment(
+                                      comment.lesson_id,
+                                      comment.id,
+                                    )
+                                  }
+                                  disabled={deleting === comment.id}
+                                  className="inline-flex items-center gap-1.5 rounded-[4px] border border-[#3a1010] px-3 py-1.5 text-[11px] mono-ui text-[#f87171] transition-colors hover:border-[#5a1a1a] hover:bg-[#0d0404] disabled:opacity-50"
+                                >
+                                  {deleting === comment.id
+                                    ? "Deleting..."
+                                    : "Delete"}
+                                </button>
                               </div>
                             </CardContent>
                           </Card>

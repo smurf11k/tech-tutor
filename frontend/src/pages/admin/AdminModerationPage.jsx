@@ -98,6 +98,7 @@ export default function AdminModerationPage() {
       />
       {loading ? <LoadingState /> : null}
       <section className="space-y-3">
+        {/* TODO: Add queue filters by type/date once moderation endpoint supports filtering query params. */}
         {queue.map((item, index) => {
           if (item.content_type === "publish_request") {
             const request = item.publish_request;
@@ -105,9 +106,9 @@ export default function AdminModerationPage() {
             const key = `publish-${request?.id ?? index}`;
 
             return (
-              <Card key={key} className="glass-panel">
+              <Card key={key}>
                 <CardHeader>
-                  <CardTitle className="text-base flex flex-wrap items-center gap-2">
+                  <CardTitle className="text-[13px] flex flex-wrap items-center gap-2 mono-ui">
                     <Badge variant="outline">publish request</Badge>
                     {course?.title || "Unknown course"}
                   </CardTitle>
@@ -142,7 +143,9 @@ export default function AdminModerationPage() {
                     <Button
                       size="sm"
                       disabled={busy}
-                      onClick={() => moderatePublishRequest(request.id, "accept")}
+                      onClick={() =>
+                        moderatePublishRequest(request.id, "accept")
+                      }
                     >
                       Approve & publish
                     </Button>
@@ -150,7 +153,9 @@ export default function AdminModerationPage() {
                       size="sm"
                       variant="destructive"
                       disabled={busy}
-                      onClick={() => moderatePublishRequest(request.id, "decline")}
+                      onClick={() =>
+                        moderatePublishRequest(request.id, "decline")
+                      }
                     >
                       Decline
                     </Button>
@@ -165,9 +170,9 @@ export default function AdminModerationPage() {
           const key = `${item.content_type}-${content?.id ?? index}`;
 
           return (
-            <Card key={key} className="glass-panel">
+            <Card key={key}>
               <CardHeader>
-                <CardTitle className="text-base flex flex-wrap items-center gap-2">
+                <CardTitle className="text-[13px] flex flex-wrap items-center gap-2 mono-ui">
                   <Badge variant="outline">{item.content_type}</Badge>
                   {content?.user?.name || "Unknown user"}
                 </CardTitle>

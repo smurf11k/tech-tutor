@@ -82,8 +82,8 @@ export default function PaymentReturnPage({ variant = "success" }) {
           ) : null}
 
           <Button asChild>
-            <Link to={isPaid ? "/learning" : "/payments"}>
-              {isPaid ? "Go to My learning" : "View payments"}
+            <Link to={isPaid ? "/learning" : "/profile#billing"}>
+              {isPaid ? "Go to My learning" : "View billing"}
             </Link>
           </Button>
         </CardContent>

@@ -8,10 +8,11 @@ use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\User;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class LessonController extends Controller
 {
@@ -41,8 +42,13 @@ class LessonController extends Controller
         $this->authorize('update', $course);
 
         $validated = $request->validated();
-        $lessonFile = $request->file('lesson_file');
-        $payload = $this->prepareLessonPayload($validated, $module, null, $lessonFile);
+        $payload = $this->prepareLessonPayload(
+            $validated,
+            $module,
+            null,
+            $request->file('video'),
+            $request->boolean('remove_video')
+        );
 
         // If position not provided, calculate it based on module content
         $position = $validated['position'] ?? null;
@@ -54,9 +60,8 @@ class LessonController extends Controller
 
         $lesson = $module->lessons()->create([
             ...$payload,
-            'type' => $validated['type'] ?? 'text',
+            'type' => 'lesson',
             'position' => $position,
-            'is_preview' => $validated['is_preview'] ?? false,
         ]);
 
         return response()->json($lesson, 201);
@@ -90,8 +95,13 @@ class LessonController extends Controller
         abort_unless($lesson->module_id === $module->id, 404);
 
         $validated = $request->validated();
-        $lessonFile = $request->file('lesson_file');
-        $payload = $this->prepareLessonPayload($validated, $module, $lesson, $lessonFile);
+        $payload = $this->prepareLessonPayload(
+            $validated,
+            $module,
+            $lesson,
+            $request->file('video'),
+            $request->boolean('remove_video')
+        );
 
         // Only admins can directly set is_published
         //TODO: add publish/unpublish request for instructors instead of throwing error when they try to publish
@@ -112,94 +122,97 @@ class LessonController extends Controller
 
         abort_unless($lesson->module_id === $module->id, 404);
 
-        $this->deleteLessonFile($lesson);
+        if ($lesson->video_path) {
+            Storage::disk('public')->delete($lesson->video_path);
+        }
 
         $lesson->delete();
 
         return response()->noContent();
     }
 
-    public function downloadAttachment(Lesson $lesson)
-    {
-        /** @var Course $course */
-        $course = $lesson->module->course;
-        $this->authorize('view', $course);
-
-        if (blank($lesson->file_path)) {
-            abort(404);
-        }
-
-        if (filter_var($lesson->file_path, FILTER_VALIDATE_URL)) {
-            return redirect()->away($lesson->file_path);
-        }
-
-        if (!Storage::disk('public')->exists($lesson->file_path)) {
-            abort(404);
-        }
-
-        $stream = Storage::disk('public')->readStream($lesson->file_path);
-
-        if ($stream === false) {
-            abort(404);
-        }
-
-        $filename = basename($lesson->file_path);
-
-        return response()->streamDownload(function () use ($stream): void {
-            fpassthru($stream);
-
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-        }, $filename);
-    }
-
     /**
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    private function prepareLessonPayload(array $validated, Module $module, ?Lesson $lesson, ?UploadedFile $lessonFile): array
-    {
+    private function prepareLessonPayload(
+        array $validated,
+        Module $module,
+        ?Lesson $lesson = null,
+        ?UploadedFile $videoFile = null,
+        bool $removeVideo = false,
+    ): array {
         $payload = $validated;
-        unset($payload['lesson_file']);
 
-        $effectiveType = (string) ($payload['type'] ?? $lesson?->type ?? 'text');
-        $existingFilePath = $lesson?->file_path;
+        $payload['type'] = 'lesson';
 
-        if ($effectiveType !== 'file') {
-            $this->deleteLessonFile($lesson);
-            $payload['file_path'] = null;
+        unset($payload['video'], $payload['video_name'], $payload['remove_video']);
 
-            return $payload;
-        }
+        if ($removeVideo) {
+            if ($lesson?->video_path) {
+                Storage::disk('public')->delete($lesson->video_path);
+            }
 
-        if ($lessonFile !== null) {
-            $this->deleteLessonFile($lesson);
-            $payload['file_path'] = $lessonFile->storePublicly(
-                "lesson-files/module-{$module->id}",
-                'public'
-            );
+            $payload['video_url'] = null;
+            $payload['video_path'] = null;
 
             return $payload;
         }
 
-        $manualFilePath = isset($payload['file_path']) && is_string($payload['file_path'])
-            ? trim($payload['file_path'])
-            : '';
+        if ($videoFile instanceof UploadedFile) {
+            if ($lesson?->video_path) {
+                Storage::disk('public')->delete($lesson->video_path);
+            }
 
-        $payload['file_path'] = $manualFilePath !== ''
-            ? $manualFilePath
-            : $existingFilePath;
+            $videoName = $this->resolveVideoFileName($validated, $module, $videoFile);
+            $videoPath = $this->storeLessonVideo($module, $videoFile, $videoName);
+
+            $payload['video_url'] = asset('storage/' . $videoPath);
+            $payload['video_path'] = $videoPath;
+
+            return $payload;
+        }
+
+        if (array_key_exists('video_url', $payload) && $payload['video_url'] !== null && $payload['video_url'] !== '') {
+            if ($lesson?->video_path) {
+                Storage::disk('public')->delete($lesson->video_path);
+            }
+
+            $payload['video_path'] = null;
+
+            return $payload;
+        }
 
         return $payload;
     }
 
-    private function deleteLessonFile(?Lesson $lesson): void
+    private function resolveVideoFileName(array $validated, Module $module, UploadedFile $videoFile): string
     {
-        if ($lesson === null || blank($lesson->file_path) || filter_var($lesson->file_path, FILTER_VALIDATE_URL)) {
-            return;
+        $requestedName = (string) ($validated['video_name'] ?? '');
+
+        if ($requestedName !== '') {
+            $baseName = pathinfo($requestedName, PATHINFO_FILENAME);
+            $extension = strtolower(pathinfo($requestedName, PATHINFO_EXTENSION) ?: $videoFile->getClientOriginalExtension() ?: 'mp4');
+
+            return Str::slug($baseName) . '.' . $extension;
         }
 
-        Storage::disk('public')->delete($lesson->file_path);
+        $extension = strtolower($videoFile->getClientOriginalExtension() ?: $videoFile->extension() ?: 'mp4');
+        $timestamp = now()->format('Ymd-His');
+        $baseName = Str::slug(implode('-', array_filter([
+            $module->course->slug ?? 'course',
+            $module->slug ?? 'module',
+            $validated['slug'] ?? $validated['title'] ?? 'lesson',
+            $timestamp,
+        ])));
+
+        return $baseName . '.' . $extension;
+    }
+
+    private function storeLessonVideo(Module $module, UploadedFile $videoFile, string $videoName): string
+    {
+        $directory = sprintf('lesson-videos/module-%d', $module->id);
+
+        return $videoFile->storeAs($directory, $videoName, 'public');
     }
 }

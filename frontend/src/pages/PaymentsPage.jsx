@@ -5,7 +5,12 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { extractList, formatMoney, getApiErrorMessage } from "@/lib/utils";
+import {
+  extractList,
+  formatMoney,
+  getApiErrorMessage,
+  getCourseRouteKey,
+} from "@/lib/utils";
 
 export default function PaymentsPage() {
   const { client, isAdmin, isInstructor } = useAuth();
@@ -34,7 +39,7 @@ export default function PaymentsPage() {
       : "Payment history for your account.";
 
   return (
-    <section>
+    <section className="home-shell py-9">
       <PageHeader title="Payments" description={description} />
       {loading ? <LoadingState /> : null}
       <section className="space-y-3">
@@ -65,7 +70,10 @@ export default function PaymentsPage() {
                 Amount: {formatMoney(payment.amount, payment.currency || "USD")}
               </p>
               <p>Provider: {payment.provider}</p>
-              <Link className="text-primary hover:underline" to={`/courses/${payment.course_id}`}>
+              <Link
+                className="text-primary hover:underline"
+                to={`/courses/${getCourseRouteKey(payment.course) || payment.course_id}`}
+              >
                 View course
               </Link>
             </CardContent>

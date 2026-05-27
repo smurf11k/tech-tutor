@@ -3,10 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\NormalizesInput;
-use Closure;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
-use Illuminate\Http\UploadedFile;
 
 class UpdateLessonRequest extends FormRequest
 {
@@ -22,29 +19,14 @@ class UpdateLessonRequest extends FormRequest
         return [
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'slug' => ['sometimes', 'required', 'string', 'max:255', 'alpha_dash'],
-            'type' => ['sometimes', 'string', 'in:text,video,file'],
+            'type' => ['sometimes', 'string', 'in:lesson'],
             'content' => ['nullable', 'string'],
             'video_url' => ['nullable', 'string', 'max:2048'],
-            'file_path' => ['nullable', 'string', 'max:255'],
-            'lesson_file' => [
-                'nullable',
-                'file',
-                function (string $attribute, mixed $value, Closure $fail): void {
-                    if (!$value instanceof UploadedFile) {
-                        return;
-                    }
-
-                    $allowedExtensions = ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf', 'png', 'jpg', 'jpeg', 'webp', 'mp4', 'mov', 'm4v', 'mp3', 'wav', 'zip'];
-                    $extension = strtolower((string) $value->getClientOriginalExtension());
-
-                    if (!in_array($extension, $allowedExtensions, true)) {
-                        $fail('The lesson file must be one of the supported file types.');
-                    }
-                },
-                'max:51200',
-            ],
+            'video_name' => ['nullable', 'string', 'max:255'],
+            'video' => ['nullable', 'file', 'mimetypes:video/mp4,video/quicktime,video/webm,video/x-matroska', 'max:512000'],
+            'remove_video' => ['sometimes', 'boolean'],
+            'estimated_time_minutes' => ['nullable', 'integer', 'min:0'],
             'position' => ['sometimes', 'integer', 'min:0'],
-            'is_preview' => ['sometimes', 'boolean'],
             'is_published' => ['sometimes', 'boolean'],
         ];
     }
@@ -53,30 +35,7 @@ class UpdateLessonRequest extends FormRequest
     {
         $this->normalizeTextFields(['title']);
         $this->normalizeLowercaseFields(['slug']);
-        $this->normalizeTrimmedFields(['type', 'content', 'video_url', 'file_path']);
-    }
-
-    public function withValidator(Validator $validator): void
-    {
-        $validator->after(function (Validator $validator): void {
-            $lesson = $this->route('lesson');
-            $lessonType = (string) $this->input('type', $lesson?->type ?? 'text');
-
-            if ($lessonType !== 'file') {
-                return;
-            }
-
-            if ($this->hasFile('lesson_file')) {
-                return;
-            }
-
-            $filePath = (string) $this->input('file_path', $lesson?->file_path ?? '');
-
-            if (trim($filePath) !== '') {
-                return;
-            }
-
-            $validator->errors()->add('lesson_file', 'A lesson file is required when the lesson type is file.');
-        });
+        $this->normalizeTrimmedFields(['type', 'content', 'video_url', 'video_name']);
+        $this->normalizeBooleanFields(['is_published', 'remove_video']);
     }
 }

@@ -10,6 +10,10 @@ use Illuminate\Support\Str;
 
 class CourseCertificateIssuer
 {
+    public function __construct(
+        private readonly CourseProgressCalculator $progressCalculator
+    ) {}
+
     public function issueIfEligible(Course $course, User $user): ?CourseCertificate
     {
         if (! $this->isEligible($course, $user)) {
@@ -45,22 +49,12 @@ class CourseCertificateIssuer
             return false;
         }
 
-        $lessonIds = $course->modules()
-            ->with('lessons:id,module_id')
-            ->get()
-            ->flatMap(fn ($module) => $module->lessons->pluck('id'))
-            ->values();
+        $course->load([
+            'modules.lessons' => fn ($query) => $query->where('is_published', true),
+            'modules.quizzes' => fn ($query) => $query->where('is_published', true),
+        ]);
 
-        if ($lessonIds->isEmpty()) {
-            return false;
-        }
-
-        $completedLessonsCount = $user->progressEntries()
-            ->whereIn('lesson_id', $lessonIds)
-            ->whereNotNull('completed_at')
-            ->count();
-
-        return $completedLessonsCount >= $lessonIds->count();
+        return $this->progressCalculator->forUser($course, $user)['is_complete'];
     }
 
     private function makeCertificateNumber(Course $course, User $user): string

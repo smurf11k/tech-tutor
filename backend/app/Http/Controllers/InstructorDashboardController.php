@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\CourseCertificate;
 use App\Models\Payment;
 use App\Models\Progress;
 use App\Models\QuizAttempt;
@@ -18,13 +19,18 @@ class InstructorDashboardController extends Controller
         abort_unless($user instanceof User, 401);
         abort_unless($user->isInstructor(), 403);
 
+        $recentCertificates = CourseCertificate::query()
+            ->with(['user', 'course'])
+            ->whereHas('course', fn($query) => $query->where('instructor_id', $user->id))
+            ->latest('issued_at')
+            ->get();
         $courses = Course::query()
             ->with(['modules.lessons', 'enrollments', 'certificates', 'payments', 'quizzes'])
-            ->when(! $user->isAdmin(), fn ($query) => $query->where('instructor_id', $user->id))
+            ->when(!$user->isAdmin(), fn($query) => $query->where('instructor_id', $user->id))
             ->latest()
             ->get();
 
-        $courseRows = $courses->map(fn (Course $course): array => $this->courseMetrics($course))->values();
+        $courseRows = $courses->map(fn(Course $course): array => $this->courseMetrics($course))->values();
 
         return response()->json([
             'summary' => [
@@ -34,10 +40,11 @@ class InstructorDashboardController extends Controller
                 'enrollments_count' => $courseRows->sum('enrollments_count'),
                 'certificates_count' => $courseRows->sum('certificates_count'),
                 'revenue_total' => number_format((float) $courseRows->sum('revenue_total'), 2, '.', ''),
-                'average_progress' => $this->average($courseRows->pluck('average_progress')->filter(fn ($value) => $value !== null)->all()),
-                'average_quiz_score' => $this->average($courseRows->pluck('average_quiz_score')->filter(fn ($value) => $value !== null)->all()),
+                'average_progress' => $this->average($courseRows->pluck('average_progress')->filter(fn($value) => $value !== null)->all()),
+                'average_quiz_score' => $this->average($courseRows->pluck('average_quiz_score')->filter(fn($value) => $value !== null)->all()),
             ],
             'courses' => $courseRows,
+            'recent_certificates' => $recentCertificates,
         ]);
     }
 
@@ -46,7 +53,7 @@ class InstructorDashboardController extends Controller
      */
     private function courseMetrics(Course $course): array
     {
-        $lessonIds = $course->modules->flatMap(fn ($module) => $module->lessons->pluck('id'))->values();
+        $lessonIds = $course->modules->flatMap(fn($module) => $module->lessons->pluck('id'))->values();
         $enrollmentUserIds = $course->enrollments->where('status', 'active')->pluck('user_id')->unique()->values();
         $quizIds = $course->quizzes->pluck('id')->values();
 
@@ -102,7 +109,7 @@ class InstructorDashboardController extends Controller
             ->pluck('completed_count', 'user_id');
 
         $progressValues = collect($userIds)
-            ->map(fn (int $userId): float => ((int) ($completedCounts[$userId] ?? 0) / count($lessonIds)) * 100)
+            ->map(fn(int $userId): float => ((int) ($completedCounts[$userId] ?? 0) / count($lessonIds)) * 100)
             ->all();
 
         return $this->average($progressValues);

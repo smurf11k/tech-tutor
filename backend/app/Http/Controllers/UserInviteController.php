@@ -78,6 +78,7 @@ class UserInviteController extends Controller
 
         $user = User::create([
             'name' => $validated['name'],
+            'nickname' => User::generateUniqueNickname($validated['nickname']),
             'email' => $invite->email,
             'password' => $validated['password'],
             'role' => $invite->role,

@@ -16,7 +16,7 @@ class StoreUserInviteRequest extends FormRequest
     {
         return [
             'email' => ['required', 'email', 'max:255'],
-            'role' => ['required', 'string', Rule::in(['student', 'instructor'])],
+            'role' => ['required', 'string', Rule::in(['student', 'instructor', 'admin'])],
         ];
     }
 

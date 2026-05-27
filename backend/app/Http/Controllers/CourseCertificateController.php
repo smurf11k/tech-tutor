@@ -16,22 +16,11 @@ class CourseCertificateController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 401);
 
-        $query = CourseCertificate::with(['course.instructor', 'user'])->latest('issued_at');
-
-        if ($user->isAdmin()) {
-            return response()->json($query->get());
-        }
-
-        if ($user->isInstructor()) {
-            return response()->json(
-                $query
-                    ->whereHas('course', fn ($query) => $query->where('instructor_id', $user->id))
-                    ->get()
-            );
-        }
-
         return response()->json(
-            $query->where('user_id', $user->id)->get()
+            CourseCertificate::with(['course.instructor', 'user'])
+                ->where('user_id', $user->id)
+                ->latest('issued_at')
+                ->get()
         );
     }
 
@@ -56,7 +45,16 @@ class CourseCertificateController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 401);
 
-        abort_if($user->id === $course->instructor_id && ! $user->isAdmin(), 403);
+        abort_if($user->id === $course->instructor_id && !$user->isAdmin(), 403);
+
+        if (
+            CourseCertificate::query()
+                ->where('course_id', $course->id)
+                ->where('user_id', $user->id)
+                ->exists()
+        ) {
+            abort(409, 'sertificate already issued');
+        }
 
         $certificate = $issuer->issueIfEligible($course, $user);
 

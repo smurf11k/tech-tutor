@@ -74,13 +74,16 @@ php artisan serve
 
 ## Демо-акаунти після seed
 
-Після `php artisan migrate --seed` або `composer db:fresh` доступні локальні демо-акаунти:
+Після `php artisan migrate --seed` або `composer db:fresh` доступні локальні демо-акаунти (пароль: `password`):
 
-- `admin@techtutor.test`
-- `instructor@techtutor.test`
-- `student@techtutor.test`
-- `student2@techtutor.test`
-- `banned@techtutor.test`
+- `admin@techtutor.test` — admin
+- `backend@techtutor.test` — викладач (backend)
+- `frontend@techtutor.test` — викладач (frontend)
+- `ml@techtutor.test` — викладач (ML)
+- `devops@techtutor.test` — викладач (DevOps)
+- `student@techtutor.test` — студент (зарахований у курси)
+- `student2@techtutor.test` — студент (додатковий)
+- `banned@techtutor.test` — заблокований студент (для перевірки банів)
 
 Спільний пароль для всіх демо-акаунтів:
 

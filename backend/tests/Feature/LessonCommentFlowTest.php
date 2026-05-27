@@ -153,10 +153,9 @@ class LessonCommentFlowTest extends TestCase
             'module_id' => $module->id,
             'title' => 'Commentable Lesson',
             'slug' => 'commentable-lesson',
-            'type' => 'text',
+            'type' => 'lesson',
             'content' => 'Lesson body',
             'position' => 1,
-            'is_preview' => false,
             'is_published' => true,
         ]);
 

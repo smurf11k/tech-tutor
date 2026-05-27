@@ -114,6 +114,8 @@ export function AuthProvider({ children }) {
       if (token) {
         await client.post("/auth/logout");
       }
+    } catch {
+      // The token can already be invalidated by an account deletion flow.
     } finally {
       clearAuth();
     }
@@ -137,9 +139,7 @@ export function AuthProvider({ children }) {
     [token, user, loading, client, login, logout, applySession, refreshUser],
   );
 
-  return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -51,8 +51,9 @@ class UserInviteFlowTest extends TestCase
 
         $acceptResponse = $this->postJson("/api/auth/invite/{$token}/accept", [
             'name' => 'Invited Instructor',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'nickname' => 'invited-instructor',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
             'token_name' => 'invite-onboarding',
         ])->assertCreated()
             ->assertJsonPath('token_type', 'Bearer')
@@ -61,10 +62,51 @@ class UserInviteFlowTest extends TestCase
 
         $user = User::where('email', 'invited.instructor@example.com')->firstOrFail();
         $this->assertNotNull($user->email_verified_at);
-        $this->assertTrue(Hash::check('password123', $user->password));
+        $this->assertTrue(Hash::check('Password123!', $user->password));
 
         $this->assertNotNull(UserInvite::where('token', $token)->first()?->used_at);
         $this->assertSame('instructor', $user->role);
+        $this->assertSame('invited-instructor', $user->nickname);
+    }
+
+    public function test_admin_can_send_admin_role_invite_and_recipient_can_onboard_via_link(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->postJson('/api/admin/users/invites', [
+            'email' => 'invited.admin@example.com',
+            'role' => 'admin',
+        ])->assertCreated()
+            ->assertJsonPath('message', 'Invitation sent.')
+            ->assertJsonPath('email', 'invited.admin@example.com')
+            ->assertJsonPath('role', 'admin');
+
+        $inviteUrl = $response->json('invite_url');
+        $this->assertNotEmpty($inviteUrl);
+
+        parse_str((string) parse_url($inviteUrl, PHP_URL_QUERY), $query);
+        $token = $query['token'] ?? null;
+        $this->assertNotEmpty($token);
+
+        $this->getJson("/api/auth/invite/{$token}")
+            ->assertOk()
+            ->assertJsonPath('email', 'invited.admin@example.com')
+            ->assertJsonPath('role', 'admin');
+
+        $this->postJson("/api/auth/invite/{$token}/accept", [
+            'name' => 'Invited Admin',
+            'nickname' => 'invited-admin',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+        ])->assertCreated()
+            ->assertJsonPath('user.email', 'invited.admin@example.com')
+            ->assertJsonPath('user.role', 'admin');
+
+        $user = User::where('email', 'invited.admin@example.com')->firstOrFail();
+        $this->assertSame('admin', $user->role);
+        $this->assertSame('invited-admin', $user->nickname);
     }
 
     public function test_non_admin_cannot_send_invites(): void
@@ -110,8 +152,9 @@ class UserInviteFlowTest extends TestCase
 
         $this->postJson('/api/auth/invite/expired-token/accept', [
             'name' => 'Expired Invite User',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'nickname' => 'expired-invite-user',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['token']);
 

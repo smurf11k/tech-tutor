@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,10 +17,27 @@ export default function AcceptInvite({ token }) {
   const [invite, setInvite] = useState(null);
   const [loadingInvite, setLoadingInvite] = useState(true);
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState(null);
+
+  const passwordChecks = useMemo(() => {
+    const checks = [
+      { label: "8+ characters", ok: password.length >= 8 },
+      { label: "1 lowercase letter", ok: /[a-z]/.test(password) },
+      { label: "1 uppercase letter", ok: /[A-Z]/.test(password) },
+      { label: "1 number", ok: /\d/.test(password) },
+      { label: "1 special symbol", ok: /[^A-Za-z0-9]/.test(password) },
+    ];
+
+    return {
+      checks,
+      score: checks.filter((check) => check.ok).length,
+      complete: checks.every((check) => check.ok),
+    };
+  }, [password]);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +83,7 @@ export default function AcceptInvite({ token }) {
     try {
       const response = await api.post(`/auth/invite/${token}/accept`, {
         name: name.trim(),
+        nickname: nickname.trim(),
         password,
         password_confirmation: passwordConfirmation,
         token_name: "web",
@@ -81,7 +99,10 @@ export default function AcceptInvite({ token }) {
       setNotice({
         variant: "destructive",
         title: "Could not complete invitation",
-        description: getApiErrorMessage(error, "The invitation may have expired."),
+        description: getApiErrorMessage(
+          error,
+          "The invitation may have expired.",
+        ),
       });
     } finally {
       setLoading(false);
@@ -95,9 +116,7 @@ export default function AcceptInvite({ token }) {
     >
       {notice ? (
         <Alert
-          variant={
-            notice.variant === "destructive" ? "destructive" : "default"
-          }
+          variant={notice.variant === "destructive" ? "destructive" : "default"}
         >
           <AlertTitle>{notice.title}</AlertTitle>
           <AlertDescription>{notice.description}</AlertDescription>
@@ -128,6 +147,15 @@ export default function AcceptInvite({ token }) {
               />
             </label>
             <label className="block space-y-2">
+              <Label>Nickname</Label>
+              <Input
+                required
+                minLength={3}
+                value={nickname}
+                onChange={(event) => setNickname(event.target.value)}
+              />
+            </label>
+            <label className="block space-y-2">
               <Label>Password</Label>
               <Input
                 type="password"
@@ -136,6 +164,32 @@ export default function AcceptInvite({ token }) {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mono-ui">
+                  <span>Password strength</span>
+                  <span>{passwordChecks.score}/5</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-border">
+                  <div
+                    className={`h-full rounded-full transition-all ${passwordChecks.complete ? "bg-primary" : passwordChecks.score >= 3 ? "bg-amber-500" : "bg-destructive"}`}
+                    style={{ width: `${(passwordChecks.score / 5) * 100}%` }}
+                  />
+                </div>
+                <div className="grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
+                  {passwordChecks.checks.map((check) => (
+                    <div key={check.label} className="flex items-center gap-2">
+                      <span
+                        className={
+                          check.ok ? "text-primary" : "text-muted-foreground"
+                        }
+                      >
+                        {check.ok ? "✓" : "•"}
+                      </span>
+                      <span>{check.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </label>
             <label className="block space-y-2">
               <Label>Confirm password</Label>
@@ -149,7 +203,15 @@ export default function AcceptInvite({ token }) {
                 }
               />
             </label>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={
+                loading ||
+                !passwordChecks.complete ||
+                password !== passwordConfirmation
+              }
+            >
               {loading ? "Creating account..." : "Create account"}
             </Button>
           </form>

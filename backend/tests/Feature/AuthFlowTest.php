@@ -24,9 +24,10 @@ class AuthFlowTest extends TestCase
     {
         $this->postJson('/api/auth/register/request-verification-code', [
             'name' => 'Code Request Student',
+            'nickname' => 'code-request-student',
             'email' => 'code.request@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
         ])->assertCreated()
             ->assertJsonPath('message', 'Verification code sent to your email.')
             ->assertJsonPath('email', 'code.request@example.com');
@@ -53,9 +54,10 @@ class AuthFlowTest extends TestCase
 
         $response = $this->postJson('/api/auth/register/verify-code', [
             'name' => 'Verified Student',
+            'nickname' => 'verified-student',
             'email' => 'verify.code@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
             'code' => '123456',
             'token_name' => 'test-verify-code',
         ])->assertCreated()
@@ -89,9 +91,10 @@ class AuthFlowTest extends TestCase
 
         $this->postJson('/api/auth/register/verify-code', [
             'name' => 'Expired Code User',
+            'nickname' => 'expired-code-user',
             'email' => 'expired.code@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
             'code' => '654321',
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['code']);
@@ -105,9 +108,10 @@ class AuthFlowTest extends TestCase
     {
         $response = $this->postJson('/api/auth/register', [
             'name' => 'New Student',
+            'nickname' => 'new-student',
             'email' => 'new.student@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
             'token_name' => 'test-register',
         ])->assertCreated()
             ->assertJsonPath('token_type', 'Bearer')
@@ -122,6 +126,31 @@ class AuthFlowTest extends TestCase
             ->getJson('/api/auth/me')
             ->assertOk()
             ->assertJsonPath('email', 'new.student@example.com');
+    }
+
+    public function test_user_can_delete_own_account_and_revoke_their_tokens(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Delete Me',
+            'nickname' => 'delete-me',
+            'email' => 'delete.me@example.com',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'token_name' => 'test-delete-account',
+        ])->assertCreated();
+
+        $token = $response->json('token');
+
+        $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->deleteJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('message', 'Account deleted.');
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'delete.me@example.com',
+        ]);
+
+        $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
     public function test_user_can_login_and_logout_with_sanctum_token(): void

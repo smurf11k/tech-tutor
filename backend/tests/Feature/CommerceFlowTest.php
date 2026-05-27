@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Course;
+use App\Mail\ContactFormMail;
 use App\Models\Payment;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -782,7 +784,7 @@ class CommerceFlowTest extends TestCase
             'is_published' => true,
         ])->assertOk();
 
-        auth()->forgetGuards();
+        app('auth')->forgetGuards();
 
         $this->getJson("/api/courses/{$course->id}/reviews")
             ->assertOk()
@@ -792,10 +794,12 @@ class CommerceFlowTest extends TestCase
 
     public function test_contact_form_can_be_submitted_without_auth(): void
     {
+        Mail::fake();
+
         $this->postJson('/api/contact', [
             'name' => 'Alex Student',
             'email' => 'alex@example.com',
-            'subject' => 'Course question',
+            'subject' => 'General Question',
             'message' => 'How do I reset my password?',
         ])
             ->assertCreated()
@@ -803,7 +807,12 @@ class CommerceFlowTest extends TestCase
 
         $this->assertDatabaseHas('contact_messages', [
             'email' => 'alex@example.com',
-            'subject' => 'Course question',
+            'subject' => 'General Question',
         ]);
+
+        Mail::assertSent(ContactFormMail::class, function (ContactFormMail $mail): bool {
+            return $mail->data['subject'] === 'General Question'
+                && $mail->data['email'] === 'alex@example.com';
+        });
     }
 }
