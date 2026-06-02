@@ -1,10 +1,11 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
-const backendOrigin = new URL(apiBaseUrl, "http://localhost:8000").origin;
 const stripeCurrency = (import.meta.env.VITE_STRIPE_CURRENCY || "USD").trim();
+const backendOrigin =
+  typeof window !== "undefined"
+    ? window.location.origin
+    : "http://localhost:5173";
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -29,12 +30,22 @@ export function resolveBackendAssetUrl(url) {
     return "";
   }
 
-  if (
-    url.startsWith("http://") ||
-    url.startsWith("https://") ||
-    url.startsWith("blob:") ||
-    url.startsWith("data:")
-  ) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    try {
+      const parsed = new URL(url);
+      const frontendOrigin = new URL(backendOrigin);
+
+      if (parsed.origin === frontendOrigin.origin) {
+        return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+      }
+    } catch {
+      return url;
+    }
+
+    return url;
+  }
+
+  if (url.startsWith("blob:") || url.startsWith("data:")) {
     return url;
   }
 

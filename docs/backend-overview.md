@@ -39,14 +39,23 @@ This documentation describes the backend logic currently implemented for TechTut
 - Current-user, logout, verification resend, email verification, forgot-password, and reset-password endpoints are available
 - Banned users cannot sign in and are blocked from protected routes
 - Auth endpoints are rate-limited to reduce brute-force attempts
-- Registration and login require CAPTCHA when CAPTCHA is configured in `.env`
+- `CAPTCHA_ENABLED` in backend `.env` is the source of truth for whether CAPTCHA is enforced
+- The frontend reads `/api/app-config` to decide whether to render CAPTCHA UI
+- Registration, login, and the email-code signup request require CAPTCHA only when `CAPTCHA_ENABLED=true`
 - Request normalization strips tags and trims common user-facing text inputs before validation
 
 ### Auth Security Notes
 
 - Use an invisible CAPTCHA or score-based CAPTCHA in production to keep login and registration low-friction
-- Local development can use a demo token for the CAPTCHA helper button, but production still requires the real widget token
+- Local development can use a demo token only when CAPTCHA is enabled but no site key is configured yet
 - `localhost` is an acceptable site entry for local testing and can be replaced later in the CAPTCHA provider dashboard
+- If CAPTCHA is disabled, the frontend hides the CAPTCHA helper entirely and sends no token
+
+### Runtime App Config
+
+- `GET /api/app-config` exposes the frontend-facing runtime switches that the auth UI needs
+- The current payload includes `captcha_enabled` and `captcha_site_key`
+- This keeps the frontend aligned with the backend `.env` without hardcoding security behavior into the browser bundle
 
 #### Google OAuth Authentication
 
@@ -108,7 +117,7 @@ TechTutor supports seamless Google OAuth login for students and existing users.
 - Enroll into course
 - Save lesson progress (0-100)
 - Track completion timestamp when progress reaches 100
-- Issue an idempotent course certificate after every course lesson is completed
+- Issue an idempotent course certificate when a course becomes complete
 - Certificate visibility is role-aware: students see their own, instructors see certificates for their courses, admins see all
 - Email the student when enrollment is created and when a certificate is issued
 

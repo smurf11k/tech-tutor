@@ -24,7 +24,7 @@ class RequestVerificationCodeRequest extends FormRequest
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()->symbols()],
             'role' => ['prohibited'],
-            'captcha_token' => [Rule::requiredIf(fn(): bool => (bool) config('services.captcha.secret')), 'nullable', 'string'],
+            'captcha_token' => [Rule::requiredIf(fn(): bool => (bool) config('services.captcha.enabled')), 'nullable', 'string'],
         ];
     }
 

@@ -18,12 +18,15 @@ const { theme, page, frontmatter } = useData()
 ## Results
 
 ### Theme Data
+
 <pre>{{ theme }}</pre>
 
 ### Page Data
+
 <pre>{{ page }}</pre>
 
 ### Page Frontmatter
+
 <pre>{{ frontmatter }}</pre>
 ```
 
@@ -36,12 +39,15 @@ const { site, theme, page, frontmatter } = useData()
 ## Results
 
 ### Theme Data
+
 <pre>{{ theme }}</pre>
 
 ### Page Data
+
 <pre>{{ page }}</pre>
 
 ### Page Frontmatter
+
 <pre>{{ frontmatter }}</pre>
 
 ## More
@@ -50,4 +56,6 @@ Check out the documentation for the [full list of runtime APIs](https://vitepres
 
 ## Auth Helper Notes
 
-For local backend testing, use `localhost` as the CAPTCHA site domain and the demo CAPTCHA helper button in the frontend to generate the placeholder token. In production, replace it with the real CAPTCHA widget token and update the allowed domain in your provider dashboard.
+The frontend reads backend runtime config from `GET /api/app-config` and hides the CAPTCHA UI when `CAPTCHA_ENABLED=false`.
+
+For local backend testing with CAPTCHA enabled, use `localhost` as the CAPTCHA site domain and the demo CAPTCHA helper button in the frontend to generate the placeholder token. In production, replace it with the real CAPTCHA widget token and update the allowed domain in your provider dashboard.

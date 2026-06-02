@@ -10,6 +10,7 @@ outline: deep
 
 ## Публічні маршрути
 
+- `GET /app-config`
 - `GET /courses`
 - `GET /courses/{course}`
 - `POST /auth/register`
@@ -38,7 +39,11 @@ outline: deep
 
 Для self-registration дозволені ролі `student` і `instructor`; адміністратори керуються через seed або admin tooling.
 
-Коли CAPTCHA увімкнена у backend `.env`, реєстрація та логін також вимагають `captcha_token`.
+`GET /app-config` повертає runtime-стан CAPTCHA, який використовує frontend. Відповідь зараз містить `captcha_enabled` і `captcha_site_key`.
+
+Коли `CAPTCHA_ENABLED=true` у backend `.env`, реєстрація, логін і запит verification code для signup також вимагають `captcha_token`.
+
+Коли `CAPTCHA_ENABLED=false`, бекенд приймає auth-запити без CAPTCHA, а frontend ховає CAPTCHA UI.
 
 `POST /auth/login` приймає `email`, `password` та необов'язковий `token_name`, після чого повертає:
 
@@ -74,9 +79,10 @@ outline: deep
 TechTutor також підтримує двокрокову реєстрацію через verification code:
 
 1. `POST /auth/register/request-verification-code` — створює verification record, генерує 6-значний код і відправляє його на email.
-   - Потрібні `name`, `email`, `password`, `password_confirmation`, optional `role`, і `captcha_token` (якщо CAPTCHA увімкнена)
-   - Код діє 5 хвилин
-   - У відповідь повертається email
+
+- Потрібні `name`, `email`, `password`, `password_confirmation`, optional `role`, і `captcha_token`, коли CAPTCHA увімкнена
+- Код діє 5 хвилин
+- У відповідь повертається email
 
 2. `POST /auth/register/verify-code` — перевіряє 6-значний код і завершує реєстрацію.
    - Потрібні `email`, `code`, `name`, `password`, `password_confirmation`, optional `role`, `token_name`
@@ -84,7 +90,7 @@ TechTutor також підтримує двокрокову реєстраці�
 
 ### cURL / Postman приклади для auth
 
-Реєстрація з CAPTCHA token:
+Реєстрація з CAPTCHA token, коли CAPTCHA увімкнена:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/auth/register" \
@@ -101,7 +107,9 @@ curl -X POST "http://127.0.0.1:8000/api/auth/register" \
   }'
 ```
 
-Логін з CAPTCHA token:
+Якщо CAPTCHA вимкнена, `captcha_token` слід прибрати з цих запитів.
+
+Логін з CAPTCHA token, коли CAPTCHA увімкнена:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/auth/login" \

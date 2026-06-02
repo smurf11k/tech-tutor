@@ -10,6 +10,7 @@ Base URL during local backend development:
 
 ## Public Routes
 
+- `GET /app-config`
 - `GET /courses`
 - `GET /courses/{course}`
 - `POST /auth/register`
@@ -37,7 +38,11 @@ Base URL during local backend development:
 
 Allowed self-registration roles are `student` and `instructor`; admins are still managed by seed data or admin tools.
 
-When CAPTCHA is enabled in backend `.env`, both registration and login also require `captcha_token`.
+`GET /app-config` returns the runtime CAPTCHA state used by the frontend. The response currently exposes `captcha_enabled` and `captcha_site_key`.
+
+When `CAPTCHA_ENABLED=true` in backend `.env`, registration, login, and the email-code signup request flow also require `captcha_token`.
+
+When `CAPTCHA_ENABLED=false`, the backend accepts the auth requests without CAPTCHA and the frontend hides the CAPTCHA UI.
 
 `POST /auth/login` accepts `email`, `password`, and optional `token_name`, then returns:
 
@@ -73,9 +78,10 @@ Email verification flow:
 TechTutor also supports a two-step registration flow with email verification codes:
 
 1. `POST /auth/register/request-verification-code` — Creates a verification record, generates a 6-digit code, and emails it to the provided address.
-   - Requires `name`, `email`, `password`, `password_confirmation`, optional `role`, and `captcha_token` (if CAPTCHA is enabled)
-   - Code expires in 5 minutes
-   - Returns the email address for reference
+
+- Requires `name`, `email`, `password`, `password_confirmation`, optional `role`, and `captcha_token` when CAPTCHA is enabled
+- Code expires in 5 minutes
+- Returns the email address for reference
 
 2. `POST /auth/register/verify-code` — Validates the 6-digit code and finalizes registration.
    - Requires `email`, `code`, `name`, `password`, `password_confirmation`, optional `role` and `token_name`
@@ -83,7 +89,7 @@ TechTutor also supports a two-step registration flow with email verification cod
 
 ### Auth cURL / Postman Examples
 
-Register with CAPTCHA token:
+Register with CAPTCHA token, when CAPTCHA is enabled:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/auth/register" \
@@ -100,7 +106,9 @@ curl -X POST "http://127.0.0.1:8000/api/auth/register" \
   }'
 ```
 
-Login with CAPTCHA token:
+If CAPTCHA is disabled, omit `captcha_token` from these requests.
+
+Login with CAPTCHA token, when CAPTCHA is enabled:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/auth/login" \
@@ -353,7 +361,7 @@ Admins and the course instructor may enroll without purchase checks.
 - `POST /lessons/{lesson}/progress`
 - `PUT /lessons/{lesson}/progress`
 
-When progress reaches `100`, the backend checks whether the student has completed every lesson in the course. If yes, it issues or returns the existing course certificate in the progress response.
+When progress reaches `100`, the backend checks whether the student has completed the course. If yes, it issues or returns the existing course certificate in the progress response. The same certificate flow also runs after a passing quiz attempt when that attempt completes the course.
 
 Progress response shape:
 

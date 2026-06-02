@@ -178,7 +178,7 @@ class CourseFlowTest extends TestCase
 
         $this->postJson("/api/courses/{$course->id}/certificate")
             ->assertStatus(409)
-            ->assertJsonPath('message', 'sertificate already issued');
+            ->assertJsonPath('message', 'certificate already issued');
 
         $this->assertDatabaseCount('course_certificates', 1);
 
@@ -186,6 +186,72 @@ class CourseFlowTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1)
             ->assertJsonPath('0.id', $certificateId);
+    }
+
+    public function test_student_receives_certificate_after_passing_the_final_quiz(): void
+    {
+        Notification::fake();
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Quiz Completion Course',
+            'slug' => 'quiz-completion-course',
+            'description' => 'Completion certificate test for quizzes',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $module = Module::create([
+            'course_id' => $course->id,
+            'title' => 'Final Module',
+            'slug' => 'final-module',
+            'position' => 1,
+        ]);
+
+        $quiz = Quiz::create([
+            'course_id' => $course->id,
+            'module_id' => $module->id,
+            'title' => 'Final Quiz',
+            'pass_score' => 60,
+            'is_published' => true,
+            'position' => 1,
+        ]);
+
+        $question = $quiz->questions()->create([
+            'type' => 'single_choice',
+            'prompt' => 'Which answer is correct?',
+            'options' => [
+                ['key' => 'a', 'text' => 'A'],
+                ['key' => 'b', 'text' => 'B'],
+            ],
+            'correct_answers' => ['b'],
+            'points' => 1,
+            'position' => 1,
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
+
+        $this->postJson("/api/quizzes/{$quiz->id}/attempts", [
+            'answers' => [
+                (string) $question->id => 'b',
+            ],
+        ])->assertCreated()
+            ->assertJsonPath('passed', true)
+            ->assertJsonPath('certificate.course_id', $course->id)
+            ->assertJsonPath('certificate.user_id', $student->id);
+
+        $this->assertDatabaseHas('course_certificates', [
+            'course_id' => $course->id,
+            'user_id' => $student->id,
+        ]);
+
+        Notification::assertSentTo($student, CourseCertificateIssuedNotification::class);
     }
 
     public function test_certificate_uses_published_course_progress_for_eligibility(): void

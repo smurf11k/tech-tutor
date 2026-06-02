@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- Custom video player
 - New frontend UI design and layout refinements
 - Instructor content editor with:
   - drag & drop video uploads
@@ -87,6 +88,9 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Updated image upload logic
+- Updated content editing workflow
+- Updated video upload and render logic
 - Improved responsive frontend behavior
 - Improved navigation handling for already-passed quiz pages
 - Improved lesson update logic
@@ -100,6 +104,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Fixed automatic certificate issuance
+- Frontend CAPTCHA visibility now follows backend `CAPTCHA_ENABLED` through `/api/app-config`
 - Fixed hardcoded frontend design issues
 - Fixed `php artisan optimize` view-cache failure by restoring the expected `resources/views` directory`
 - Fixed lesson file replacement and cleanup handling

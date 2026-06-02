@@ -24,6 +24,7 @@ class StoreQuizRequest extends FormRequest
             'estimated_time_minutes' => ['nullable', 'integer', 'min:0'],
             'time_limit_seconds' => ['nullable', 'integer', 'min:0'],
             'is_published' => ['sometimes', 'boolean'],
+            'revision_status' => ['sometimes', 'string', 'in:draft,pending_review,pending_unpublish,published'],
             'position' => ['sometimes', 'integer', 'min:0'],
             'questions' => ['sometimes', 'array'],
             'questions.*.type' => ['required_with:questions', 'in:single_choice,multiple_choice'],
@@ -39,7 +40,7 @@ class StoreQuizRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->normalizeTextFields(['title', 'description']);
+        $this->normalizeTextFields(['title', 'description', 'revision_status']);
 
         $questions = $this->input('questions');
 

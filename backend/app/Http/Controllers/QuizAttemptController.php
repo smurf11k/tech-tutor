@@ -9,6 +9,7 @@ use App\Models\QuizAttempt;
 use App\Models\QuizQuestion;
 use App\Models\User;
 use App\Notifications\QuizAttemptCompletedNotification;
+use App\Services\CourseCertificateIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,7 +24,7 @@ class QuizAttemptController extends Controller
         return response()->json($quiz->attempts()->with('user')->latest()->get());
     }
 
-    public function store(StoreQuizAttemptRequest $request, Quiz $quiz): JsonResponse
+    public function store(StoreQuizAttemptRequest $request, Quiz $quiz, CourseCertificateIssuer $issuer): JsonResponse
     {
         $user = $this->ensureAccess($request, $quiz);
         $this->ensureAttemptRules($user, $quiz);
@@ -44,7 +45,14 @@ class QuizAttemptController extends Controller
         $attempt->load(['quiz', 'user']);
         $user->notify(new QuizAttemptCompletedNotification($attempt));
 
-        return response()->json($attempt, 201);
+        $certificate = $attempt->passed
+            ? $issuer->issueIfEligible($quiz->course, $user)
+            : null;
+
+        return response()->json([
+            ...$attempt->toArray(),
+            'certificate' => $certificate,
+        ], 201);
     }
 
     private function ensureAccess(Request $request, Quiz $quiz): User
@@ -122,9 +130,9 @@ class QuizAttemptController extends Controller
         $answers = is_array($answer) ? $answer : [$answer];
 
         $normalized = collect($answers)
-            ->filter(fn (mixed $value): bool => is_string($value) || is_numeric($value))
-            ->map(fn (mixed $value): string => (string) $value)
-            ->map(fn (string $value): string => trim($value))
+            ->filter(fn(mixed $value): bool => is_string($value) || is_numeric($value))
+            ->map(fn(mixed $value): string => (string) $value)
+            ->map(fn(string $value): string => trim($value))
             ->filter()
             ->unique()
             ->values()

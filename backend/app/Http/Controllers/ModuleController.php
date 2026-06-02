@@ -15,7 +15,13 @@ class ModuleController extends Controller
     {
         $this->authorize('view', $course);
 
-        $modules = $course->modules()->with(['lessons', 'quizzes.questions'])->get();
+        $modules = $course->modules()->with([
+            'lessons.latestRevision',
+            'lessons.publishedRevision',
+            'quizzes.latestRevision',
+            'quizzes.publishedRevision',
+            'quizzes.questions',
+        ])->get();
 
         $user = request()->user();
         $isInstructor = $this->isInstructor($user, $course);
@@ -61,7 +67,13 @@ class ModuleController extends Controller
             'position' => $validated['position'] ?? 0,
         ]);
 
-        $module = $module->load(['lessons', 'quizzes.questions']);
+        $module = $module->load([
+            'lessons.latestRevision',
+            'lessons.publishedRevision',
+            'quizzes.latestRevision',
+            'quizzes.publishedRevision',
+            'quizzes.questions',
+        ]);
 
         // Hide correct_answers from students (though this is a create action, so only instructors)
         return response()->json($module, 201);
@@ -111,7 +123,13 @@ class ModuleController extends Controller
 
         $module->update($request->validated());
 
-        $module = $module->fresh()->load(['lessons', 'quizzes.questions']);
+        $module = $module->fresh()->load([
+            'lessons.latestRevision',
+            'lessons.publishedRevision',
+            'quizzes.latestRevision',
+            'quizzes.publishedRevision',
+            'quizzes.questions',
+        ]);
 
         // Hide correct_answers from students (though this is an update action, so only instructors)
         return response()->json($module);

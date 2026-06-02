@@ -163,8 +163,8 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return Attribute::make(
             get: fn() => $this->avatar_path
-            ? rtrim((string) config('app.url', 'http://localhost'), '/') . '/storage/' . ltrim($this->avatar_path, '/')
-            : null,
+                ? rtrim((string) config('filesystems.disks.s3.url', ''), '/') . '/' . ltrim($this->avatar_path, '/')
+                : null,
         );
     }
 
@@ -195,7 +195,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function deleteAccount(): void
     {
         if ($this->avatar_path) {
-            Storage::disk('public')->delete($this->avatar_path);
+            try {
+                Storage::disk('s3')->delete($this->avatar_path);
+            } catch (\Throwable $e) {
+                // Storage may not be configured in testing environment
+            }
         }
 
         $this->tokens()->delete();

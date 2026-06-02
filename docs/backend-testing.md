@@ -295,7 +295,11 @@ Response contains a `token` value. Use it as bearer token in requests below.
 
 ### Auth Security Checks
 
-If CAPTCHA is enabled in `.env`, the auth endpoints require `captcha_token`. In local development, the demo CAPTCHA helper button in the frontend sends the placeholder token `demo-captcha-token`, which the backend accepts only in local/testing environments.
+`GET /api/app-config` returns the runtime settings used by the frontend auth forms.
+
+If `CAPTCHA_ENABLED=true` in `.env`, the auth endpoints require `captcha_token`. In local development, the demo CAPTCHA helper button in the frontend sends the placeholder token `demo-captcha-token`, which the backend accepts only in local/testing environments.
+
+If `CAPTCHA_ENABLED=false`, the auth endpoints accept requests without CAPTCHA and the frontend hides the CAPTCHA UI.
 
 Rate limiting is applied to auth routes server-side, so repeated registration/login attempts may return throttle errors.
 
@@ -316,6 +320,13 @@ $TOKEN = "YOUR_SANCTUM_TOKEN"
 ```
 
 ## Public Endpoints
+
+Check runtime config:
+
+```bash
+curl -X GET "$BASE_URL/app-config" \
+  -H "Accept: application/json"
+```
 
 List courses:
 
@@ -371,7 +382,7 @@ Get one course:
 curl -X GET "$BASE_URL/courses/1"
 ```
 
-Register a new user:
+Register a new user with CAPTCHA token when CAPTCHA is enabled:
 
 ```bash
 curl -X POST "$BASE_URL/auth/register" \
@@ -388,7 +399,7 @@ curl -X POST "$BASE_URL/auth/register" \
   }'
 ```
 
-Login with email/password:
+Login with email/password and CAPTCHA token when CAPTCHA is enabled:
 
 ```bash
 curl -X POST "$BASE_URL/auth/login" \
@@ -396,6 +407,8 @@ curl -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"student@techtutor.test","password":"password","token_name":"manual-test","captcha_token":"demo-captcha-token"}'
 ```
+
+If CAPTCHA is disabled, remove `captcha_token` from the auth examples and requests.
 
 Forgot/reset password:
 

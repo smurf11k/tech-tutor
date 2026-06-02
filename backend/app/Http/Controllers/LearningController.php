@@ -30,7 +30,7 @@ class LearningController extends Controller
             ->withAvg([
                 'reviews as average_rating' => fn($query) => $query->where('is_published', true),
             ], 'rating')
-            ->with(['modules.lessons', 'modules.quizzes', 'quizzes'])
+            ->with(['modules.lessons.latestRevision', 'modules.lessons.publishedRevision', 'modules.quizzes', 'quizzes'])
             ->latest('updated_at')
             ->paginate($request->integer('per_page', 50) ?: 50);
 
@@ -72,7 +72,7 @@ class LearningController extends Controller
 
         $this->authorizeUserAccess($user, $course);
 
-        $course->load(['modules.lessons', 'modules.quizzes.questions']);
+        $course->load(['modules.lessons.latestRevision', 'modules.lessons.publishedRevision', 'modules.quizzes.questions']);
 
         // Filter out unpublished lessons/quizzes for non-admins/non-instructors
         $isPrivileged = $user->isAdmin() || $user->id === $course->instructor_id;

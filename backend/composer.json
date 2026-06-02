@@ -15,12 +15,14 @@
     ],
     "require": {
         "php": "^8.3",
+        "aws/aws-sdk-php": "^3.322.9",
         "http-interop/http-factory-guzzle": "^1.2",
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.3",
         "laravel/scout": "^11.1",
         "laravel/socialite": "^5.27",
         "laravel/tinker": "^3.0",
+        "league/flysystem-aws-s3-v3": "^3.25.1",
         "meilisearch/meilisearch-php": "^1.16"
     },
     "require-dev": {
@@ -50,6 +52,7 @@
             "@php artisan key:generate",
             "@php artisan migrate --force",
             "npm install",
+            "npm --prefix ../frontend install",
             "npm run build"
         ],
         "cleanup": [
@@ -75,7 +78,10 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm --prefix ../frontend run dev\" --names=server,queue,frontend --kill-others"
+        ],
+        "dev:logs": [
+            "@php artisan pail --timeout=0"
         ],
         "test": [
             "@php artisan config:clear --ansi",

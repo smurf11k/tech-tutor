@@ -47,14 +47,14 @@ class CourseCertificateController extends Controller
 
         abort_if($user->id === $course->instructor_id && !$user->isAdmin(), 403);
 
-        if (
+        abort_if(
             CourseCertificate::query()
                 ->where('course_id', $course->id)
                 ->where('user_id', $user->id)
-                ->exists()
-        ) {
-            abort(409, 'sertificate already issued');
-        }
+                ->exists(),
+            409,
+            'certificate already issued'
+        );
 
         $certificate = $issuer->issueIfEligible($course, $user);
 

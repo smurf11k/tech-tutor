@@ -25,7 +25,7 @@ class RegisterRequest extends FormRequest
             'password' => ['required', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()->symbols()],
             'role' => ['prohibited'],
             'token_name' => ['sometimes', 'string', 'max:255'],
-            'captcha_token' => [Rule::requiredIf(fn(): bool => (bool) config('services.captcha.secret')), 'nullable', 'string'],
+            'captcha_token' => [Rule::requiredIf(fn(): bool => (bool) config('services.captcha.enabled')), 'nullable', 'string'],
         ];
     }
 

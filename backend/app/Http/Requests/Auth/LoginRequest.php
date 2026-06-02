@@ -21,7 +21,7 @@ class LoginRequest extends FormRequest
             'email' => ['required', 'string', 'lowercase', 'email'],
             'password' => ['required', 'string'],
             'token_name' => ['sometimes', 'string', 'max:255'],
-            'captcha_token' => [Rule::requiredIf(fn(): bool => (bool) config('services.captcha.secret')), 'nullable', 'string'],
+            'captcha_token' => [Rule::requiredIf(fn(): bool => (bool) config('services.captcha.enabled')), 'nullable', 'string'],
         ];
     }
 

@@ -173,21 +173,35 @@ class AuthController extends Controller
         }
 
         if ($request->boolean('remove_avatar')) {
-            if ($user->avatar_path) {
-                Storage::disk('public')->delete($user->avatar_path);
-            }
-
+            Storage::disk('s3')->delete($user->avatar_path);
             $user->avatar_path = null;
         }
 
         if ($request->hasFile('avatar')) {
-            if ($user->avatar_path) {
-                Storage::disk('public')->delete($user->avatar_path);
+            Storage::disk('s3')->delete($user->avatar_path);
+
+            $avatarFile = $request->file('avatar');
+            $extension = strtolower($avatarFile->getClientOriginalExtension() ?: $avatarFile->extension() ?: 'jpg');
+            $filename = 'avatars/' . Str::uuid()->toString() . '.' . $extension;
+            $stream = fopen($avatarFile->getRealPath(), 'rb');
+
+            if ($stream === false) {
+                abort(500, 'Unable to read the uploaded avatar file.');
             }
 
-            $user->avatar_path = $request
-                ->file('avatar')
-                ->store('avatars', 'public');
+            try {
+                $uploaded = Storage::disk('s3')->put($filename, $stream, [
+                    'visibility' => 'public',
+                ]);
+            } finally {
+                fclose($stream);
+            }
+
+            if (!$uploaded) {
+                abort(500, 'Unable to upload avatar to object storage.');
+            }
+
+            $user->avatar_path = $filename;
         }
 
         $user->save();

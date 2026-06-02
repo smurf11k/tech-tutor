@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingState } from "@/components/common/LoadingState";
 import { PageHeader } from "@/components/common/PageHeader";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { extractList, getApiErrorMessage } from "@/lib/utils";
@@ -32,6 +33,12 @@ export default function AdminModerationPage() {
 
   useEffect(() => {
     loadQueue();
+  }, [loadQueue]);
+
+  useEffect(() => {
+    const handler = () => loadQueue();
+    window.addEventListener("moderation:changed", handler);
+    return () => window.removeEventListener("moderation:changed", handler);
   }, [loadQueue]);
 
   async function moderateReview(reviewId, isPublished) {
@@ -64,7 +71,73 @@ export default function AdminModerationPage() {
     }
   }
 
-  async function moderatePublishRequest(publishRequestId, action) {
+  async function moderateLessonRevision(revisionId, action, revisionStatus) {
+    setBusy(true);
+    try {
+      await client.patch(
+        `/admin/moderation-queue/lesson-revisions/${revisionId}`,
+        {
+          action,
+          declined_reason: declineReasons[revisionId] || undefined,
+        },
+      );
+      if (action === "accept") {
+        toast.success(
+          revisionStatus === "pending_unpublish"
+            ? "Lesson unpublished."
+            : "Lesson published.",
+        );
+      } else {
+        toast.success("Lesson revision declined.");
+      }
+      setDeclineReasons((current) => {
+        const next = { ...current };
+        delete next[revisionId];
+        return next;
+      });
+      window.dispatchEvent(new Event("moderation:changed"));
+      await loadQueue();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function moderateQuizRevision(revisionId, action, revisionStatus) {
+    setBusy(true);
+    try {
+      await client.patch(
+        `/admin/moderation-queue/quiz-revisions/${revisionId}`,
+        {
+          action,
+          declined_reason: declineReasons[revisionId] || undefined,
+        },
+      );
+      if (action === "accept") {
+        toast.success(
+          revisionStatus === "pending_unpublish"
+            ? "Quiz unpublished."
+            : "Quiz published.",
+        );
+      } else {
+        toast.success("Quiz revision declined.");
+      }
+      setDeclineReasons((current) => {
+        const next = { ...current };
+        delete next[revisionId];
+        return next;
+      });
+      window.dispatchEvent(new Event("moderation:changed"));
+      await loadQueue();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function moderatePublishRequest(publishRequestId, action, requestType) {
     setBusy(true);
     try {
       await client.patch(
@@ -74,14 +147,25 @@ export default function AdminModerationPage() {
           declined_reason: declineReasons[publishRequestId] || undefined,
         },
       );
-      toast.success(
-        action === "accept" ? "Course published." : "Publish request declined.",
-      );
+      if (action === "accept") {
+        toast.success(
+          requestType === "unpublish"
+            ? "Course unpublished."
+            : "Course published.",
+        );
+      } else {
+        toast.success(
+          requestType === "unpublish"
+            ? "Unpublish request declined."
+            : "Publish request declined.",
+        );
+      }
       setDeclineReasons((current) => {
         const next = { ...current };
         delete next[publishRequestId];
         return next;
       });
+      window.dispatchEvent(new Event("moderation:changed"));
       await loadQueue();
     } catch (err) {
       toast.error(getApiErrorMessage(err));
@@ -94,7 +178,7 @@ export default function AdminModerationPage() {
     <section>
       <PageHeader
         title="Moderation queue"
-        description="Approve or decline reviews, comments, and course publish requests."
+        description="Approve or decline reviews, lesson revisions, quiz revisions, comments, and course publish requests."
       />
       {loading ? <LoadingState /> : null}
       <section className="space-y-3">
@@ -109,10 +193,15 @@ export default function AdminModerationPage() {
               <Card key={key}>
                 <CardHeader>
                   <CardTitle className="text-[13px] flex flex-wrap items-center gap-2 mono-ui">
-                    <Badge variant="outline">publish request</Badge>
+                    <Badge variant="outline">
+                      {request?.request_type === "unpublish"
+                        ? "unpublish request"
+                        : "publish request"}
+                    </Badge>
                     {course?.title || "Unknown course"}
                   </CardTitle>
                 </CardHeader>
+                {/* TODO: Add request type: publish request / unpublish request */}
                 <CardContent className="space-y-3 text-sm">
                   <p>
                     Requested by:{" "}
@@ -144,17 +233,195 @@ export default function AdminModerationPage() {
                       size="sm"
                       disabled={busy}
                       onClick={() =>
-                        moderatePublishRequest(request.id, "accept")
+                        moderatePublishRequest(
+                          request.id,
+                          "accept",
+                          request?.request_type,
+                        )
                       }
                     >
-                      Approve & publish
+                      Approve
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
                       disabled={busy}
                       onClick={() =>
-                        moderatePublishRequest(request.id, "decline")
+                        moderatePublishRequest(
+                          request.id,
+                          "decline",
+                          request?.request_type,
+                        )
+                      }
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+
+          if (item.content_type === "lesson_revision") {
+            const revision = item.lesson_revision;
+            const lesson = revision?.lesson;
+            const course = lesson?.module?.course;
+            const key = `lesson-revision-${revision?.id ?? index}`;
+            const courseRouteKey = course?.slug || course?.id;
+
+            return (
+              <Card key={key}>
+                <CardHeader>
+                  <CardTitle className="text-[13px] flex flex-wrap items-center gap-2 mono-ui">
+                    <Badge variant="outline">lesson revision</Badge>
+                    <Badge variant="outline" className="ml-2">
+                      {revision?.status === "pending_unpublish"
+                        ? "unpublish request"
+                        : "publish request"}
+                    </Badge>
+                    {lesson?.title || "Untitled lesson"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  {courseRouteKey ? (
+                    <Button size="sm" variant="outline" asChild>
+                      <Link
+                        to={`/instructor/courses/${courseRouteKey}`}
+                        state={{
+                          course,
+                          lessonId: lesson?.id,
+                          moduleId: lesson?.module?.id,
+                        }}
+                      >
+                        Open in editor
+                      </Link>
+                    </Button>
+                  ) : null}
+                  <label className="block space-y-2">
+                    <Label htmlFor={`decline-${revision.id}`}>
+                      Decline reason (optional)
+                    </Label>
+                    <Input
+                      id={`decline-${revision.id}`}
+                      value={declineReasons[revision.id] || ""}
+                      onChange={(event) =>
+                        setDeclineReasons((current) => ({
+                          ...current,
+                          [revision.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Reason shown to the instructor"
+                    />
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      disabled={busy}
+                      onClick={() =>
+                        moderateLessonRevision(
+                          revision.id,
+                          "accept",
+                          revision?.status,
+                        )
+                      }
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={busy}
+                      onClick={() =>
+                        moderateLessonRevision(
+                          revision.id,
+                          "decline",
+                          revision?.status,
+                        )
+                      }
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+
+          if (item.content_type === "quiz_revision") {
+            const revision = item.quiz_revision;
+            const quiz = revision?.quiz;
+            const course = quiz?.module?.course;
+            const key = `quiz-revision-${revision?.id ?? index}`;
+            const courseRouteKey = course?.slug || course?.id;
+
+            return (
+              <Card key={key}>
+                <CardHeader>
+                  <CardTitle className="text-[13px] flex flex-wrap items-center gap-2 mono-ui">
+                    <Badge variant="outline">quiz revision</Badge>
+                    <Badge variant="outline" className="ml-2">
+                      {revision?.status === "pending_unpublish"
+                        ? "unpublish request"
+                        : "publish request"}
+                    </Badge>
+                    {quiz?.title || "Untitled quiz"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  {courseRouteKey ? (
+                    <Button size="sm" variant="outline" asChild>
+                      <Link
+                        to={`/instructor/courses/${courseRouteKey}`}
+                        state={{
+                          course,
+                          quizId: quiz?.id,
+                          moduleId: quiz?.module?.id,
+                        }}
+                      >
+                        Open in editor
+                      </Link>
+                    </Button>
+                  ) : null}
+                  <label className="block space-y-2">
+                    <Label htmlFor={`decline-${revision.id}`}>
+                      Decline reason (optional)
+                    </Label>
+                    <Input
+                      id={`decline-${revision.id}`}
+                      value={declineReasons[revision.id] || ""}
+                      onChange={(event) =>
+                        setDeclineReasons((current) => ({
+                          ...current,
+                          [revision.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Reason shown to the instructor"
+                    />
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      disabled={busy}
+                      onClick={() =>
+                        moderateQuizRevision(
+                          revision.id,
+                          "accept",
+                          revision?.status,
+                        )
+                      }
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={busy}
+                      onClick={() =>
+                        moderateQuizRevision(
+                          revision.id,
+                          "decline",
+                          revision?.status,
+                        )
                       }
                     >
                       Decline

@@ -1,10 +1,11 @@
 import axios from "axios";
 
-const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+const apiBaseUrl = "/api";
 
-export const backendOrigin = new URL(apiBaseUrl, "http://localhost:8000")
-  .origin;
+export const backendOrigin =
+  typeof window !== "undefined"
+    ? window.location.origin
+    : "http://localhost:5173";
 
 export const STORAGE_TOKEN_KEY = "techtutor_token";
 export const STORAGE_USER_KEY = "techtutor_user";
@@ -39,12 +40,22 @@ export function resolveBackendAssetUrl(url) {
     return "";
   }
 
-  if (
-    url.startsWith("http://") ||
-    url.startsWith("https://") ||
-    url.startsWith("blob:") ||
-    url.startsWith("data:")
-  ) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    try {
+      const parsed = new URL(url);
+      const frontendOrigin = new URL(backendOrigin);
+
+      if (parsed.origin === frontendOrigin.origin) {
+        return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+      }
+    } catch {
+      return url;
+    }
+
+    return url;
+  }
+
+  if (url.startsWith("blob:") || url.startsWith("data:")) {
     return url;
   }
 

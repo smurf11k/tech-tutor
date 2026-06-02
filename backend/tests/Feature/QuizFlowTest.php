@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Course;
+use App\Models\Module;
 use App\Models\Quiz;
+use App\Models\QuizRevision;
 use App\Models\User;
 use App\Notifications\QuizAttemptCompletedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -247,6 +249,127 @@ class QuizFlowTest extends TestCase
         $this->getJson("/api/quizzes/{$quiz->id}/analytics")->assertOk();
     }
 
+    public function test_instructor_quiz_update_creates_pending_revision_and_admin_can_publish_it(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Quiz Revision Course',
+            'slug' => 'quiz-revision-course',
+            'description' => 'Revision flow test',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $module = Module::create([
+            'course_id' => $course->id,
+            'title' => 'Revision Module',
+            'slug' => 'revision-module',
+            'position' => 1,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/courses/{$course->id}/quizzes", [
+            'title' => 'Original Quiz',
+            'module_id' => $module->id,
+            'pass_score' => 60,
+            'revision_status' => 'published',
+            'is_published' => true,
+            'questions' => [
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Pick Laravel',
+                    'points' => 1,
+                    'options' => [
+                        ['key' => 'a', 'text' => 'Laravel', 'is_correct' => true],
+                        ['key' => 'b', 'text' => 'React'],
+                    ],
+                ],
+            ],
+        ])->assertCreated();
+
+        $quiz = Quiz::query()->firstOrFail();
+
+        Sanctum::actingAs($instructor);
+
+        $this->putJson("/api/courses/{$course->id}/quizzes/{$quiz->id}", [
+            'title' => 'Updated Quiz',
+            'module_id' => $module->id,
+            'pass_score' => 80,
+            'revision_status' => 'pending_review',
+            'is_published' => false,
+            'questions' => [
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Pick the backend framework',
+                    'points' => 1,
+                    'options' => [
+                        ['key' => 'a', 'text' => 'Laravel', 'is_correct' => true],
+                        ['key' => 'b', 'text' => 'Tailwind'],
+                    ],
+                ],
+            ],
+        ])->assertOk()
+            ->assertJsonPath('title', 'Original Quiz');
+
+        $this->assertDatabaseHas('quiz_revisions', [
+            'quiz_id' => $quiz->id,
+            'status' => 'pending_review',
+            'title' => 'Updated Quiz',
+        ]);
+
+        $this->getJson("/api/courses/{$course->id}/quizzes/{$quiz->id}")
+            ->assertOk()
+            ->assertJsonPath('title', 'Original Quiz')
+            ->assertJsonPath('latest_revision.status', 'pending_review')
+            ->assertJsonPath('latest_revision.title', 'Updated Quiz');
+
+        $this->getJson("/api/courses/{$course->id}")
+            ->assertOk()
+            ->assertJsonPath('modules.0.quizzes.0.latest_revision.status', 'pending_review')
+            ->assertJsonPath('modules.0.quizzes.0.latest_revision.title', 'Updated Quiz');
+
+        Sanctum::actingAs($admin);
+
+        $queueResponse = $this->getJson('/api/admin/moderation-queue')
+            ->assertOk()
+            ->assertJsonFragment([
+                'content_type' => 'quiz_revision',
+            ]);
+
+        $revisionId = QuizRevision::query()
+            ->where('quiz_id', $quiz->id)
+            ->where('status', 'pending_review')
+            ->value('id');
+
+        $this->patchJson("/api/admin/moderation-queue/quiz-revisions/{$revisionId}", [
+            'action' => 'accept',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('quizzes', [
+            'id' => $quiz->id,
+            'title' => 'Updated Quiz',
+            'is_published' => true,
+        ]);
+
+        $this->assertDatabaseHas('quiz_revisions', [
+            'id' => $revisionId,
+            'status' => 'published',
+            'title' => 'Updated Quiz',
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->getJson("/api/courses/{$course->id}/quizzes/{$quiz->id}")
+            ->assertOk()
+            ->assertJsonPath('title', 'Updated Quiz');
+    }
+
     public function test_student_cannot_attempt_unpublished_quiz(): void
     {
         $instructor = User::factory()->create(['role' => 'instructor']);
@@ -364,5 +487,141 @@ class QuizFlowTest extends TestCase
         ])->assertStatus(422);
 
         $this->assertDatabaseCount('quiz_attempts', 3);
+    }
+
+    public function test_instructor_can_delete_a_never_published_quiz_but_must_unpublish_a_published_one_first(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Quiz Deletion Course',
+            'slug' => 'quiz-deletion-course',
+            'description' => 'Quiz deletion rules',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        Sanctum::actingAs($instructor);
+
+        $draftResponse = $this->postJson("/api/courses/{$course->id}/quizzes", [
+            'title' => 'Draft Quiz',
+            'description' => 'Draft quiz content',
+            'revision_status' => 'draft',
+            'questions' => [
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Pick A',
+                    'options' => [
+                        ['key' => 'a', 'text' => 'A', 'is_correct' => true],
+                        ['key' => 'b', 'text' => 'B'],
+                    ],
+                ],
+            ],
+        ])->assertCreated();
+
+        $draftQuizId = $draftResponse->json('id');
+
+        $this->deleteJson("/api/courses/{$course->id}/quizzes/{$draftQuizId}")
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('quizzes', [
+            'id' => $draftQuizId,
+        ]);
+
+        $publishedQuiz = Quiz::create([
+            'course_id' => $course->id,
+            'title' => 'Published Quiz',
+            'description' => 'Published quiz content',
+            'pass_score' => 70,
+            'is_published' => true,
+            'position' => 1,
+        ]);
+
+        $this->deleteJson("/api/courses/{$course->id}/quizzes/{$publishedQuiz->id}")
+            ->assertStatus(409);
+    }
+
+    public function test_instructor_can_request_unpublish_and_admin_can_finalize_it_for_quiz(): void
+    {
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Quiz Request Course',
+            'slug' => 'quiz-request-course',
+            'description' => 'Quiz request unpublish flow',
+            'price' => 0,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $quiz = Quiz::create([
+            'course_id' => $course->id,
+            'title' => 'Request Quiz',
+            'description' => 'Current quiz content',
+            'pass_score' => 70,
+            'is_published' => true,
+            'position' => 1,
+        ]);
+
+        $quiz->questions()->create([
+            'type' => 'single_choice',
+            'prompt' => 'Pick A',
+            'options' => [['key' => 'a', 'text' => 'A', 'is_correct' => true], ['key' => 'b', 'text' => 'B']],
+            'correct_answers' => ['a'],
+            'points' => 1,
+            'position' => 1,
+        ]);
+
+        Sanctum::actingAs($instructor);
+
+        $this->putJson("/api/courses/{$course->id}/quizzes/{$quiz->id}", [
+            'title' => 'Request Quiz',
+            'description' => 'Current quiz content',
+            'pass_score' => 70,
+            'revision_status' => 'pending_unpublish',
+            'is_published' => false,
+            'questions' => [
+                [
+                    'type' => 'single_choice',
+                    'prompt' => 'Pick A',
+                    'points' => 1,
+                    'options' => [
+                        ['key' => 'a', 'text' => 'A', 'is_correct' => true],
+                        ['key' => 'b', 'text' => 'B'],
+                    ],
+                ],
+            ],
+        ])->assertOk();
+
+        $revisionId = QuizRevision::query()
+            ->where('quiz_id', $quiz->id)
+            ->where('status', 'pending_unpublish')
+            ->value('id');
+
+        $this->assertNotNull($revisionId);
+        $this->assertDatabaseHas('quiz_revisions', [
+            'id' => $revisionId,
+            'is_published' => false,
+            'status' => 'pending_unpublish',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/moderation-queue/quiz-revisions/{$revisionId}", [
+            'action' => 'accept',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('quizzes', [
+            'id' => $quiz->id,
+            'is_published' => false,
+        ]);
+
+        $revision = QuizRevision::query()->findOrFail($revisionId);
+        $this->assertSame('draft', $revision->status);
+        $this->assertNotNull($revision->unpublished_at);
     }
 }

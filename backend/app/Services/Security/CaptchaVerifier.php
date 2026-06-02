@@ -9,6 +9,10 @@ class CaptchaVerifier
 {
     public function verify(?string $token, ?string $ip = null): bool
     {
+        if (!((bool) config('services.captcha.enabled'))) {
+            return true;
+        }
+
         $secret = trim((string) config('services.captcha.secret'));
 
         if (app()->environment(['local', 'testing']) && $token === 'demo-captcha-token') {
@@ -16,7 +20,7 @@ class CaptchaVerifier
         }
 
         if ($secret === '') {
-            return true;
+            return false;
         }
 
         if (!is_string($token) || trim($token) === '') {

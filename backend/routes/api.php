@@ -39,6 +39,11 @@ Route::bind('course', function (string $value) {
 });
 
 Route::middleware('sanctum.optional')->group(function () {
+    Route::get('app-config', fn() => response()->json([
+        'captcha_enabled' => (bool) config('services.captcha.enabled'),
+        'captcha_site_key' => (string) config('services.captcha.site_key'),
+    ]));
+
     Route::get('courses/catalog-options', [CourseController::class, 'catalogOptions']);
     Route::apiResource('courses', CourseController::class)->only(['index', 'show']);
     Route::get('courses/{course}/reviews', [ReviewController::class, 'index']);
@@ -83,6 +88,8 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
         'admin/moderation-queue/publish-requests/{publishRequest}',
         [AdminModerationQueueController::class, 'updatePublishRequest'],
     );
+    Route::patch('admin/moderation-queue/lesson-revisions/{lessonRevision}', [AdminModerationQueueController::class, 'updateLessonRevision']);
+    Route::patch('admin/moderation-queue/quiz-revisions/{quizRevision}', [AdminModerationQueueController::class, 'updateQuizRevision']);
     Route::get('certificates', [CourseCertificateController::class, 'index']);
     Route::get('certificates/{certificate}', [CourseCertificateController::class, 'show']);
     Route::post('courses/{course}/certificate', [CourseCertificateController::class, 'store']);
@@ -102,8 +109,10 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::apiResource('courses.enrollments', EnrollmentController::class)->only(['index', 'store', 'destroy']);
     Route::apiResource('courses.modules', ModuleController::class);
     Route::apiResource('modules.lessons', LessonController::class);
+    Route::patch('modules/{module}/lessons/{lesson}/unpublish', [LessonController::class, 'unpublish']);
     Route::apiResource('lessons.comments', CommentController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::apiResource('courses.quizzes', QuizController::class);
+    Route::patch('courses/{course}/quizzes/{quiz}/unpublish', [QuizController::class, 'unpublish']);
     Route::get('quizzes/{quiz}/analytics', [QuizAnalyticsController::class, 'show']);
     Route::apiResource('quizzes.attempts', QuizAttemptController::class)->only(['index', 'store']);
     Route::apiResource('courses.reviews', ReviewController::class)->only(['store', 'update', 'destroy']);

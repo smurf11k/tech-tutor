@@ -147,7 +147,16 @@ class CourseController extends Controller
 
         $user = $request->user('sanctum') ?? $request->user();
 
-        $course->load(['instructor', 'tags', 'modules.lessons', 'modules.quizzes', 'quizzes']);
+        $course->load([
+            'instructor',
+            'tags',
+            'modules.lessons.latestRevision',
+            'modules.lessons.publishedRevision',
+            'modules.quizzes.latestRevision',
+            'modules.quizzes.publishedRevision',
+            'quizzes.latestRevision',
+            'quizzes.publishedRevision',
+        ]);
 
         // Filter out unpublished lessons and quizzes for non-privileged users
         $isPrivileged = $user instanceof User && ($user->isAdmin() || $user->id === $course->instructor_id);

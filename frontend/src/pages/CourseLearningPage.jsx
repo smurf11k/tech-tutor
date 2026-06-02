@@ -10,6 +10,7 @@ import { CourseCurriculumTree } from "@/components/instructor/CourseCurriculumTr
 import { LoadingState } from "@/components/common/LoadingState";
 import { MarkdownContent } from "@/components/markdown/MarkdownContent";
 import { LessonComments } from "@/components/common/LessonComments";
+import { HlsVideoPlayer } from "@/components/markdown/MarkdownContent";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { buildCurriculumItems } from "@/lib/curriculum";
@@ -21,6 +22,14 @@ import {
 } from "@/lib/utils";
 
 const MAX_QUIZ_ATTEMPTS = 3;
+
+function resolveLessonSnapshot(lesson) {
+  const publishedRevision =
+    lesson.publishedRevision || lesson.published_revision;
+  const latestRevision = lesson.latestRevision || lesson.latest_revision;
+
+  return publishedRevision || latestRevision || lesson;
+}
 
 export default function CourseLearningPage() {
   const { courseId } = useParams();
@@ -234,10 +243,15 @@ export default function CourseLearningPage() {
   }
 
   async function markLessonComplete(lessonId) {
-    await client.post(`/lessons/${lessonId}/progress`, {
+    const response = await client.post(`/lessons/${lessonId}/progress`, {
       progress_percent: 100,
       completed_at: new Date().toISOString(),
     });
+
+    if (response.data?.certificate) {
+      toast.success("Certificate issued automatically!");
+    }
+
     setCompletedLessonIds((current) =>
       current.includes(lessonId) ? current : [...current, lessonId],
     );
@@ -284,6 +298,11 @@ export default function CourseLearningPage() {
         answers: quizAnswers,
       });
       const attempt = response.data;
+
+      if (attempt.certificate) {
+        toast.success("Certificate issued automatically!");
+      }
+
       setQuizResult(attempt);
       setQuizLocked(false);
       setQuizSummaries((current) => {
@@ -330,8 +349,8 @@ export default function CourseLearningPage() {
     } catch (err) {
       const msg = getApiErrorMessage(err);
 
-      if (msg.toLowerCase().includes("already issued")) {
-        toast.error("Certificate was already issued for this course.");
+      if (msg.toLowerCase().includes("certificate already issued")) {
+        toast.error("certificate already issued");
       } else {
         toast.error(msg || "Failed to issue certificate.");
       }
@@ -504,9 +523,10 @@ function LessonPanel({
   course,
   user,
 }) {
+  const lessonSnapshot = resolveLessonSnapshot(lesson);
   const hasInlineVideo =
-    /\[[^\]]+\]\([^)]*\.(?:mp4|mov|webm|m4v|avi|mkv)(?:\?[^)]*)?\)/i.test(
-      lesson.content || "",
+    /\[[^\]]+\]\([^)]*\.(?:m3u8|mp4|mov|webm|m4v|avi|mkv)(?:\?[^)]*)?\)/i.test(
+      lessonSnapshot.content || "",
     );
 
   return (
@@ -514,31 +534,23 @@ function LessonPanel({
       <header className="space-y-2 pb-2">
         <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground mono-ui">
           Lesson
-          {lesson.estimated_time_minutes
-            ? ` · ${formatMinutes(lesson.estimated_time_minutes)}`
+          {lessonSnapshot.estimated_time_minutes
+            ? ` · ${formatMinutes(lessonSnapshot.estimated_time_minutes)}`
             : ""}
         </p>
         <h2 className="text-2xl font-semibold tracking-[-0.02em]">
-          {lesson.title}
+          {lessonSnapshot.title}
         </h2>
       </header>
 
       <div className="flex-1 space-y-4">
-        {!hasInlineVideo && lesson.video_url ? (
-          <figure className="overflow-hidden rounded-xl border border-border bg-black/95 shadow-sm">
-            <video
-              controls
-              preload="metadata"
-              className="w-full max-h-[70vh] bg-black"
-              src={resolveBackendAssetUrl(lesson.video_url)}
-            />
-            <figcaption className="border-t border-white/10 px-4 py-2 text-xs text-muted-foreground">
-              {lesson.video_path?.split("/").pop() || "Uploaded lesson video"}
-            </figcaption>
-          </figure>
+        {!hasInlineVideo && lessonSnapshot.video_url ? (
+          <HlsVideoPlayer
+            src={resolveBackendAssetUrl(lessonSnapshot.video_url)}
+          />
         ) : null}
 
-        <MarkdownContent content={lesson.content} />
+        <MarkdownContent content={lessonSnapshot.content} />
       </div>
 
       <LessonComments
@@ -557,7 +569,7 @@ function LessonPanel({
         >
           Previous
         </Button>
-        <Button disabled={!hasNext || busy} onClick={onNext}>
+        <Button disabled={busy} onClick={onNext}>
           {hasNext ? "Next lesson" : "Finish"}
         </Button>
       </footer>

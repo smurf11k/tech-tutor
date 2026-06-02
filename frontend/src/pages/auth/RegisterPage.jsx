@@ -28,6 +28,8 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const captchaNotice = captcha.enabled && captcha.isBypassAvailable;
+
   const passwordChecks = useMemo(() => {
     const password = form.password;
     const checks = [
@@ -117,6 +119,11 @@ export default function RegisterPage() {
         </>
       }
     >
+      {captchaNotice ? (
+        <p className="text-xs text-muted-foreground">
+          Local dev: CAPTCHA bypass is active (no site key).
+        </p>
+      ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {step === "request" ? (
         <form className="space-y-3" onSubmit={requestCode}>

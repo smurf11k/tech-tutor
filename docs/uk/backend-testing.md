@@ -37,7 +37,11 @@ curl -X POST "http://127.0.0.1:8000/api/dev/token" \
 
 ## Перевірки безпеки auth
 
-Якщо CAPTCHA увімкнена в `.env`, auth endpoint-и вимагають `captcha_token`.
+`GET /api/app-config` повертає runtime-налаштування, які використовує frontend для auth-форм.
+
+Якщо `CAPTCHA_ENABLED=true` у `.env`, auth endpoint-и вимагають `captcha_token`.
+
+Якщо `CAPTCHA_ENABLED=false`, auth endpoint-и приймають запити без CAPTCHA, а frontend не показує CAPTCHA UI.
 
 До auth-маршрутів застосовано rate limit на сервері, тому повторні логін/реєстрація можуть повертати throttle error.
 
@@ -57,6 +61,13 @@ $TOKEN = "YOUR_SANCTUM_TOKEN"
 
 ## Публічні endpoint-и
 
+Перевірка runtime config:
+
+```bash
+curl -X GET "$BASE_URL/app-config" \
+  -H "Accept: application/json"
+```
+
 Список курсів:
 
 ```bash
@@ -75,7 +86,7 @@ curl -X GET "$BASE_URL/courses?q=laravel&category=backend&price_type=paid&sort=p
 curl -X GET "$BASE_URL/courses/1"
 ```
 
-Реєстрація:
+Реєстрація з CAPTCHA token (лише якщо CAPTCHA увімкнена):
 
 ```bash
 curl -X POST "$BASE_URL/auth/register" \
@@ -92,7 +103,7 @@ curl -X POST "$BASE_URL/auth/register" \
   }'
 ```
 
-Логін:
+Логін з CAPTCHA token (лише якщо CAPTCHA увімкнена):
 
 ```bash
 curl -X POST "$BASE_URL/auth/login" \
@@ -100,6 +111,8 @@ curl -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"student@techtutor.test","password":"password","token_name":"manual-test","captcha_token":"demo-captcha-token"}'
 ```
+
+Якщо CAPTCHA вимкнена, `captcha_token` слід прибрати з прикладів і реальних запитів.
 
 Forgot/reset password:
 

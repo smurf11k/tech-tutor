@@ -31,10 +31,6 @@ function buildVideoPath(moduleId, fileName) {
   return `lesson-videos/module-${moduleId}/${fileName}`;
 }
 
-function buildVideoMarkdown(fileName, filePath) {
-  return `[${fileName}](/storage/${filePath})`;
-}
-
 function stripVideoMarkdown(content = "") {
   return content
     .replace(
@@ -42,11 +38,6 @@ function stripVideoMarkdown(content = "") {
       "\n\n",
     )
     .trimEnd();
-}
-
-function replaceVideoMarkdown(content, snippet) {
-  const cleaned = stripVideoMarkdown(content);
-  return cleaned ? `${cleaned}\n\n${snippet}` : snippet;
 }
 
 // ---------------------------------------------------------------------------
@@ -259,8 +250,12 @@ export function LessonEditorForm({
   setForm,
   videoContext,
   onBack,
-  onPublish,
+  primaryLabel = "Submit for Review",
+  secondaryLabel = "Save Draft",
+  tertiaryLabel,
+  onSubmitForReview,
   onDraft,
+  onUnpublish,
   onCancel,
   onDelete,
   saving,
@@ -279,7 +274,6 @@ export function LessonEditorForm({
       file.name,
     );
     const videoPath = buildVideoPath(videoContext?.moduleId, videoName);
-    const snippet = buildVideoMarkdown(videoName, videoPath);
 
     setForm((current) => ({
       ...current,
@@ -287,7 +281,7 @@ export function LessonEditorForm({
       video_name: videoName,
       video_path: videoPath,
       remove_video: false,
-      content: replaceVideoMarkdown(current.content || "", snippet),
+      content: stripVideoMarkdown(current.content || ""),
     }));
   };
 
@@ -386,18 +380,31 @@ export function LessonEditorForm({
         <Separator />
 
         <EditorActions
-          primaryLabel="Save & Publish"
-          onPrimary={onPublish}
+          primaryLabel={primaryLabel}
+          onPrimary={onSubmitForReview}
           primaryDisabled={saving}
-          secondaryLabel={
-            isEdit && form.is_published ? "Unpublish → Draft" : "Save as Draft"
-          }
+          secondaryLabel={secondaryLabel}
           onSecondary={onDraft}
           secondaryDisabled={saving}
-          tertiaryLabel="Cancel"
-          onTertiary={onCancel}
+          tertiaryLabel={
+            tertiaryLabel ??
+            (isEdit && form.is_published && onUnpublish
+              ? "Unpublish"
+              : "Cancel")
+          }
+          onTertiary={
+            isEdit && form.is_published && onUnpublish ? onUnpublish : onCancel
+          }
           tertiaryDisabled={saving}
-          destructiveLabel={onDelete ? "Delete Lesson" : undefined}
+          destructiveLabel={
+            onDelete
+              ? isEdit && form.is_published && onUnpublish
+                ? undefined
+                : isEdit && form.is_published
+                  ? "Unpublish Lesson"
+                  : "Delete Lesson"
+              : undefined
+          }
           onDestructive={onDelete}
           destructiveDisabled={saving}
         />
@@ -625,13 +632,20 @@ export function QuizEditorForm({
   title,
   form,
   setForm,
+  primaryLabel = "Submit for Review",
+  secondaryLabel = "Save Draft",
+  tertiaryLabel,
   questions, // array of question form objects (already in form shape)
   setQuestions,
   onBack,
   onSave, // called with (quizPayload) — includes questions
+  onSubmitForReview, // if provided, called instead of onSave for primary action
+  onDraft, // if provided, called instead of onSave("draft") for secondary action
+  onUnpublish, // if provided, shown as tertiary when quiz is published
   onCancel,
   onDelete,
   saving,
+  isAdmin = false,
   hint = "Questions are saved together with the quiz.",
 }) {
   const isEdit = mode === "edit";
@@ -660,7 +674,7 @@ export function QuizEditorForm({
     }
   };
 
-  const handleSubmit = (isPublished) => {
+  const handleSubmit = (revisionStatus) => {
     const payload = {
       title: form.title,
       pass_score: form.pass_score ?? 70,
@@ -668,7 +682,8 @@ export function QuizEditorForm({
         form.estimated_time_minutes > 0 ? form.estimated_time_minutes : null,
       time_limit_seconds:
         form.time_limit_seconds > 0 ? form.time_limit_seconds : null,
-      is_published: isPublished,
+      is_published: revisionStatus === "published",
+      revision_status: revisionStatus,
       questions: questions.map((q, idx) => ({
         ...questionFormToPayload(q),
         position: idx + 1,
@@ -676,6 +691,15 @@ export function QuizEditorForm({
     };
     onSave(payload);
   };
+
+  // Primary action: use onSubmitForReview if provided (same pattern as LessonEditorForm),
+  // otherwise fall back to handleSubmit with admin-aware status.
+  const handlePrimary = onSubmitForReview
+    ? onSubmitForReview
+    : () => handleSubmit(isAdmin ? "published" : "pending_review");
+
+  // Secondary action: use onDraft if provided, otherwise fall back to handleSubmit("draft").
+  const handleDraft = onDraft ? onDraft : () => handleSubmit("draft");
 
   return (
     <div className="space-y-4">
@@ -752,18 +776,31 @@ export function QuizEditorForm({
         <Separator />
 
         <EditorActions
-          primaryLabel="Save & Publish"
-          onPrimary={() => handleSubmit(true)}
+          primaryLabel={primaryLabel}
+          onPrimary={handlePrimary}
           primaryDisabled={saving}
-          secondaryLabel={
-            isEdit && form.is_published ? "Unpublish → Draft" : "Save as Draft"
-          }
-          onSecondary={() => handleSubmit(false)}
+          secondaryLabel={secondaryLabel}
+          onSecondary={handleDraft}
           secondaryDisabled={saving}
-          tertiaryLabel="Cancel"
-          onTertiary={onCancel}
+          tertiaryLabel={
+            tertiaryLabel ??
+            (isEdit && form.is_published && onUnpublish
+              ? "Unpublish"
+              : "Cancel")
+          }
+          onTertiary={
+            isEdit && form.is_published && onUnpublish ? onUnpublish : onCancel
+          }
           tertiaryDisabled={saving}
-          destructiveLabel={onDelete ? "Delete Quiz" : undefined}
+          destructiveLabel={
+            onDelete
+              ? isEdit && form.is_published && onUnpublish
+                ? undefined
+                : isEdit && form.is_published
+                  ? "Unpublish Quiz"
+                  : "Delete Quiz"
+              : undefined
+          }
           onDestructive={onDelete}
           destructiveDisabled={saving}
         />

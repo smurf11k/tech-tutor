@@ -27,6 +27,7 @@ class UpdateLessonRequest extends FormRequest
             'remove_video' => ['sometimes', 'boolean'],
             'estimated_time_minutes' => ['nullable', 'integer', 'min:0'],
             'position' => ['sometimes', 'integer', 'min:0'],
+            'revision_status' => ['sometimes', 'string', 'in:draft,pending_review,pending_unpublish,published'],
             'is_published' => ['sometimes', 'boolean'],
         ];
     }
@@ -36,6 +37,7 @@ class UpdateLessonRequest extends FormRequest
         $this->normalizeTextFields(['title']);
         $this->normalizeLowercaseFields(['slug']);
         $this->normalizeTrimmedFields(['type', 'content', 'video_url', 'video_name']);
+        $this->normalizeTrimmedFields(['revision_status']);
         $this->normalizeBooleanFields(['is_published', 'remove_video']);
     }
 }

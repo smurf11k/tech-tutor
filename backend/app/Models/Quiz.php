@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -23,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read Module|null $module
  * @property-read Collection<int, QuizQuestion> $questions
  * @property-read Collection<int, QuizAttempt> $attempts
+ * @property-read QuizRevision|null $latestRevision
+ * @property-read QuizRevision|null $publishedRevision
  */
 class Quiz extends Model
 {
@@ -69,5 +72,22 @@ class Quiz extends Model
     public function questions(): HasMany
     {
         return $this->hasMany(QuizQuestion::class)->orderBy('position');
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(QuizRevision::class);
+    }
+
+    public function latestRevision(): HasOne
+    {
+        return $this->hasOne(QuizRevision::class)->orderByDesc('version');
+    }
+
+    public function publishedRevision(): HasOne
+    {
+        return $this->hasOne(QuizRevision::class)
+            ->where('status', 'published')
+            ->orderByDesc('version');
     }
 }

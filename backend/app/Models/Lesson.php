@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $slug
  * @property string $type
  * @property string|null $content
+ * @property string|null $video_name
  * @property string|null $video_url
  * @property string|null $video_path
  * @property int|null $estimated_time_minutes
@@ -21,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property bool $is_published
  * @property-read Module $module
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Comment> $comments
+ * @property-read LessonRevision|null $latestRevision
+ * @property-read LessonRevision|null $publishedRevision
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Progress> $progressEntries
  */
 class Lesson extends Model
@@ -33,6 +37,7 @@ class Lesson extends Model
         'slug',
         'type',
         'content',
+        'video_name',
         'video_url',
         'video_path',
         'estimated_time_minutes',
@@ -62,5 +67,22 @@ class Lesson extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class)->latest();
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(LessonRevision::class);
+    }
+
+    public function latestRevision(): HasOne
+    {
+        return $this->hasOne(LessonRevision::class)->latestOfMany('version');
+    }
+
+    public function publishedRevision(): HasOne
+    {
+        return $this->hasOne(LessonRevision::class)
+            ->where('status', 'published')
+            ->latestOfMany('version');
     }
 }

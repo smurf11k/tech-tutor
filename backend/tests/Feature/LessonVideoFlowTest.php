@@ -6,8 +6,10 @@ use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\User;
+use App\Jobs\TranscodeLessonVideoJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -18,7 +20,8 @@ class LessonVideoFlowTest extends TestCase
 
     public function test_instructor_can_upload_and_replace_a_lesson_video(): void
     {
-        Storage::fake('public');
+        Queue::fake();
+        Storage::fake('s3');
 
         $instructor = User::factory()->create(['role' => 'instructor']);
         Sanctum::actingAs($instructor);
@@ -55,9 +58,12 @@ class LessonVideoFlowTest extends TestCase
         $createResponse->assertCreated();
 
         $lesson = Lesson::query()->firstOrFail();
+        $this->assertSame('lesson-one.mp4', $lesson->video_name);
         $this->assertNotNull($lesson->video_path);
         $this->assertNotNull($lesson->video_url);
-        Storage::disk('public')->assertExists($lesson->video_path);
+        Queue::assertPushed(TranscodeLessonVideoJob::class);
+        $pendingUploads = Storage::disk('s3')->allFiles('lesson-videos/pending');
+        $this->assertCount(1, $pendingUploads);
 
         $firstVideoPath = $lesson->video_path;
 
@@ -80,8 +86,7 @@ class LessonVideoFlowTest extends TestCase
         $lesson->refresh();
 
         $this->assertNotSame($firstVideoPath, $lesson->video_path);
-        Storage::disk('public')->assertMissing($firstVideoPath);
-        Storage::disk('public')->assertExists($lesson->video_path);
-        $this->assertStringContainsString('/storage/', $lesson->video_url ?? '');
+        $this->assertSame('lesson-two.mp4', $lesson->video_name);
+        $this->assertStringContainsString('/index.m3u8', $lesson->video_url ?? '');
     }
 }

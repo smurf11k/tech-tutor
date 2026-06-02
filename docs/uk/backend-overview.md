@@ -39,14 +39,23 @@ outline: deep
 - Доступні endpoint-и current-user, logout, resend verification, email verification, forgot-password і reset-password
 - Заблоковані користувачі не можуть увійти та не мають доступу до захищених маршрутів
 - Auth endpoint-и мають rate limit для зменшення brute-force атак
-- Реєстрація та логін вимагають CAPTCHA, якщо CAPTCHA увімкнена в `.env`
+- `CAPTCHA_ENABLED` у backend `.env` є джерелом правди для того, чи вмикати CAPTCHA
+- Frontend читає `/api/app-config`, щоб визначити, чи показувати CAPTCHA UI
+- Реєстрація, логін і запит email-коду для signup вимагають CAPTCHA лише коли `CAPTCHA_ENABLED=true`
 - Нормалізація запитів видаляє HTML-теги та зайві пробіли в основних текстових полях перед валідацією
 
 ### Нотатки з безпеки авторизації
 
 - У production краще використовувати невидиму CAPTCHA або score-based CAPTCHA, щоб зберегти зручний логін/реєстрацію
-- Для локальної розробки можна використовувати demo token для кнопки CAPTCHA helper, але у production потрібен реальний widget token
+- Для локальної розробки можна використовувати demo token лише тоді, коли CAPTCHA увімкнена, але site key ще не налаштований
 - `localhost` підходить для локального тестування і пізніше може бути замінений у dashboard CAPTCHA-провайдера
+- Якщо CAPTCHA вимкнена, frontend повністю ховає CAPTCHA helper і не надсилає токен
+
+### Runtime app config
+
+- `GET /api/app-config` повертає runtime-параметри, які потрібні auth UI
+- Поточний payload містить `captcha_enabled` і `captcha_site_key`
+- Це тримає frontend синхронізованим із backend `.env` без захардкожування security-поведінки у браузерному білді
 
 #### Google OAuth автентифікація
 

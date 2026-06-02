@@ -123,14 +123,32 @@
 
 ## Модель даних
 
-    User
-    Course
-    Module
-    Lesson
-    Quiz
-    QuizAttempt
-    Enrollment
-    Progress
+```
+User
+Course
+Module
+Lesson
+LessonRevision
+Quiz
+QuizRevision
+QuizQuestion
+QuizAttempt
+Enrollment
+Progress
+Review
+Comment
+Payment
+CourseCertificate
+PublishRequest
+EmailVerificationCode
+PasswordResetToken
+PersonalAccessToken
+UserInvite
+Tag
+course_tag (pivot)
+ContactMessage
+Job
+```
 
 ---
 

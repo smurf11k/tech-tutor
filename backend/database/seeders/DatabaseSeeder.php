@@ -472,6 +472,8 @@ class DatabaseSeeder extends Seeder
             'completed_at' => now()->subDay(),
         ]);
 
+        app(CourseCertificateIssuer::class)->issueIfEligible($mlCourse, $student);
+
         Progress::create([
             'user_id' => $secondStudent->id,
             'lesson_id' => $devopsLesson->id,
@@ -636,6 +638,8 @@ class DatabaseSeeder extends Seeder
             'started_at' => now()->subDays(4),
             'completed_at' => now()->subDays(4),
         ]);
+
+        app(CourseCertificateIssuer::class)->issueIfEligible($laravelCourse, $student);
 
         QuizAttempt::create([
             'quiz_id' => $laravelQuiz->id,

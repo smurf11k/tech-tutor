@@ -86,7 +86,7 @@ export default function LoginPage() {
         </>
       }
     >
-      {captcha.isBypassAvailable ? (
+      {captcha.enabled && captcha.isBypassAvailable ? (
         <p className="text-xs text-muted-foreground">
           Local dev: CAPTCHA bypass is active (no site key).
         </p>

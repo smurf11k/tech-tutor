@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   DndContext,
@@ -16,7 +16,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -28,6 +27,7 @@ import {
   LessonEditorForm,
   QuizEditorForm,
   questionToForm,
+  questionFormToPayload,
 } from "@/components/instructor/ContentEditors";
 import { buildModuleContentItems } from "@/components/instructor/buildCourseContentItems";
 import { useAuth } from "@/contexts/AuthContext";
@@ -244,19 +244,155 @@ function ListEditorField({
 }
 
 function lessonToForm(lesson) {
+  const latestRevision = lesson.latestRevision || lesson.latest_revision;
+  const publishedRevision =
+    lesson.publishedRevision || lesson.published_revision;
+  const sourceLesson =
+    latestRevision?.status && latestRevision.status !== "published"
+      ? latestRevision
+      : publishedRevision || latestRevision || lesson;
+
   return {
-    title: lesson.title || "",
-    content: lesson.content || "",
-    estimated_time_minutes: lesson.estimated_time_minutes ?? 0,
+    title: sourceLesson.title || "",
+    content: sourceLesson.content || "",
+    estimated_time_minutes: sourceLesson.estimated_time_minutes ?? 0,
     is_published: lesson.is_published ?? false,
     videoFile: null,
     video_name:
-      lesson.video_path?.split("/").pop() ||
-      lesson.video_url?.split("/").pop() ||
+      sourceLesson.video_name ||
+      sourceLesson.video_path?.split("/").pop() ||
+      sourceLesson.video_url?.split("/").pop() ||
       "",
-    video_path: lesson.video_path || "",
-    video_url: lesson.video_url || "",
+    video_path: sourceLesson.video_path || "",
+    video_url: sourceLesson.video_url || "",
     remove_video: false,
+  };
+}
+
+function getLessonDisplayTitle(lesson) {
+  const latestRevision = lesson.latestRevision || lesson.latest_revision;
+  const publishedRevision =
+    lesson.publishedRevision || lesson.published_revision;
+  const activeRevision =
+    latestRevision && latestRevision.status !== "published"
+      ? latestRevision
+      : publishedRevision || latestRevision;
+
+  return activeRevision?.title || lesson.title || "Untitled lesson";
+}
+
+function getLessonStatus(lesson) {
+  const latestRevision = lesson.latestRevision || lesson.latest_revision;
+
+  if (latestRevision && latestRevision.status !== "published") {
+    return latestRevision.status === "pending_unpublish"
+      ? "pending"
+      : latestRevision.status;
+  }
+
+  return lesson.is_published ? "published" : "draft";
+}
+
+function getQuizDisplayTitle(quiz) {
+  const latestRevision = quiz.latestRevision || quiz.latest_revision;
+  const publishedRevision = quiz.publishedRevision || quiz.published_revision;
+  const activeRevision =
+    latestRevision && latestRevision.status !== "published"
+      ? latestRevision
+      : publishedRevision || latestRevision;
+
+  return activeRevision?.title || quiz.title || "Untitled quiz";
+}
+
+function getQuizStatus(quiz) {
+  const latestRevision = quiz.latestRevision || quiz.latest_revision;
+  const publishedRevision = quiz.publishedRevision || quiz.published_revision;
+  const isPublished = Boolean(
+    quiz.is_published || publishedRevision?.status === "published",
+  );
+
+  if (latestRevision && latestRevision.status !== "published") {
+    return latestRevision.status === "pending_unpublish"
+      ? "pending"
+      : latestRevision.status;
+  }
+
+  if (publishedRevision && publishedRevision.status === "published") {
+    return "published";
+  }
+
+  return isPublished ? "published" : "draft";
+}
+
+function resolveLessonSnapshot(lesson) {
+  const latestRevision = lesson.latestRevision || lesson.latest_revision;
+  const publishedRevision =
+    lesson.publishedRevision || lesson.published_revision;
+
+  return publishedRevision || latestRevision || lesson;
+}
+
+function resolveQuizSnapshot(quiz) {
+  const latestRevision = quiz.latestRevision || quiz.latest_revision;
+  const publishedRevision = quiz.publishedRevision || quiz.published_revision;
+
+  if (latestRevision && latestRevision.status !== "published") {
+    return latestRevision;
+  }
+
+  return publishedRevision || latestRevision || quiz;
+}
+
+function quizToForm(quiz) {
+  const sourceQuiz = resolveQuizSnapshot(quiz);
+  const publishedRevision = quiz?.publishedRevision || quiz?.published_revision;
+  const isPublished = Boolean(
+    quiz?.is_published || publishedRevision?.status === "published",
+  );
+
+  return {
+    title: sourceQuiz.title || "",
+    pass_score: sourceQuiz.pass_score ?? 70,
+    estimated_time_minutes: sourceQuiz.estimated_time_minutes ?? 0,
+    time_limit_seconds: sourceQuiz.time_limit_seconds ?? 0,
+    is_published: isPublished || Boolean(sourceQuiz.is_published),
+  };
+}
+
+function normalizeQuizState(quiz) {
+  if (!quiz) {
+    return quiz;
+  }
+
+  const latestRevision = quiz.latestRevision || quiz.latest_revision || null;
+  const publishedRevision = quiz.publishedRevision || quiz.published_revision;
+  const activeRevision = resolveQuizSnapshot(quiz);
+  const isPublished = Boolean(
+    quiz.is_published || publishedRevision?.status === "published",
+  );
+
+  const {
+    id: _ignoredRevisionId,
+    quiz_id: _ignoredQuizId,
+    author_id: _ignoredAuthorId,
+    version: _ignoredVersion,
+    reviewed_by_id: _ignoredReviewedById,
+    published_by_id: _ignoredPublishedById,
+    reviewed_at: _ignoredReviewedAt,
+    published_at: _ignoredPublishedAt,
+    unpublished_at: _ignoredUnpublishedAt,
+    rejection_reason: _ignoredRejectionReason,
+    created_at: _ignoredCreatedAt,
+    updated_at: _ignoredUpdatedAt,
+    ...activeRevisionAttributes
+  } = activeRevision ?? {};
+
+  return {
+    ...quiz,
+    ...activeRevisionAttributes,
+    is_published: isPublished,
+    latestRevision,
+    publishedRevision,
   };
 }
 
@@ -320,6 +456,78 @@ function SavedIndicator({ dirty, saving }) {
   );
 }
 
+function VideoUploadModal({
+  open,
+  fileName,
+  progress,
+  status,
+  error,
+  mode,
+  onCancel,
+  onDone,
+}) {
+  if (!open) {
+    return null;
+  }
+
+  const isUploading = status === "uploading";
+  const isRemoving = mode === "removing";
+  const subtitle =
+    status === "done"
+      ? isRemoving
+        ? "Video removed from the lesson. Changes are being saved now."
+        : "Upload finished. Video processing continues on the server."
+      : status === "error"
+        ? isRemoving
+          ? "Removing the video failed. You can close this dialog and try again."
+          : "Upload failed. You can close this dialog and try again."
+        : isRemoving
+          ? "Removing the selected video from MinIO..."
+          : "Uploading the source video to MinIO...";
+
+  return (
+    <div className="fixed inset-0 z-[240] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+          <div>
+            <p className="text-sm font-semibold">
+              {isRemoving ? "Removing video" : "Uploading video"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {fileName || "Selected lesson video"}
+            </p>
+          </div>
+          <span className="rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
+            {Math.max(0, Math.min(100, progress))}%
+          </span>
+        </div>
+
+        <div className="space-y-4 px-5 py-5">
+          <div className="space-y-2">
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-200"
+                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
+            {error ? <p className="text-xs text-destructive">{error}</p> : null}
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              {isUploading ? "Cancel" : "Close"}
+            </Button>
+            <Button type="button" onClick={onDone} disabled={isUploading}>
+              Done
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Sortable content item (lesson or quiz) inside a module
 // ---------------------------------------------------------------------------
@@ -341,6 +549,7 @@ function SortableContentItem({ item, onEdit, onDelete }) {
   };
 
   const isLesson = item._type === "lesson";
+  const deleteTitle = item.is_published ? "Unpublish" : "Delete";
 
   return (
     <div
@@ -383,9 +592,11 @@ function SortableContentItem({ item, onEdit, onDelete }) {
           whiteSpace: "nowrap",
         }}
       >
-        {item.title}
+        {isLesson ? getLessonDisplayTitle(item) : getQuizDisplayTitle(item)}
       </span>
-      <PublishStatusPill status={item.is_published ? "published" : "draft"} />
+      <PublishStatusPill
+        status={isLesson ? getLessonStatus(item) : getQuizStatus(item)}
+      />
       <div style={{ gap: 2, flexShrink: 0, display: "flex" }}>
         <button
           onClick={onEdit}
@@ -416,7 +627,7 @@ function SortableContentItem({ item, onEdit, onDelete }) {
         </button>
         <button
           onClick={onDelete}
-          title="Delete"
+          title={deleteTitle}
           style={{
             width: 22,
             height: 22,
@@ -888,8 +1099,19 @@ export default function InstructorCoursePage() {
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [videoUploadModal, setVideoUploadModal] = useState({
+    open: false,
+    fileName: "",
+    progress: 0,
+    status: "idle",
+    error: "",
+    mode: "uploading",
+  });
   const [publishRequested, setPublishRequested] = useState(false);
   const [requestingPublish, setRequestingPublish] = useState(false);
+  const uploadAbortRef = useRef(null);
+  const openedLessonFromStateRef = useRef(false);
+  const openedQuizFromStateRef = useRef(false);
 
   // ---------------------------------------------------------------------------
   // Dirty-aware form setters
@@ -911,6 +1133,91 @@ export default function InstructorCoursePage() {
     setDirty(true);
   };
 
+  const closeVideoUploadModal = () => {
+    uploadAbortRef.current = null;
+    setVideoUploadModal({
+      open: false,
+      fileName: "",
+      progress: 0,
+      status: "idle",
+      error: "",
+      mode: "uploading",
+    });
+  };
+
+  const cancelVideoUpload = () => {
+    if (videoUploadModal.status === "uploading") {
+      uploadAbortRef.current?.abort();
+    }
+
+    closeVideoUploadModal();
+  };
+
+  useEffect(
+    () => () => {
+      uploadAbortRef.current?.abort();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!course || openedLessonFromStateRef.current) {
+      if (!course) {
+        return;
+      }
+    }
+
+    const requestedLessonId = location.state?.lessonId;
+    if (!requestedLessonId || openedLessonFromStateRef.current) {
+      return;
+    }
+
+    const requestedModuleId = location.state?.moduleId;
+    const module = course.modules?.find(
+      (entry) =>
+        String(entry.id) === String(requestedModuleId) ||
+        (entry.lessons || []).some(
+          (lesson) => String(lesson.id) === String(requestedLessonId),
+        ),
+    );
+    const lesson = module?.lessons?.find(
+      (entry) => String(entry.id) === String(requestedLessonId),
+    );
+
+    if (lesson && module) {
+      openedLessonFromStateRef.current = true;
+      openEditLesson(lesson, module);
+    }
+  }, [course, location.state]);
+
+  useEffect(() => {
+    if (!course || openedQuizFromStateRef.current) {
+      return;
+    }
+
+    const requestedQuizId = location.state?.quizId;
+    if (!requestedQuizId) {
+      return;
+    }
+
+    const requestedModuleId = location.state?.moduleId;
+    const module = course.modules?.find(
+      (entry) =>
+        String(entry.id) === String(requestedModuleId) ||
+        (entry.quizzes || []).some(
+          (quiz) => String(quiz.id) === String(requestedQuizId),
+        ),
+    );
+    const quiz = module?.quizzes?.find(
+      (entry) => String(entry.id) === String(requestedQuizId),
+    );
+
+    if (quiz && module) {
+      openedQuizFromStateRef.current = true;
+      openEditQuiz(quiz, module);
+    }
+  }, [course, location.state]);
+
   // ---------------------------------------------------------------------------
   // Sensors for drag-and-drop
   // ---------------------------------------------------------------------------
@@ -926,7 +1233,13 @@ export default function InstructorCoursePage() {
   const loadCourse = async () => {
     const { data } = await client.get(`/courses/${courseId}`);
     const modulesRes = await client.get(`/courses/${courseId}/modules`);
-    const fullCourse = { ...data, modules: modulesRes.data ?? [] };
+    const fullCourse = {
+      ...data,
+      modules: (modulesRes.data ?? []).map((module) => ({
+        ...module,
+        quizzes: (module.quizzes ?? []).map(normalizeQuizState),
+      })),
+    };
     setCourse(fullCourse);
     setCourseForm(courseToForm(data));
     return fullCourse;
@@ -1187,8 +1500,9 @@ export default function InstructorCoursePage() {
     setPanel("lesson");
   }
 
-  async function saveLesson(isPublished) {
+  async function saveLesson(revisionStatus) {
     setSaving(true);
+    let savedLesson = null;
     try {
       const duplicateError = checkDuplicateTitle(
         lessonForm.title,
@@ -1229,7 +1543,8 @@ export default function InstructorCoursePage() {
           lessonForm.estimated_time_minutes > 0
             ? lessonForm.estimated_time_minutes
             : null,
-        is_published: isAdmin ? isPublished : false,
+        revision_status: revisionStatus,
+        is_published: revisionStatus === "published",
         position: nextPosition,
       };
 
@@ -1239,6 +1554,24 @@ export default function InstructorCoursePage() {
 
       if (hasVideoUpload) {
         const formData = new FormData();
+        const uploadController = new AbortController();
+        uploadAbortRef.current = uploadController;
+        const isRemovingVideo =
+          lessonForm.remove_video && !lessonForm.videoFile;
+
+        setVideoUploadModal({
+          open: true,
+          fileName:
+            (isRemovingVideo
+              ? lessonForm.video_name || lessonForm.video_path?.split("/").pop()
+              : lessonForm.videoFile?.name) ||
+            lessonForm.video_name ||
+            "Lesson video",
+          progress: 0,
+          status: "uploading",
+          error: "",
+          mode: isRemovingVideo ? "removing" : "uploading",
+        });
 
         if (editingLesson) {
           formData.append("_method", "PUT");
@@ -1260,46 +1593,144 @@ export default function InstructorCoursePage() {
           formData.append("remove_video", "1");
         }
 
+        formData.append("revision_status", revisionStatus);
+        formData.append(
+          "is_published",
+          revisionStatus === "published" ? "1" : "0",
+        );
+
         if (lessonForm.videoFile) {
           formData.append("video", lessonForm.videoFile);
         }
 
+        const uploadProgressHandler = (event) => {
+          if (!event.total) {
+            return;
+          }
+
+          const nextProgress = Math.min(
+            100,
+            Math.round((event.loaded / event.total) * 100),
+          );
+
+          setVideoUploadModal((current) =>
+            current.open ? { ...current, progress: nextProgress } : current,
+          );
+        };
+
         if (editingLesson) {
-          await client.post(
+          const response = await client.post(
             `/modules/${editingModule.id}/lessons/${editingLesson.id}`,
             formData,
+            {
+              signal: uploadController.signal,
+              onUploadProgress: uploadProgressHandler,
+            },
           );
+          savedLesson = response.data;
         } else {
-          await client.post(`/modules/${editingModule.id}/lessons`, formData);
+          const response = await client.post(
+            `/modules/${editingModule.id}/lessons`,
+            formData,
+            {
+              signal: uploadController.signal,
+              onUploadProgress: uploadProgressHandler,
+            },
+          );
+          savedLesson = response.data;
+        }
+
+        setVideoUploadModal((current) =>
+          current.open
+            ? { ...current, progress: 100, status: "done", error: "" }
+            : current,
+        );
+        if (savedLesson) {
+          setEditingLesson((current) =>
+            current ? { ...current, ...savedLesson } : savedLesson,
+          );
         }
       } else if (editingLesson) {
-        await client.put(
+        const response = await client.put(
           `/modules/${editingModule.id}/lessons/${editingLesson.id}`,
           payload,
         );
+        setEditingLesson((current) =>
+          current ? { ...current, ...response.data } : response.data,
+        );
+        savedLesson = response.data;
       } else {
-        await client.post(`/modules/${editingModule.id}/lessons`, payload);
+        const response = await client.post(
+          `/modules/${editingModule.id}/lessons`,
+          payload,
+        );
+        setEditingLesson(response.data);
+        savedLesson = response.data;
       }
       await loadCourse();
       setDirty(false);
-      setPanel("course");
-      setEditingLesson(null);
 
-      if (!isAdmin && isPublished) {
-        toast.success(
-          "Lesson saved. To publish, please request approval from an admin.",
-        );
+      if (revisionStatus === "published") {
+        toast.success("Lesson published.");
+      } else if (revisionStatus === "pending_unpublish") {
+        toast.success("Lesson unpublish requested.");
+      } else if (revisionStatus === "pending_review") {
+        toast.success("Lesson submitted for review.");
       } else {
-        toast.success("Lesson saved.");
+        toast.success("Lesson saved as draft.");
       }
+
+      return savedLesson;
     } catch (err) {
+      if (err?.code === "ERR_CANCELED") {
+        return;
+      }
+
+      if (lessonForm.videoFile) {
+        setVideoUploadModal((current) =>
+          current.open
+            ? {
+                ...current,
+                status: "error",
+                error: getApiErrorMessage(err, "Failed to upload video."),
+              }
+            : current,
+        );
+      }
+
       toast.error(getApiErrorMessage(err, "Failed to save lesson."));
     } finally {
+      uploadAbortRef.current = null;
       setSaving(false);
     }
   }
 
   async function deleteLesson(lesson, module) {
+    if (lesson.is_published) {
+      if (isAdmin) {
+        if (
+          !confirm(
+            `Unpublish lesson "${lesson.title}"? Students will no longer see it.`,
+          )
+        ) {
+          return;
+        }
+
+        await applyLessonUnpublish(lesson, module);
+      } else {
+        if (
+          !confirm(
+            `Request unpublish for lesson "${lesson.title}"? An admin will review it.`,
+          )
+        ) {
+          return;
+        }
+
+        await requestLessonUnpublish(lesson, module);
+      }
+      return;
+    }
+
     if (!confirm("Delete this lesson?")) return;
     try {
       await client.delete(`/modules/${module.id}/lessons/${lesson.id}`);
@@ -1311,6 +1742,80 @@ export default function InstructorCoursePage() {
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to delete lesson."));
     }
+  }
+
+  async function applyLessonUnpublish(lesson, module) {
+    setSaving(true);
+    try {
+      const { data } = await client.patch(
+        `/modules/${module.id}/lessons/${lesson.id}/unpublish`,
+      );
+      setEditingLesson((current) => (current ? { ...current, ...data } : data));
+      setLessonForm(lessonToForm(data));
+      await loadCourse();
+      toast.success("Lesson unpublished.");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to unpublish lesson."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function requestLessonUnpublish(lesson, module) {
+    setSaving(true);
+    try {
+      const { data } = await client.get(
+        `/modules/${module.id}/lessons/${lesson.id}`,
+      );
+      const sourceLesson = resolveLessonSnapshot(data);
+      const { data: updatedLesson } = await client.put(
+        `/modules/${module.id}/lessons/${lesson.id}`,
+        {
+          title: sourceLesson.title,
+          slug: sourceLesson.slug,
+          content: sourceLesson.content,
+          type: "lesson",
+          estimated_time_minutes: sourceLesson.estimated_time_minutes ?? 0,
+          revision_status: "pending_unpublish",
+          is_published: false,
+          position: sourceLesson.position ?? lesson.position ?? 0,
+        },
+      );
+      const pendingRevision = updatedLesson?.latestRevision ||
+        updatedLesson?.latest_revision || { status: "pending_unpublish" };
+      setEditingLesson((current) =>
+        current
+          ? {
+              ...current,
+              ...updatedLesson,
+              latestRevision: {
+                ...pendingRevision,
+                status: "pending_unpublish",
+              },
+            }
+          : updatedLesson,
+      );
+      await loadCourse();
+      toast.success("Lesson unpublish requested.");
+    } catch (err) {
+      toast.error(
+        getApiErrorMessage(err, "Failed to request lesson unpublish."),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function unpublishLesson(lesson, module) {
+    if (
+      !confirm(
+        `Unpublish lesson "${lesson.title}"? Students will no longer see it.`,
+      )
+    ) {
+      return;
+    }
+
+    await applyLessonUnpublish(lesson, module);
   }
 
   // ---------------------------------------------------------------------------
@@ -1395,11 +1900,12 @@ export default function InstructorCoursePage() {
     setPanel("quiz");
     setEditingModule(module);
     setEditingQuiz(quiz);
+    const sourceQuiz = resolveQuizSnapshot(quiz);
     setQuizForm({
-      title: quiz.title,
-      pass_score: quiz.pass_score ?? 70,
-      estimated_time_minutes: quiz.estimated_time_minutes ?? 0,
-      time_limit_seconds: quiz.time_limit_seconds ?? 0,
+      title: sourceQuiz.title,
+      pass_score: sourceQuiz.pass_score ?? 70,
+      estimated_time_minutes: sourceQuiz.estimated_time_minutes ?? 0,
+      time_limit_seconds: sourceQuiz.time_limit_seconds ?? 0,
       is_published: quiz.is_published ?? false,
     });
     setQuizQuestions([]);
@@ -1409,7 +1915,10 @@ export default function InstructorCoursePage() {
       const { data } = await client.get(
         `/courses/${courseId}/quizzes/${quiz.id}`,
       );
-      setQuizQuestions((data.questions ?? []).map(questionToForm));
+      const activeQuiz = resolveQuizSnapshot(data);
+      setEditingQuiz(normalizeQuizState(data));
+      setQuizForm(quizToForm(data));
+      setQuizQuestions((activeQuiz.questions ?? []).map(questionToForm));
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to load quiz questions."));
     }
@@ -1452,27 +1961,39 @@ export default function InstructorCoursePage() {
         ...payload,
         module_id: editingModule?.id ?? null,
         position: nextQuizPosition,
-        is_published: isAdmin ? payload.is_published : false,
+        is_published:
+          payload.is_published ?? payload.revision_status === "published",
       };
       if (editingQuiz) {
-        await client.put(
+        const response = await client.put(
           `/courses/${courseId}/quizzes/${editingQuiz.id}`,
           fullPayload,
         );
+        const savedQuiz = resolveQuizSnapshot(response.data);
+        setEditingQuiz(normalizeQuizState(response.data));
+        setQuizForm(quizToForm(response.data));
+        setQuizQuestions((savedQuiz.questions ?? []).map(questionToForm));
       } else {
-        await client.post(`/courses/${courseId}/quizzes`, fullPayload);
+        const response = await client.post(
+          `/courses/${courseId}/quizzes`,
+          fullPayload,
+        );
+        const savedQuiz = resolveQuizSnapshot(response.data);
+        setEditingQuiz(normalizeQuizState(response.data));
+        setQuizForm(quizToForm(response.data));
+        setQuizQuestions((savedQuiz.questions ?? []).map(questionToForm));
       }
       await loadCourse();
       setDirty(false);
-      setPanel("course");
-      setEditingQuiz(null);
 
-      if (!isAdmin && payload.is_published) {
-        toast.success(
-          "Quiz saved. To publish, please request approval from an admin.",
-        );
+      if (payload.revision_status === "published") {
+        toast.success("Quiz published.");
+      } else if (payload.revision_status === "pending_review") {
+        toast.success("Quiz submitted for review.");
+      } else if (payload.revision_status === "pending_unpublish") {
+        // toast handled by requestQuizUnpublish caller
       } else {
-        toast.success("Quiz saved.");
+        toast.success("Quiz saved as draft.");
       }
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to save quiz."));
@@ -1482,6 +2003,31 @@ export default function InstructorCoursePage() {
   }
 
   async function deleteQuiz(quiz) {
+    if (quiz.is_published) {
+      if (isAdmin) {
+        if (
+          !confirm(
+            `Unpublish quiz "${quiz.title}"? Students will no longer see it.`,
+          )
+        ) {
+          return;
+        }
+
+        await applyQuizUnpublish(quiz);
+      } else {
+        if (
+          !confirm(
+            `Request unpublish for quiz "${quiz.title}"? An admin will review it.`,
+          )
+        ) {
+          return;
+        }
+
+        await requestQuizUnpublish(quiz);
+      }
+      return;
+    }
+
     if (!confirm("Delete this quiz and all its questions?")) return;
     try {
       await client.delete(`/courses/${courseId}/quizzes/${quiz.id}`);
@@ -1495,28 +2041,131 @@ export default function InstructorCoursePage() {
     }
   }
 
+  async function applyQuizUnpublish(quiz) {
+    setSaving(true);
+
+    try {
+      const { data } = await client.patch(
+        `/courses/${courseId}/quizzes/${quiz.id}/unpublish`,
+      );
+
+      const savedQuiz = resolveQuizSnapshot(data);
+
+      setEditingQuiz(normalizeQuizState(data));
+      setQuizForm(quizToForm(data));
+      setQuizQuestions((savedQuiz.questions ?? []).map(questionToForm));
+
+      await loadCourse();
+
+      toast.success("Quiz unpublished.");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to unpublish quiz."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function requestQuizUnpublish(quiz) {
+    setSaving(true);
+    try {
+      const { data } = await client.get(
+        `/courses/${courseId}/quizzes/${quiz.id}`,
+      );
+      const sourceQuiz = resolveQuizSnapshot(data);
+      await saveQuiz({
+        title: sourceQuiz.title,
+        pass_score: sourceQuiz.pass_score ?? 70,
+        estimated_time_minutes: sourceQuiz.estimated_time_minutes ?? 0,
+        time_limit_seconds: sourceQuiz.time_limit_seconds ?? 0,
+        is_published: false,
+        revision_status: "pending_unpublish",
+        questions: (sourceQuiz.questions ?? []).map((question) =>
+          questionFormToPayload(questionToForm(question)),
+        ),
+      });
+      setEditingQuiz((current) => {
+        if (!current) return current;
+        const existingRevision =
+          current.latestRevision || current.latest_revision || {};
+        return {
+          ...current,
+          latestRevision: { ...existingRevision, status: "pending_unpublish" },
+        };
+      });
+      toast.success("Quiz unpublish requested.");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to request quiz unpublish."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function unpublishQuiz(quiz) {
+    if (
+      !confirm(
+        `Unpublish quiz "${quiz.title}"? Students will no longer see it.`,
+      )
+    )
+      return;
+
+    await applyQuizUnpublish(quiz);
+  }
+
   // ---------------------------------------------------------------------------
   // Derived
   // ---------------------------------------------------------------------------
 
   const modules = useMemo(() => course?.modules || [], [course?.modules]);
   const isPublished = course?.is_published ?? false;
+  const pendingLessonRevision =
+    editingLesson?.latestRevision || editingLesson?.latest_revision;
+  const isPendingLessonRevision = [
+    "pending_review",
+    "pending_unpublish",
+    "pending",
+  ].includes(pendingLessonRevision?.status);
+  const pendingQuizRevision =
+    editingQuiz?.latestRevision || editingQuiz?.latest_revision;
+  const isPendingQuizRevision = [
+    "pending_review",
+    "pending_unpublish",
+    "pending",
+  ].includes(pendingQuizRevision?.status);
+  const lessonPrimaryLabel = isAdmin
+    ? isPendingLessonRevision
+      ? "Approve"
+      : "Save & Publish"
+    : "Submit for Review";
+  const quizPrimaryLabel = isAdmin
+    ? isPendingQuizRevision
+      ? "Approve"
+      : "Save & Publish"
+    : "Submit for Review";
   const lessonVideos = useMemo(
     () =>
       modules.flatMap((module) =>
         (module.lessons || [])
-          .filter((lesson) => lesson.video_url || lesson.video_path)
-          .map((lesson) => ({
-            courseTitle: course?.title || "",
-            moduleTitle: module.title || "",
-            module,
-            lesson,
-            videoName:
-              lesson.video_name ||
-              lesson.video_path?.split("/").pop() ||
-              lesson.video_url?.split("/").pop() ||
-              "Uploaded video",
-          })),
+          .map((lesson) => {
+            const lessonSnapshot = resolveLessonSnapshot(lesson);
+
+            return {
+              courseTitle: course?.title || "",
+              moduleTitle: module.title || "",
+              module,
+              lesson,
+              lessonId: lesson.id,
+              lessonSnapshot,
+              videoName:
+                lessonSnapshot.video_name ||
+                lessonSnapshot.video_path?.split("/").pop() ||
+                lessonSnapshot.video_url?.split("/").pop() ||
+                "Uploaded video",
+            };
+          })
+          .filter(
+            ({ lessonSnapshot }) =>
+              lessonSnapshot.video_url || lessonSnapshot.video_path,
+          ),
       ),
     [course?.title, modules],
   );
@@ -2019,8 +2668,51 @@ export default function InstructorCoursePage() {
                     moduleId: editingModule?.id,
                     lessonTitleFallback: lessonForm.title,
                   }}
-                  onPublish={() => saveLesson(true)}
-                  onDraft={() => saveLesson(false)}
+                  primaryLabel={lessonPrimaryLabel}
+                  onSubmitForReview={() => {
+                    if (
+                      isAdmin &&
+                      pendingLessonRevision?.status === "pending_unpublish"
+                    ) {
+                      (async () => {
+                        setSaving(true);
+                        try {
+                          await client.patch(
+                            `/admin/moderation-queue/lesson-revisions/${pendingLessonRevision.id}`,
+                            { action: "accept" },
+                          );
+                          toast.success("Lesson unpublished.");
+                          await loadCourse();
+                          window.dispatchEvent(new Event("moderation:changed"));
+                        } catch (err) {
+                          toast.error(
+                            getApiErrorMessage(
+                              err,
+                              "Failed to approve revision.",
+                            ),
+                          );
+                        } finally {
+                          setSaving(false);
+                        }
+                      })();
+                    } else {
+                      saveLesson(isAdmin ? "published" : "pending_review");
+                    }
+                  }}
+                  onDraft={() => saveLesson("draft")}
+                  onUnpublish={
+                    editingLesson?.is_published
+                      ? isAdmin
+                        ? () => unpublishLesson(editingLesson, editingModule)
+                        : () =>
+                            requestLessonUnpublish(editingLesson, editingModule)
+                      : undefined
+                  }
+                  tertiaryLabel={
+                    editingLesson?.is_published && !isAdmin
+                      ? "Request unpublish"
+                      : undefined
+                  }
                   onCancel={() => {
                     setPanel("course");
                     setEditingLesson(null);
@@ -2041,20 +2733,74 @@ export default function InstructorCoursePage() {
                   title={editingQuiz ? "Edit Quiz" : "New Quiz"}
                   form={quizForm}
                   setForm={(updater) => setQuizFormDirty(updater)}
+                  primaryLabel={quizPrimaryLabel}
+                  isAdmin={isAdmin}
                   questions={quizQuestions}
                   setQuestions={(updater) => {
                     setQuizQuestions(updater);
                     setDirty(true);
                   }}
                   onSave={saveQuiz}
+                  onSubmitForReview={() => {
+                    if (
+                      isAdmin &&
+                      pendingQuizRevision?.status === "pending_unpublish"
+                    ) {
+                      (async () => {
+                        setSaving(true);
+                        try {
+                          await client.patch(
+                            `/admin/moderation-queue/quiz-revisions/${pendingQuizRevision.id}`,
+                            { action: "accept" },
+                          );
+                          toast.success("Quiz unpublished.");
+                          await loadCourse();
+                          window.dispatchEvent(new Event("moderation:changed"));
+                        } catch (err) {
+                          toast.error(
+                            getApiErrorMessage(
+                              err,
+                              "Failed to approve revision.",
+                            ),
+                          );
+                        } finally {
+                          setSaving(false);
+                        }
+                      })();
+                    } else {
+                      saveQuiz({
+                        title: quizForm.title,
+                        pass_score: quizForm.pass_score ?? 70,
+                        estimated_time_minutes:
+                          quizForm.estimated_time_minutes ?? 0,
+                        time_limit_seconds: quizForm.time_limit_seconds ?? 0,
+                        is_published: true,
+                        revision_status: "published",
+                        questions: (quizQuestions ?? []).map((q, idx) => ({
+                          ...questionFormToPayload(q),
+                          position: idx + 1,
+                        })),
+                      });
+                    }
+                  }}
+                  onUnpublish={
+                    editingQuiz?.is_published
+                      ? isAdmin
+                        ? () => unpublishQuiz(editingQuiz)
+                        : () => requestQuizUnpublish(editingQuiz)
+                      : undefined
+                  }
+                  tertiaryLabel={
+                    editingQuiz?.is_published && !isAdmin
+                      ? "Request unpublish"
+                      : undefined
+                  }
                   onCancel={() => {
                     setPanel("course");
                     setEditingQuiz(null);
                   }}
                   onDelete={
-                    editingQuiz
-                      ? () => deleteQuiz(editingQuiz, editingModule)
-                      : undefined
+                    editingQuiz ? () => deleteQuiz(editingQuiz) : undefined
                   }
                   saving={saving}
                 />
@@ -2292,15 +3038,17 @@ export default function InstructorCoursePage() {
                         {lessonVideos.map(
                           ({
                             lesson,
+                            lessonId,
                             module,
                             videoName,
                             courseTitle,
                             moduleTitle,
+                            lessonSnapshot,
                           }) => {
                             const watchUrl = resolveBackendAssetUrl(
-                              lesson.video_url ||
-                                (lesson.video_path
-                                  ? `/storage/${lesson.video_path}`
+                              lessonSnapshot.video_url ||
+                                (lessonSnapshot.video_path
+                                  ? `/storage/${lessonSnapshot.video_path}`
                                   : ""),
                             );
 
@@ -2370,7 +3118,7 @@ export default function InstructorCoursePage() {
                                     className="h-7 text-xs rounded-[var(--radius)]"
                                   >
                                     <Link
-                                      to={`/learning/${courseId}?lesson=${lesson.id}`}
+                                      to={`/learning/${courseId}?lesson=${lessonId}`}
                                     >
                                       Watch
                                     </Link>
@@ -2433,6 +3181,17 @@ export default function InstructorCoursePage() {
           </div>
         </div>
       </section>
+
+      <VideoUploadModal
+        open={videoUploadModal.open}
+        fileName={videoUploadModal.fileName}
+        progress={videoUploadModal.progress}
+        status={videoUploadModal.status}
+        error={videoUploadModal.error}
+        mode={videoUploadModal.mode}
+        onCancel={cancelVideoUpload}
+        onDone={closeVideoUploadModal}
+      />
     </TooltipProvider>
   );
 }

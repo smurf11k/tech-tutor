@@ -3,24 +3,22 @@ import {
   getCaptchaToken,
   isCaptchaBypassAvailable,
   isCaptchaConfigured,
+  isCaptchaEnabled,
   preloadCaptcha,
 } from "@/lib/captcha";
 
 export function useCaptcha() {
-  const [ready, setReady] = useState(!isCaptchaConfigured());
+  const [ready, setReady] = useState(false);
+  const [enabled, setEnabled] = useState(false);
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    if (!isCaptchaConfigured()) {
-      setReady(true);
-      return;
-    }
-
     let cancelled = false;
 
     preloadCaptcha()
-      .then(() => {
+      .then((config) => {
         if (!cancelled) {
+          setEnabled(config.enabled);
           setReady(true);
         }
       })
@@ -40,6 +38,10 @@ export function useCaptcha() {
       throw new Error(loadError);
     }
 
+    if (!isCaptchaEnabled()) {
+      return "";
+    }
+
     const token = await getCaptchaToken(action);
 
     if (!token) {
@@ -53,14 +55,11 @@ export function useCaptcha() {
 
   async function reload() {
     setLoadError("");
-    setReady(!isCaptchaConfigured());
-
-    if (!isCaptchaConfigured()) {
-      return;
-    }
+    setReady(false);
 
     try {
-      await preloadCaptcha();
+      const config = await preloadCaptcha();
+      setEnabled(config.enabled);
       setReady(true);
     } catch (error) {
       setLoadError(error.message || "CAPTCHA failed to load.");
@@ -70,6 +69,7 @@ export function useCaptcha() {
   return {
     ready,
     loadError,
+    enabled,
     isConfigured: isCaptchaConfigured(),
     isBypassAvailable: isCaptchaBypassAvailable(),
     resolveToken,

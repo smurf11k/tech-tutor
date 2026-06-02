@@ -20,6 +20,46 @@ class AuthFlowTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_app_config_exposes_captcha_settings(): void
+    {
+        config()->set('services.captcha.enabled', false);
+        config()->set('services.captcha.site_key', 'site-key-from-config');
+
+        $this->getJson('/api/app-config')
+            ->assertOk()
+            ->assertJsonPath('captcha_enabled', false)
+            ->assertJsonPath('captcha_site_key', 'site-key-from-config');
+    }
+
+    public function test_user_can_login_without_captcha_when_captcha_is_disabled(): void
+    {
+        config()->set('services.captcha.enabled', false);
+        config()->set('services.captcha.secret', 'test-secret');
+
+        $user = User::factory()->create([
+            'email' => 'login.disabled@example.com',
+            'password' => Hash::make('password123'),
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'login.disabled@example.com',
+            'password' => 'password123',
+        ])->assertOk()
+            ->assertJsonPath('user.id', $user->id);
+    }
+
+    public function test_user_must_send_captcha_token_when_captcha_is_enabled(): void
+    {
+        config()->set('services.captcha.enabled', true);
+        config()->set('services.captcha.secret', 'test-secret');
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'missing.captcha@example.com',
+            'password' => 'password123',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['captcha_token']);
+    }
+
     public function test_user_can_request_email_verification_code_for_signup_without_captcha_token(): void
     {
         $this->postJson('/api/auth/register/request-verification-code', [
