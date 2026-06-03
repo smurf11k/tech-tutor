@@ -55,10 +55,11 @@ It supports course management, payments, quizzes, and progress tracking.
 </details>
 
 <details>
-<summary>Build tooling</summary>
+<summary>Porject tooling</summary>
 
 - [laravel-vite-plugin](https://laravel.com/docs/vite)
 - [concurrently](https://www.npmjs.com/package/concurrently)
+- [dompdf](https://github.com/dompdf/dompdf)
 
 </details>
 

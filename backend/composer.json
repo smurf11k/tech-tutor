@@ -16,6 +16,7 @@
     "require": {
         "php": "^8.3",
         "aws/aws-sdk-php": "^3.322.9",
+        "dompdf/dompdf": "^3.0",
         "http-interop/http-factory-guzzle": "^1.2",
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.3",
@@ -78,7 +79,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm --prefix ../frontend run dev\" --names=server,queue,frontend --kill-others"
+            "npx concurrently -c \"blue,magenta,red\" \"php artisan serve\" \"php artisan queue:work --tries=1 --timeout=0\" \"npm --prefix ../frontend run dev\" --names=server,queue,frontend --kill-others-on-fail"
         ],
         "dev:logs": [
             "@php artisan pail --timeout=0"

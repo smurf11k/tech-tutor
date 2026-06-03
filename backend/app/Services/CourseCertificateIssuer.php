@@ -6,12 +6,14 @@ use App\Models\Course;
 use App\Models\CourseCertificate;
 use App\Models\User;
 use App\Notifications\CourseCertificateIssuedNotification;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class CourseCertificateIssuer
 {
     public function __construct(
-        private readonly CourseProgressCalculator $progressCalculator
+        private readonly CourseProgressCalculator $progressCalculator,
+        private readonly CertificateService $certificateService
     ) {}
 
     public function issueIfEligible(Course $course, User $user): ?CourseCertificate
@@ -32,7 +34,8 @@ class CourseCertificateIssuer
         )->load(['course.instructor', 'user']);
 
         if ($certificate->wasRecentlyCreated) {
-            $user->notify(new CourseCertificateIssuedNotification($certificate));
+            $certificatePath = $this->certificateService->store($course, $user);
+            $user->notify(new CourseCertificateIssuedNotification($certificate, $certificatePath));
         }
 
         return $certificate;

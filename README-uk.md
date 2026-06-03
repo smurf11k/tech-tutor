@@ -30,34 +30,35 @@
 <details>
 <summary>Фронтенд</summary>
 
-- <https://vitejs.dev/>
-- <https://tailwindcss.com/>
-- <https://ui.shadcn.com/>
-- <https://www.radix-ui.com/>
-- <https://cva.style/docs>
-- <https://github.com/lukeed/clsx>
-- <https://github.com/dcastil/tailwind-merge>
-- <https://github.com/jamiebuilds/tailwindcss-animate>
-- <https://lucide.dev/>
-- <https://fontsource.org/fonts/geist>
-- <https://axios-http.com/>
-- <https://docs.dndkit.com/>
-- <https://dndkit.com/concepts/sortable/>
-- <https://github.com/clauderic/dnd-kit>
-- <https://eslint.org/>
-- <https://www.npmjs.com/package/eslint-plugin-react-hooks>
-- <https://www.npmjs.com/package/eslint-plugin-react-refresh>
-- <https://www.npmjs.com/package/@types/react>
-- <https://www.npmjs.com/package/@types/react-dom>
-- <https://www.npmjs.com/package/globals>
+- [Vite](https://vitejs.dev/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [Radix UI](https://www.radix-ui.com/)
+- [class-variance-authority](https://cva.style/docs)
+- [clsx](https://github.com/lukeed/clsx)
+- [tailwind-merge](https://github.com/dcastil/tailwind-merge)
+- [tw-animate-css](https://github.com/jamiebuilds/tailwindcss-animate)
+- [lucide-react](https://lucide.dev/)
+- [@fontsource-variable/geist](https://fontsource.org/fonts/geist)
+- [axios](https://axios-http.com/)
+- [@dnd-kit/core](https://docs.dndkit.com/)
+- [@dnd-kit/sortable](https://dndkit.com/concepts/sortable/)
+- [@dnd-kit/utilities](https://github.com/clauderic/dnd-kit)
+- [ESLint](https://eslint.org/)
+- [eslint-plugin-react-hooks](https://www.npmjs.com/package/eslint-plugin-react-hooks)
+- [eslint-plugin-react-refresh](https://www.npmjs.com/package/eslint-plugin-react-refresh)
+- [@types/react](https://www.npmjs.com/package/@types/react)
+- [@types/react-dom](https://www.npmjs.com/package/@types/react-dom)
+- [globals](https://www.npmjs.com/package/globals)
 
 </details>
 
 <details>
-<summary>Інструменти збірки</summary>
+<summary>Інструменти проєкту</summary>
 
-- <https://laravel.com/docs/vite>
-- <https://www.npmjs.com/package/concurrently>
+- [laravel-vite-plugin](https://laravel.com/docs/vite)
+- [concurrently](https://www.npmjs.com/package/concurrently)
+- [dompdf](https://github.com/dompdf/dompdf)
 
 </details>
 

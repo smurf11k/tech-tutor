@@ -173,12 +173,16 @@ class AuthController extends Controller
         }
 
         if ($request->boolean('remove_avatar')) {
-            Storage::disk('s3')->delete($user->avatar_path);
+            if ($user->avatar_path) {
+                Storage::disk('s3')->delete($user->avatar_path);
+            }
             $user->avatar_path = null;
         }
 
         if ($request->hasFile('avatar')) {
-            Storage::disk('s3')->delete($user->avatar_path);
+            if ($user->avatar_path) {
+                Storage::disk('s3')->delete($user->avatar_path);
+            }
 
             $avatarFile = $request->file('avatar');
             $extension = strtolower($avatarFile->getClientOriginalExtension() ?: $avatarFile->extension() ?: 'jpg');

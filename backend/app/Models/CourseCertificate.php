@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -41,5 +42,17 @@ class CourseCertificate extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function getStoragePath(): string
+    {
+        return sprintf('certificates/%d/%d.pdf', $this->user_id, $this->course_id);
+    }
+
+    public function getPdfContent(): ?string
+    {
+        return Storage::disk('local')->exists($this->getStoragePath())
+            ? Storage::disk('local')->get($this->getStoragePath())
+            : null;
     }
 }

@@ -92,6 +92,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::patch('admin/moderation-queue/quiz-revisions/{quizRevision}', [AdminModerationQueueController::class, 'updateQuizRevision']);
     Route::get('certificates', [CourseCertificateController::class, 'index']);
     Route::get('certificates/{certificate}', [CourseCertificateController::class, 'show']);
+    Route::get('certificates/download/{course}', [CourseCertificateController::class, 'download']);
     Route::post('courses/{course}/certificate', [CourseCertificateController::class, 'store']);
     Route::get('instructor/dashboard', [InstructorDashboardController::class, 'show']);
     Route::get('instructor/pending-comments', [CommentController::class, 'instructorPendingComments']);

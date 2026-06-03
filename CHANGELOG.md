@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- Implemented real pdf generation for certificates
 - Custom video player
 - New frontend UI design and layout refinements
 - Instructor content editor with:

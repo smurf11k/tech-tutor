@@ -24,7 +24,6 @@ function CertPreview({ courseName, recipientName, issuedAt }) {
       <div className="cert-doc">
         <div className="cert-doc-top">
           <img src="/favicon.svg" alt="TechTutor" className="h-5 w-5 p-[2px]" />
-          {/* ti-rosette icon via tabler-icons */}
           <i className="ti ti-rosette cert-rosette" />
         </div>
         <div className="cert-doc-title">Certificate of Completion</div>
@@ -40,7 +39,7 @@ function CertPreview({ courseName, recipientName, issuedAt }) {
 }
 
 // ─── Single certificate card ──────────────────────────────────────────────────
-function CertCard({ certificate, showRecipient }) {
+function CertCard({ certificate, showRecipient, client }) {
   const courseName =
     certificate.course?.title || `Course #${certificate.course_id}`;
 
@@ -57,23 +56,28 @@ function CertCard({ certificate, showRecipient }) {
       })
     : "—";
 
-  // Rough learning-time placeholder — replace when the API provides it
+  // TODO: calculate learning hours from course content instead of relying on optional API field
   const learningHours = certificate.total_hours ?? null;
 
-  function handleDownload() {
-    // TODO: implement PDF download
-    // e.g. window.open(`/api/certificates/${certificate.id}/download`, "_blank")
-  }
-
-  function handleShare() {
-    // TODO: implement share (copy link / Web Share API)
-    // e.g. navigator.share({ url: `…/certificates/${certificate.id}` })
-  }
-
-  function handleLinkedIn() {
-    // TODO: implement LinkedIn credential add
-    // LinkedIn Add to Profile URL requires: organizationId, name, issueYear/Month, certUrl, certId
-    // See: https://www.linkedin.com/help/linkedin/answer/a567169
+  async function handleDownload() {
+    try {
+      const response = await client.get(
+        `/certificates/download/${certificate.course_id}`,
+        {
+          responseType: "blob",
+        },
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const slug = certificate.course?.slug || certificate.course_id;
+      link.setAttribute("download", `certificate-${slug}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Failed to download certificate:", err);
+    }
   }
 
   return (
@@ -115,12 +119,6 @@ function CertCard({ certificate, showRecipient }) {
         <div className="cert-actions">
           <button className="btn btn-primary btn-sm" onClick={handleDownload}>
             <i className="ti ti-download btn-icon" /> Download PDF
-          </button>
-          <button className="btn btn-outline btn-sm" onClick={handleShare}>
-            <i className="ti ti-share btn-icon" /> Share
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={handleLinkedIn}>
-            <i className="ti ti-brand-linkedin btn-icon" /> LinkedIn
           </button>
           <Link
             to={`/courses/${getCourseRouteKey(certificate.course) || certificate.course_id}`}
@@ -187,7 +185,7 @@ export default function CertificatesPage() {
 
   return (
     <>
-      {/* Scoped styles — mirrors _shared.css tokens + cert-specific rules */}
+      {/* TODO: Move styles to a separate CSS file */}
       <style>{`
         /* ── Cert card ── */
         .cert-card {
@@ -421,6 +419,7 @@ export default function CertificatesPage() {
                   key={cert.id ?? i}
                   certificate={cert}
                   showRecipient={showRecipient}
+                  client={client}
                 />
               ),
             )}

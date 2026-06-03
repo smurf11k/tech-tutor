@@ -178,7 +178,7 @@ class CourseFlowTest extends TestCase
 
         $this->postJson("/api/courses/{$course->id}/certificate")
             ->assertStatus(409)
-            ->assertJsonPath('message', 'certificate already issued');
+            ->assertJsonPath('message', 'Certificate already issued');
 
         $this->assertDatabaseCount('course_certificates', 1);
 
