@@ -11,7 +11,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { extractList, getApiErrorMessage } from "@/lib/utils";
 import { resolveBackendAssetUrl } from "@/lib/api";
 
-// Stat card icons
+// TODO: move icons to separate files if they get reused elsewhere
 function IconUsers({ size = 16 }) {
   return (
     <svg
@@ -409,7 +409,7 @@ export default function AdminUsersPage() {
   );
 
   return (
-    <section className="space-y-6">
+    <section className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-end justify-between gap-4">
         <div>
@@ -683,11 +683,11 @@ export default function AdminUsersPage() {
       {/* Invite modal */}
       {inviteOpen && (
         <div
-          className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-10 backdrop-blur-sm"
+          className="fixed inset-0 z-[240] flex items-center justify-center overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-sm"
           onClick={() => setInviteOpen(false)}
         >
           <div
-            className="relative mt-4 w-[440px] rounded-[10px] border border-border bg-[#0a0a0a] p-6"
+            className="relative w-[440px] rounded-[10px] border border-border bg-[#0a0a0a] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <button
