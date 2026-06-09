@@ -27,7 +27,18 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $bio
  * @property bool $is_banned
  * @property string|null $banned_at
- * @property bool $email_notifications_enabled
+     * @property bool $email_notifications_enabled
+     * @property bool $email_notifications_comment_reply
+     * @property bool $email_notifications_thread
+     * @property bool $email_notifications_quiz_result
+     * @property bool $email_notifications_new_course
+     * @property bool $email_notifications_new_content
+     * @property bool $email_notifications_new_enrollment
+     * @property bool $email_notifications_instructor_quiz_result
+     * @property bool $email_notifications_approval_result
+     * @property bool $email_notifications_course_submitted
+ * @property bool $email_notifications_lesson_submitted
+ * @property bool $email_notifications_review_declined
  * @property string|null $avatar_path
  * @property-read Collection<int, Course> $taughtCourses
  * @property-read Collection<int, Enrollment> $enrollments
@@ -58,6 +69,17 @@ class User extends Authenticatable implements MustVerifyEmail
         'is_banned',
         'banned_at',
         'email_notifications_enabled',
+        'email_notifications_comment_reply',
+        'email_notifications_thread',
+        'email_notifications_quiz_result',
+        'email_notifications_new_course',
+        'email_notifications_new_content',
+        'email_notifications_new_enrollment',
+        'email_notifications_instructor_quiz_result',
+        'email_notifications_approval_result',
+        'email_notifications_course_submitted',
+        'email_notifications_lesson_submitted',
+        'email_notifications_review_declined',
         'avatar_path',
     ];
 
@@ -90,6 +112,17 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_banned' => 'boolean',
             'banned_at' => 'datetime',
             'email_notifications_enabled' => 'boolean',
+            'email_notifications_comment_reply' => 'boolean',
+            'email_notifications_thread' => 'boolean',
+            'email_notifications_quiz_result' => 'boolean',
+            'email_notifications_new_course' => 'boolean',
+            'email_notifications_new_content' => 'boolean',
+            'email_notifications_new_enrollment' => 'boolean',
+            'email_notifications_instructor_quiz_result' => 'boolean',
+            'email_notifications_approval_result' => 'boolean',
+            'email_notifications_course_submitted' => 'boolean',
+            'email_notifications_lesson_submitted' => 'boolean',
+            'email_notifications_review_declined' => 'boolean',
         ];
     }
 
@@ -204,5 +237,26 @@ class User extends Authenticatable implements MustVerifyEmail
 
         $this->tokens()->delete();
         $this->delete();
+    }
+
+    public function canReceiveEmailNotification(string $type): bool
+    {
+        if (! $this->email_notifications_enabled) {
+            return false;
+        }
+
+        return match ($type) {
+            'comment_reply' => $this->email_notifications_comment_reply,
+            'thread' => $this->email_notifications_thread,
+            'quiz_result' => $this->email_notifications_quiz_result,
+            'new_course' => $this->email_notifications_new_course,
+            'new_content' => $this->email_notifications_new_content,
+            'new_enrollment' => $this->email_notifications_new_enrollment,
+            'instructor_quiz_result' => $this->email_notifications_instructor_quiz_result,
+            'approval_result' => $this->email_notifications_approval_result,
+            'course_submitted' => $this->email_notifications_course_submitted,
+            'lesson_submitted' => $this->email_notifications_lesson_submitted,
+            default => true,
+        };
     }
 }

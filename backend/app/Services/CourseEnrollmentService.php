@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\User;
 use App\Notifications\EnrollmentCreatedNotification;
+use App\Notifications\NewEnrollmentNotification;
 
 class CourseEnrollmentService
 {
@@ -20,7 +21,15 @@ class CourseEnrollmentService
         ]);
 
         if ($enrollment->wasRecentlyCreated) {
-            $user->notify(new EnrollmentCreatedNotification($enrollment->load('course')));
+            if ($user->email_notifications_enabled) {
+                $user->notify(new EnrollmentCreatedNotification($enrollment->load('course')));
+            }
+
+            $instructor = $course->instructor;
+
+            if ($instructor && $instructor->canReceiveEmailNotification('new_enrollment')) {
+                $instructor->notify(new NewEnrollmentNotification($enrollment));
+            }
         }
 
         return $enrollment->load(['user', 'course']);

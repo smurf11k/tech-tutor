@@ -30,11 +30,12 @@ class CommentController extends Controller
         $isAdmin = $user?->isAdmin();
         $isInstructor = $user && ($isAdmin || $user->id === $course->instructor_id);
 
-        // Instructors and admins see all comments; others see only published
-        //TODO: fix, there shouldn't be unpublished comments, why is there?
+        // Instructors and admins see all comments; others see published OR their own comments
         if (!$isInstructor && !$isAdmin) {
-            $comments->where('is_published', true)
-                ->whereHas('lesson', fn($q) => $q->where('is_published', true));
+            $comments->where(function ($query) use ($user) {
+                $query->where('is_published', true)
+                    ->orWhere('user_id', $user->id);
+            })->whereHas('lesson', fn($q) => $q->where('is_published', true));
         }
 
         return response()->json($comments->get());
@@ -60,20 +61,24 @@ class CommentController extends Controller
             'user_id' => $request->user()->id,
             'body' => $validated['body'],
             'parent_comment_id' => $parentCommentId,
-            'is_published' => false,
+            'is_published' => true,
         ]);
 
-        // Send notifications
+        $comment->load(['user', 'lesson']);
+
         if ($parentComment) {
-            // Notify the user whose comment was replied to
-            if ($parentComment->user->email_notifications_enabled) {
+            $parentComment->load('user');
+            if ($parentComment->user->canReceiveEmailNotification('comment_reply')) {
                 $parentComment->user->notify(new CommentReplyNotification($comment, $course));
             }
         } else {
-            // Notify course instructor about new top-level comment
-            if ($course->instructor->email_notifications_enabled) {
-                $course->instructor->notify(new NewCommentNotification($comment, $course));
+            $instructor = $course->instructor;
+
+            if ($instructor && $instructor->canReceiveEmailNotification('new_comment')) {
+                $instructor->notify(new NewCommentNotification($comment, $course));
             }
+
+            $this->notifyThreadParticipants($comment, $course, $request->user()->id);
         }
 
         return response()->json($comment->load(['lesson', 'user', 'replies.user']), 201);
@@ -115,11 +120,10 @@ class CommentController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User && ($user->isAdmin() || $user->isInstructor()), 403);
 
-        $query = Comment::with(['user', 'lesson.module.course'])
-            ->where('is_published', false)
+        $query = Comment::with(['user', 'lesson.module.course', 'replies'])
+            ->whereNull('parent_comment_id')
             ->latest();
 
-        // Instructors see only their course's pending comments; admins see all
         if (!$user->isAdmin()) {
             $query->whereHas('lesson.module.course', function ($q) use ($user) {
                 $q->where('instructor_id', $user->id);
@@ -127,6 +131,7 @@ class CommentController extends Controller
         }
 
         $comments = $query->get()
+            ->filter(fn (Comment $comment) => $comment->replies->isEmpty())
             ->groupBy(function ($comment) {
                 return $comment->lesson->module->course->id;
             })
@@ -180,5 +185,24 @@ class CommentController extends Controller
 
         // Allow: comment owner, course instructor, or admin
         abort_unless($isOwner || $isInstructor || $isAdmin, 403);
+    }
+
+    private function notifyThreadParticipants(Comment $newComment, Course $course, int $excludeUserId): void
+    {
+        $participants = User::query()
+            ->whereHas('comments', fn($query) => $query
+                ->where('lesson_id', $newComment->lesson_id)
+                ->whereNull('parent_comment_id')
+                ->where('user_id', '!=', $excludeUserId)
+            )
+            ->where('id', '!=', $excludeUserId)
+            ->distinct()
+            ->get();
+
+        foreach ($participants as $participant) {
+            if ($participant->canReceiveEmailNotification('thread')) {
+                $participant->notify(new NewCommentNotification($newComment, $course));
+            }
+        }
     }
 }

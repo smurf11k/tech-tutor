@@ -326,9 +326,15 @@ class AdminPanelFlowTest extends TestCase
 
         $this->patchJson("/api/admin/moderation-queue/reviews/{$reviewId}", [
             'is_published' => false,
-        ])->assertOk();
+        ])->assertNoContent();
 
         $this->getJson('/api/admin/moderation-queue')
+            ->assertOk()
+            ->assertJsonCount(0);
+
+        $this->assertDatabaseMissing('reviews', ['id' => $reviewId]);
+
+        $this->getJson("/api/courses/{$course->id}/reviews")
             ->assertOk()
             ->assertJsonCount(0);
     }

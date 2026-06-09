@@ -46,95 +46,25 @@ export default function AdminModerationPage() {
     try {
       await client.patch(`/admin/moderation-queue/reviews/${reviewId}`, {
         is_published: isPublished,
+        declined_reason: declineReasons[reviewId] || undefined,
       });
-      toast.success(isPublished ? "Review approved." : "Review declined.");
-      await loadQueue();
     } catch (err) {
       toast.error(getApiErrorMessage(err));
+      return;
     } finally {
       setBusy(false);
     }
-  }
 
-  async function moderateComment(commentId, isPublished) {
-    setBusy(true);
-    try {
-      await client.patch(`/admin/moderation-queue/comments/${commentId}`, {
-        is_published: isPublished,
-      });
-      toast.success(isPublished ? "Comment approved." : "Comment declined.");
-      await loadQueue();
-    } catch (err) {
-      toast.error(getApiErrorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function moderateLessonRevision(revisionId, action, revisionStatus) {
-    setBusy(true);
-    try {
-      await client.patch(
-        `/admin/moderation-queue/lesson-revisions/${revisionId}`,
-        {
-          action,
-          declined_reason: declineReasons[revisionId] || undefined,
-        },
-      );
-      if (action === "accept") {
-        toast.success(
-          revisionStatus === "pending_unpublish"
-            ? "Lesson unpublished."
-            : "Lesson published.",
-        );
-      } else {
-        toast.success("Lesson revision declined.");
-      }
+    if (!isPublished) {
       setDeclineReasons((current) => {
         const next = { ...current };
-        delete next[revisionId];
+        delete next[reviewId];
         return next;
       });
-      window.dispatchEvent(new Event("moderation:changed"));
-      await loadQueue();
-    } catch (err) {
-      toast.error(getApiErrorMessage(err));
-    } finally {
-      setBusy(false);
     }
-  }
 
-  async function moderateQuizRevision(revisionId, action, revisionStatus) {
-    setBusy(true);
-    try {
-      await client.patch(
-        `/admin/moderation-queue/quiz-revisions/${revisionId}`,
-        {
-          action,
-          declined_reason: declineReasons[revisionId] || undefined,
-        },
-      );
-      if (action === "accept") {
-        toast.success(
-          revisionStatus === "pending_unpublish"
-            ? "Quiz unpublished."
-            : "Quiz published.",
-        );
-      } else {
-        toast.success("Quiz revision declined.");
-      }
-      setDeclineReasons((current) => {
-        const next = { ...current };
-        delete next[revisionId];
-        return next;
-      });
-      window.dispatchEvent(new Event("moderation:changed"));
-      await loadQueue();
-    } catch (err) {
-      toast.error(getApiErrorMessage(err));
-    } finally {
-      setBusy(false);
-    }
+    toast.success(isPublished ? "Review approved." : "Review declined.");
+    await loadQueue();
   }
 
   async function moderatePublishRequest(publishRequestId, action, requestType) {
@@ -432,8 +362,8 @@ export default function AdminModerationPage() {
             );
           }
 
-          const content = item.review ?? item.comment;
-          const body = item.review?.comment ?? item.comment?.body ?? "";
+          const content = item.review;
+          const body = item.review?.comment ?? "";
           const key = `${item.content_type}-${content?.id ?? index}`;
 
           return (
@@ -446,15 +376,27 @@ export default function AdminModerationPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm">{body}</p>
+                <label className="block space-y-2">
+                  <Label htmlFor={`decline-${content.id}`}>
+                    Decline reason (optional)
+                  </Label>
+                  <Input
+                    id={`decline-${content.id}`}
+                    value={declineReasons[content.id] || ""}
+                    onChange={(event) =>
+                      setDeclineReasons((current) => ({
+                        ...current,
+                        [content.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="Reason shown to the reviewer"
+                  />
+                </label>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
                     disabled={busy}
-                    onClick={() =>
-                      item.content_type === "review"
-                        ? moderateReview(content.id, true)
-                        : moderateComment(content.id, true)
-                    }
+                    onClick={() => moderateReview(content.id, true)}
                   >
                     Approve
                   </Button>
@@ -462,11 +404,7 @@ export default function AdminModerationPage() {
                     size="sm"
                     variant="destructive"
                     disabled={busy}
-                    onClick={() =>
-                      item.content_type === "review"
-                        ? moderateReview(content.id, false)
-                        : moderateComment(content.id, false)
-                    }
+                    onClick={() => moderateReview(content.id, false)}
                   >
                     Decline
                   </Button>

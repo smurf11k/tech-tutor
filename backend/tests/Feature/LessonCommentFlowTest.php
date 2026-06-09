@@ -6,6 +6,7 @@ use App\Models\Comment;
 use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\Module;
+use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -28,12 +29,12 @@ class LessonCommentFlowTest extends TestCase
             'body' => 'This lesson helped me understand the flow.',
         ])->assertCreated()
             ->assertJsonPath('body', 'This lesson helped me understand the flow.')
-            ->assertJsonPath('is_published', false);
+            ->assertJsonPath('is_published', true);
 
         $this->assertDatabaseHas('comments', [
             'lesson_id' => $lesson->id,
             'user_id' => $student->id,
-            'is_published' => false,
+            'is_published' => true,
         ]);
     }
 
@@ -51,11 +52,13 @@ class LessonCommentFlowTest extends TestCase
         $this->assertDatabaseCount('comments', 0);
     }
 
-    public function test_non_admin_comment_index_only_returns_published_comments(): void
+    public function test_non_admin_comment_index_returns_published_and_own_unpublished_comments(): void
     {
         [$course, $lesson, $instructor] = $this->createPublishedLesson();
         $student = User::factory()->create(['role' => 'student']);
         $admin = User::factory()->create(['role' => 'admin']);
+
+        $otherStudent = User::factory()->create(['role' => 'student']);
 
         Comment::create([
             'lesson_id' => $lesson->id,
@@ -67,7 +70,14 @@ class LessonCommentFlowTest extends TestCase
         Comment::create([
             'lesson_id' => $lesson->id,
             'user_id' => $student->id,
-            'body' => 'Hidden comment',
+            'body' => 'Own unpublished comment',
+            'is_published' => false,
+        ]);
+
+        Comment::create([
+            'lesson_id' => $lesson->id,
+            'user_id' => $otherStudent->id,
+            'body' => 'Other user unpublished comment',
             'is_published' => false,
         ]);
 
@@ -76,17 +86,21 @@ class LessonCommentFlowTest extends TestCase
 
         $this->getJson("/api/lessons/{$lesson->id}/comments")
             ->assertOk()
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.body', 'Visible comment');
+            ->assertJsonCount(2);
+
+        $response = $this->getJson("/api/lessons/{$lesson->id}/comments");
+        $bodies = collect($response->json())->pluck('body')->all();
+        $this->assertContains('Visible comment', $bodies);
+        $this->assertContains('Own unpublished comment', $bodies);
 
         Sanctum::actingAs($admin);
 
         $this->getJson("/api/lessons/{$lesson->id}/comments")
             ->assertOk()
-            ->assertJsonCount(2);
+            ->assertJsonCount(3);
     }
 
-    public function test_student_cannot_publish_their_own_comment_but_admin_can_moderate_it(): void
+    public function test_comments_do_not_appear_in_admin_moderation_queue(): void
     {
         [$course, $lesson] = $this->createPublishedLesson();
         $student = User::factory()->create(['role' => 'student']);
@@ -95,37 +109,28 @@ class LessonCommentFlowTest extends TestCase
         Sanctum::actingAs($student);
         $this->postJson("/api/courses/{$course->id}/enrollments")->assertCreated();
 
-        $commentResponse = $this->postJson("/api/lessons/{$lesson->id}/comments", [
-            'body' => 'Pending moderation comment',
+        $this->postJson("/api/lessons/{$lesson->id}/comments", [
+            'body' => 'A regular comment that should not need moderation.',
         ])->assertCreated();
 
-        $commentId = $commentResponse->json('id');
-
-        $this->patchJson("/api/lessons/{$lesson->id}/comments/{$commentId}", [
-            'body' => 'Edited body',
-            'is_published' => true,
-        ])->assertOk()
-            ->assertJsonPath('body', 'Edited body')
-            ->assertJsonPath('is_published', false);
+        Review::create([
+            'course_id' => $course->id,
+            'user_id' => $student->id,
+            'rating' => 5,
+            'comment' => 'Great course!',
+            'is_published' => false,
+        ]);
 
         Sanctum::actingAs($admin);
 
         $this->getJson('/api/admin/moderation-queue')
             ->assertOk()
             ->assertJsonFragment([
+                'content_type' => 'review',
+            ])
+            ->assertJsonMissing([
                 'content_type' => 'comment',
             ]);
-
-        $this->patchJson("/api/admin/moderation-queue/comments/{$commentId}", [
-            'is_published' => true,
-        ])->assertOk()
-            ->assertJsonPath('id', $commentId)
-            ->assertJsonPath('is_published', true);
-
-        $this->assertDatabaseHas('comments', [
-            'id' => $commentId,
-            'is_published' => true,
-        ]);
     }
 
     private function createPublishedLesson(): array

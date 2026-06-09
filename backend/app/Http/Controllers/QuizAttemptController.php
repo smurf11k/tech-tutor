@@ -43,7 +43,18 @@ class QuizAttemptController extends Controller
         ]);
 
         $attempt->load(['quiz', 'user']);
-        $user->notify(new QuizAttemptCompletedNotification($attempt));
+
+        if ($user->canReceiveEmailNotification('quiz_result')) {
+            $user->notify(new QuizAttemptCompletedNotification($attempt));
+        }
+
+        $quiz = $attempt->quiz;
+        $course = $quiz->course;
+        $instructor = $course->instructor;
+
+        if ($instructor && $instructor->id !== $user->id && $instructor->canReceiveEmailNotification('instructor_quiz_result')) {
+            $instructor->notify(new QuizAttemptCompletedNotification($attempt));
+        }
 
         $certificate = $attempt->passed
             ? $issuer->issueIfEligible($quiz->course, $user)

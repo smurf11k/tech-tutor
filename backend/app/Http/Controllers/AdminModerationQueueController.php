@@ -5,14 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ModeratePublishRequestRequest;
 use App\Http\Requests\ModerateLessonRevisionRequest;
 use App\Http\Requests\ModerateQuizRevisionRequest;
-use App\Http\Requests\ModerateQueuedCommentRequest;
 use App\Http\Requests\ModerateQueuedReviewRequest;
-use App\Models\Comment;
 use App\Models\LessonRevision;
 use App\Models\PublishRequest;
 use App\Models\QuizRevision;
 use App\Models\Review;
 use App\Notifications\PublishRequestHandledNotification;
+use App\Notifications\ReviewDeclinedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 class AdminModerationQueueController extends Controller
@@ -30,17 +29,6 @@ class AdminModerationQueueController extends Controller
             ->map(fn(Review $review): array => [
                 'content_type' => 'review',
                 'review' => $review->toArray(),
-            ]);
-
-        $comments = Comment::query()
-            ->with(['lesson.module.course', 'user'])
-            ->where('is_published', false)
-            ->whereNull('moderated_at')
-            ->latest()
-            ->get()
-            ->map(fn(Comment $comment): array => [
-                'content_type' => 'comment',
-                'comment' => $comment->toArray(),
             ]);
 
         $publishRequests = PublishRequest::query()
@@ -78,7 +66,6 @@ class AdminModerationQueueController extends Controller
 
         return response()->json(
             $reviews
-                ->concat($comments)
                 ->concat($publishRequests)
                 ->concat($lessonRevisions)
                 ->concat($quizRevisions)
@@ -91,24 +78,24 @@ class AdminModerationQueueController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
+        $validated = $request->validated();
+
+        if ($validated['is_published'] === false) {
+            $reviewer = $review->user;
+            if ($reviewer && $reviewer->canReceiveEmailNotification('review_declined')) {
+                $reviewer->notify(new ReviewDeclinedNotification($review, $validated['declined_reason'] ?? null));
+            }
+            $review->delete();
+
+            return response()->json(null, 204);
+        }
+
         $review->update([
-            'is_published' => $request->validated()['is_published'],
+            'is_published' => true,
             'moderated_at' => now(),
         ]);
 
         return response()->json($review->fresh()->load(['course', 'user']));
-    }
-
-    public function updateComment(ModerateQueuedCommentRequest $request, Comment $comment): JsonResponse
-    {
-        abort_unless($request->user()?->isAdmin(), 403);
-
-        $comment->update([
-            'is_published' => $request->validated()['is_published'],
-            'moderated_at' => now(),
-        ]);
-
-        return response()->json($comment->fresh()->load(['lesson.module.course', 'user']));
     }
 
     public function updatePublishRequest(
@@ -325,7 +312,6 @@ class AdminModerationQueueController extends Controller
     private function queueTimestamp(array $item): string
     {
         return $item['review']['created_at']
-            ?? $item['comment']['created_at']
             ?? $item['publish_request']['created_at']
             ?? $item['lesson_revision']['created_at']
             ?? $item['quiz_revision']['created_at']

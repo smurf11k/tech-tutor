@@ -201,7 +201,6 @@ Notes:
 - [x] 6-digit email verification code flow
 - [x] Password reset flow
 - [x] OAuth login with Google
-- [ ] OAuth login with GitHub (optional)
 - [ ] 2FA (optional)
 - [x] Rate limiting on auth endpoints
 - [x] CAPTCHA on registration/login
@@ -268,9 +267,10 @@ Notes:
 
 - [x] Email notifications (enrollment, quiz results, certificates, publish requests)
 - [x] Auth email notifications (verification, password reset)
-- [ ] New content email notifications
-- [ ] In-app notifications
-- [ ] Push notifications
+- [x] New content email notifications
+- [x] Toast notifications (event triggered)
+- [ ] In-app notifications (optional)
+- [ ] Push notifications (optional)
 
 ### Instructor Dashboard
 

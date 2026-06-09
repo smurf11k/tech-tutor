@@ -2,10 +2,14 @@ import axios from "axios";
 
 const apiBaseUrl = "/api";
 
+const FALLBACK_BACKEND_ORIGIN = "http://localhost:8000";
+
+const configuredBackendOrigin = import.meta.env.VITE_BACKEND_ORIGIN?.trim();
+
 export const backendOrigin =
   typeof window !== "undefined"
-    ? window.location.origin
-    : "http://localhost:5173";
+    ? configuredBackendOrigin || FALLBACK_BACKEND_ORIGIN
+    : configuredBackendOrigin || FALLBACK_BACKEND_ORIGIN;
 
 export const STORAGE_TOKEN_KEY = "techtutor_token";
 export const STORAGE_USER_KEY = "techtutor_user";
@@ -43,9 +47,9 @@ export function resolveBackendAssetUrl(url) {
   if (url.startsWith("http://") || url.startsWith("https://")) {
     try {
       const parsed = new URL(url);
-      const frontendOrigin = new URL(backendOrigin);
+      const backendOriginUrl = new URL(backendOrigin);
 
-      if (parsed.origin === frontendOrigin.origin) {
+      if (parsed.origin === backendOriginUrl.origin) {
         return `${parsed.pathname}${parsed.search}${parsed.hash}`;
       }
     } catch {

@@ -1,11 +1,8 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { backendOrigin } from "@/lib/api";
 
 const stripeCurrency = (import.meta.env.VITE_STRIPE_CURRENCY || "USD").trim();
-const backendOrigin =
-  typeof window !== "undefined"
-    ? window.location.origin
-    : "http://localhost:5173";
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));

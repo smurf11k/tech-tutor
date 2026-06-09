@@ -15,6 +15,7 @@ class ModerateQueuedReviewRequest extends FormRequest
     {
         return [
             'is_published' => ['required', 'boolean'],
+            'declined_reason' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }

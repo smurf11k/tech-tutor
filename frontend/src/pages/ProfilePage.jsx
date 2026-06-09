@@ -10,6 +10,7 @@ import { getApiErrorMessage } from "@/lib/utils";
 import { extractList, formatMoney } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
 const profileTabs = [
   { id: "account", label: "Account" },
@@ -47,8 +48,20 @@ export default function ProfilePage() {
   const [billingError, setBillingError] = useState("");
   const [payments, setPayments] = useState([]);
   const [billingLoaded, setBillingLoaded] = useState(false);
-
   const currentProfile = profile || user;
+  const [preferences, setPreferences] = useState({
+    email_notifications_enabled: currentProfile?.email_notifications_enabled ?? true,
+    email_notifications_comment_reply: currentProfile?.email_notifications_comment_reply ?? true,
+    email_notifications_thread: currentProfile?.email_notifications_thread ?? true,
+    email_notifications_quiz_result: currentProfile?.email_notifications_quiz_result ?? true,
+    email_notifications_new_course: currentProfile?.email_notifications_new_course ?? false,
+    email_notifications_new_content: currentProfile?.email_notifications_new_content ?? true,
+    email_notifications_new_enrollment: currentProfile?.email_notifications_new_enrollment ?? true,
+    email_notifications_instructor_quiz_result: currentProfile?.email_notifications_instructor_quiz_result ?? true,
+    email_notifications_approval_result: currentProfile?.email_notifications_approval_result ?? true,
+    email_notifications_course_submitted: currentProfile?.email_notifications_course_submitted ?? true,
+    email_notifications_lesson_submitted: currentProfile?.email_notifications_lesson_submitted ?? true,
+  });
 
   useEffect(() => {
     async function load() {
@@ -162,7 +175,7 @@ export default function ProfilePage() {
     setMessage("");
     setSavingNotifications(true);
     try {
-      const response = await client.patch("/auth/me", {
+      const response = await client.patch("/api/auth/me", {
         email_notifications_enabled: !profile?.email_notifications_enabled,
       });
       setProfile(response.data);
@@ -170,6 +183,23 @@ export default function ProfilePage() {
       setMessage(
         `Email notifications ${!profile?.email_notifications_enabled ? "enabled" : "disabled"}`,
       );
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setSavingNotifications(false);
+    }
+  }
+
+  async function savePreference(key, value) {
+    setError("");
+    setMessage("");
+    setSavingNotifications(true);
+    try {
+      const payload = { [key]: value };
+      const response = await client.patch("/api/auth/me", payload);
+      setProfile(response.data);
+      setPreferences((prev) => ({ ...prev, [key]: value }));
+      setMessage("Notification preference saved.");
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -420,17 +450,16 @@ export default function ProfilePage() {
               <CardHeader>
                 <CardTitle className="text-[14px]">Notifications</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="pr-4">
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
                     <p className="text-[13px] font-medium">
                       {currentProfile?.email_notifications_enabled
                         ? "Email notifications enabled"
                         : "Email notifications disabled"}
                     </p>
                     <p className="text-[11px] text-muted-foreground mono-ui">
-                      Updates from instructors, course announcements, and
-                      replies to your comments.
+                      Master switch for all email notifications.
                     </p>
                   </div>
                   <Button
@@ -448,6 +477,82 @@ export default function ProfilePage() {
                         ? "disable"
                         : "enable"}
                   </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[13px] font-medium mb-3">Learning Activity</p>
+                    <div className="space-y-3">
+                      {[
+                        { key: 'email_notifications_comment_reply', label: 'Comment replies', desc: 'Receive email when someone replies to my comment.' },
+                        { key: 'email_notifications_thread', label: 'Thread notifications', desc: 'Receive email when someone posts in a course discussion where I previously commented.' },
+                        { key: 'email_notifications_quiz_result', label: 'Quiz results', desc: 'Receive email when a quiz is graded or results become available.' },
+                        { key: 'email_notifications_new_course', label: 'New courses', desc: 'Receive email when a newly published course becomes available.' },
+                        { key: 'email_notifications_new_content', label: 'New course content', desc: 'Receive email when an enrolled course receives new lessons or modules.' },
+                      ].map((item) => (
+                        <div key={item.key} className="flex items-center justify-between">
+                          <div className="pr-4">
+                            <p className="text-[13px] font-medium">{item.label}</p>
+                            <p className="text-[11px] text-muted-foreground mono-ui">{item.desc}</p>
+                          </div>
+                          <ToggleSwitch
+                            checked={preferences[item.key] ?? false}
+                            onChange={(value) => savePreference(item.key, value)}
+                            disabled={savingNotifications || !currentProfile?.email_notifications_enabled}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {(currentProfile?.role === 'instructor' || currentProfile?.role === 'admin') && (
+                    <div>
+                      <p className="text-[13px] font-medium mb-3">Instructor Notifications</p>
+                      <div className="space-y-3">
+                        {[
+                          { key: 'email_notifications_new_enrollment', label: 'New enrollments', desc: 'Receive email when a student enrolls in my course.' },
+                          { key: 'email_notifications_instructor_quiz_result', label: 'Student quiz results', desc: 'Receive email when students complete quizzes in my courses.' },
+                          { key: 'email_notifications_approval_result', label: 'Approval results', desc: 'Receive email when my publish requests are approved.' },
+                        ].map((item) => (
+                          <div key={item.key} className="flex items-center justify-between">
+                            <div className="pr-4">
+                              <p className="text-[13px] font-medium">{item.label}</p>
+                              <p className="text-[11px] text-muted-foreground mono-ui">{item.desc}</p>
+                            </div>
+                            <ToggleSwitch
+                              checked={preferences[item.key] ?? false}
+                              onChange={(value) => savePreference(item.key, value)}
+                              disabled={savingNotifications || !currentProfile?.email_notifications_enabled}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {currentProfile?.role === 'admin' && (
+                    <div>
+                      <p className="text-[13px] font-medium mb-3">Admin Notifications</p>
+                      <div className="space-y-3">
+                        {[
+                          { key: 'email_notifications_course_submitted', label: 'Course submissions', desc: 'Receive email when a course is submitted for approval.' },
+                          { key: 'email_notifications_lesson_submitted', label: 'Lesson submissions', desc: 'Receive email when a lesson is submitted for approval.' },
+                        ].map((item) => (
+                          <div key={item.key} className="flex items-center justify-between">
+                            <div className="pr-4">
+                              <p className="text-[13px] font-medium">{item.label}</p>
+                              <p className="text-[11px] text-muted-foreground mono-ui">{item.desc}</p>
+                            </div>
+                            <ToggleSwitch
+                              checked={preferences[item.key] ?? false}
+                              onChange={(value) => savePreference(item.key, value)}
+                              disabled={savingNotifications || !currentProfile?.email_notifications_enabled}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

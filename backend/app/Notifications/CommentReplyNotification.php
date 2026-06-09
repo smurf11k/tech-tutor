@@ -13,10 +13,13 @@ class CommentReplyNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(
-        protected Comment $reply,
-        protected Course $course,
-    ) {
+    protected Comment $reply;
+    protected Course $course;
+
+    public function __construct(Comment $reply, Course $course)
+    {
+        $this->reply = $reply;
+        $this->course = $course;
     }
 
     public function via(object $notifiable): array
@@ -26,10 +29,7 @@ class CommentReplyNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $lessonUrl = route('learning.lesson', [
-            'course' => $this->course->slug,
-            'lesson' => $this->reply->lesson->slug,
-        ], true) . '#comment-' . $this->reply->id;
+        $lessonUrl = config('services.frontend_url', 'http://localhost:5173') . '/learning/' . $this->course->slug . '?lesson=' . $this->reply->lesson->slug . '#comment-' . $this->reply->id;
 
         return (new MailMessage)
             ->subject('Someone replied to your comment on ' . $this->course->title)

@@ -245,6 +245,43 @@ class AuthFlowTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 1);
     }
 
+    public function test_existing_user_can_login_with_google_without_creating_a_duplicate_account(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'Google.Student@Example.com',
+            'name' => 'Existing Google Student',
+            'nickname' => 'existing-google-student',
+        ]);
+
+        $googleUser = Mockery::mock(SocialiteUser::class);
+        $googleUser->shouldReceive('getEmail')->andReturn('google.student@example.com');
+        $googleUser->shouldReceive('getName')->andReturn('Google Student');
+        $googleUser->shouldReceive('getNickname')->andReturn('google-student');
+
+        $driver = Mockery::mock();
+        $driver->shouldReceive('user')->andReturn($googleUser);
+
+        Socialite::shouldReceive('driver')
+            ->with('google')
+            ->andReturn($driver);
+
+        $this->withSession(['google_oauth_return_to' => 'http://localhost:5173'])
+            ->get('/auth/google/callback')
+            ->assertOk()
+            ->assertSee('techtutor-google-auth', false)
+            ->assertSee('google.student@example.com', false)
+            ->assertSee('Existing Google Student', false);
+
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'email' => 'google.student@example.com',
+            'name' => 'Existing Google Student',
+        ]);
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+    }
+
     public function test_banned_user_cannot_login(): void
     {
         User::factory()->create([

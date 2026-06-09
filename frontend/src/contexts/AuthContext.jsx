@@ -19,6 +19,30 @@ import { preloadCaptcha } from "@/lib/captcha";
 
 const GOOGLE_AUTH_MESSAGE_TYPE = "techtutor-google-auth";
 
+function getTrustedGoogleAuthOrigins() {
+  const origins = new Set([backendOrigin]);
+
+  try {
+    const parsed = new URL(backendOrigin);
+
+    if (parsed.hostname === "localhost") {
+      origins.add(
+        `${parsed.protocol}//127.0.0.1${parsed.port ? `:${parsed.port}` : ""}`,
+      );
+    }
+
+    if (parsed.hostname === "127.0.0.1") {
+      origins.add(
+        `${parsed.protocol}//localhost${parsed.port ? `:${parsed.port}` : ""}`,
+      );
+    }
+  } catch {
+    // Keep the exact configured origin only when parsing fails.
+  }
+
+  return origins;
+}
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -75,8 +99,10 @@ export function AuthProvider({ children }) {
   }, [token, refreshUser]);
 
   useEffect(() => {
+    const trustedOrigins = getTrustedGoogleAuthOrigins();
+
     function handleGoogleAuthMessage(event) {
-      if (event.origin !== backendOrigin) {
+      if (!trustedOrigins.has(event.origin)) {
         return;
       }
 

@@ -245,12 +245,16 @@ class CourseController extends Controller
             if ($pending) {
                 $pending->update([
                     'status' => 'accepted',
+                    'declined_reason' => null,
                     'handled_by' => $request->user()->id,
                     'handled_at' => now(),
                 ]);
 
                 $pending->load(['course', 'requester']);
-                $pending->requester?->notify(new PublishRequestHandledNotification($pending));
+
+                if ($pending->requester && $pending->requester->canReceiveEmailNotification('approval_result')) {
+                    $pending->requester->notify(new PublishRequestHandledNotification($pending));
+                }
             }
         }
 

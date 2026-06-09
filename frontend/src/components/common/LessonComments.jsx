@@ -323,14 +323,6 @@ function CommentItem({
               {comment.user.role_badge}
             </Badge>
           )}
-          {!comment.is_published && (
-            <Badge
-              variant="outline"
-              className="text-xs bg-yellow-50/50 text-yellow-700"
-            >
-              Pending
-            </Badge>
-          )}
         </div>
         <p className="text-xs text-muted-foreground">
           {formatDate(comment.created_at)}

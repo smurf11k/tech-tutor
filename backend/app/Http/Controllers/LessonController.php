@@ -9,6 +9,7 @@ use App\Models\Lesson;
 use App\Models\LessonRevision;
 use App\Models\Module;
 use App\Models\User;
+use App\Notifications\LessonSubmittedForApprovalNotification;
 use App\Services\LessonVideoHlsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -130,6 +131,8 @@ class LessonController extends Controller
 
         if ($revisionStatus === 'published') {
             $this->publishRevision($lesson, $revision, $request->user());
+        } elseif ($revisionStatus === 'pending_review') {
+            $this->notifyAdminsOfLessonSubmission($revision);
         }
 
         return response()->json($lesson->fresh()->load(['latestRevision', 'publishedRevision']));
@@ -396,5 +399,19 @@ class LessonController extends Controller
             403,
             'Only admins can publish or unpublish lessons.',
         );
+    }
+
+    private function notifyAdminsOfLessonSubmission(LessonRevision $lessonRevision): void
+    {
+        $admins = User::query()
+            ->where('role', 'admin')
+            ->where('id', '!=', $lessonRevision->author_id)
+            ->get();
+
+        foreach ($admins as $admin) {
+            if ($admin->canReceiveEmailNotification('lesson_submitted')) {
+                $admin->notify(new LessonSubmittedForApprovalNotification($lessonRevision));
+            }
+        }
     }
 }

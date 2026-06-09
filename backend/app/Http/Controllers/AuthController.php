@@ -93,7 +93,14 @@ class AuthController extends Controller
         ]);
 
         $user = new User(['email' => $validated['email']]);
-        $user->notify(new EmailVerificationCodeNotification($code));
+        try {
+            $user->notify(new EmailVerificationCodeNotification($code));
+        } catch (Throwable $e) {
+            EmailVerificationCode::where('email', $validated['email'])->delete();
+            throw ValidationException::withMessages([
+                'email' => ['Could not send verification email. Please try again.'],
+            ]);
+        }
 
         return response()->json([
             'message' => 'Verification code sent to your email.',
@@ -150,6 +157,16 @@ class AuthController extends Controller
             'nickname' => ['sometimes', 'required', 'string', 'lowercase', 'max:255', 'alpha_dash', Rule::unique('users', 'nickname')->ignore($request->user()->id)],
             'bio' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'email_notifications_enabled' => ['sometimes', 'boolean'],
+            'email_notifications_comment_reply' => ['sometimes', 'boolean'],
+            'email_notifications_thread' => ['sometimes', 'boolean'],
+            'email_notifications_quiz_result' => ['sometimes', 'boolean'],
+            'email_notifications_new_course' => ['sometimes', 'boolean'],
+            'email_notifications_new_content' => ['sometimes', 'boolean'],
+            'email_notifications_new_enrollment' => ['sometimes', 'boolean'],
+            'email_notifications_instructor_quiz_result' => ['sometimes', 'boolean'],
+            'email_notifications_approval_result' => ['sometimes', 'boolean'],
+            'email_notifications_course_submitted' => ['sometimes', 'boolean'],
+            'email_notifications_lesson_submitted' => ['sometimes', 'boolean'],
             'avatar' => ['sometimes', 'file', 'image', 'max:2048'],
             'remove_avatar' => ['sometimes', 'boolean'],
         ]);
@@ -170,6 +187,25 @@ class AuthController extends Controller
 
         if (array_key_exists('email_notifications_enabled', $validated)) {
             $user->email_notifications_enabled = $validated['email_notifications_enabled'];
+        }
+
+        $preferenceFields = [
+            'email_notifications_comment_reply',
+            'email_notifications_thread',
+            'email_notifications_quiz_result',
+            'email_notifications_new_course',
+            'email_notifications_new_content',
+            'email_notifications_new_enrollment',
+            'email_notifications_instructor_quiz_result',
+            'email_notifications_approval_result',
+            'email_notifications_course_submitted',
+            'email_notifications_lesson_submitted',
+        ];
+
+        foreach ($preferenceFields as $field) {
+            if (array_key_exists($field, $validated)) {
+                $user->{$field} = $validated[$field];
+            }
         }
 
         if ($request->boolean('remove_avatar')) {
@@ -260,7 +296,7 @@ class AuthController extends Controller
             );
         }
 
-        $email = $googleUser->getEmail();
+        $email = Str::lower(trim((string) $googleUser->getEmail()));
 
         if (!$email) {
             return $this->googleAuthPopupResponse(
@@ -271,18 +307,23 @@ class AuthController extends Controller
             );
         }
 
-        $user = User::firstOrNew(['email' => $email]);
+        $user = User::query()->whereRaw('lower(email) = ?', [$email])->first();
         $displayName = Str::of($googleUser->getName() ?: $googleUser->getNickname() ?: $email)
             ->trim()
             ->toString();
 
-        if (!$user->exists) {
+        if (!$user) {
+            $user = new User(['email' => $email]);
             $user->name = $displayName;
             $user->nickname = User::generateUniqueNickname($googleUser->getNickname() ?: $displayName);
             $user->password = Str::random(40);
             $user->role = 'student';
-        } elseif (!$user->name) {
-            $user->name = $displayName;
+        } else {
+            $user->email = $email;
+
+            if (!$user->name) {
+                $user->name = $displayName;
+            }
         }
 
         if (!$user->nickname) {

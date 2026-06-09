@@ -27,8 +27,8 @@ class NewCommentNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $lesson = $this->comment->lesson;
-        $lessonUrl = config('app.frontend_url') . '/courses/' . $this->course->id . '/lessons/' . $lesson->id;
-        $moderationUrl = config('app.frontend_url') . '/instructor/moderation';
+        $lessonUrl = config('services.frontend_url', 'http://localhost:5173') . '/learning/' . $this->course->slug . '?lesson=' . $lesson->slug;
+        $moderationUrl = config('services.frontend_url', 'http://localhost:5173') . '/instructor/moderation';
 
         return (new MailMessage)
             ->subject('New comment on ' . $this->course->title . ' - Lesson: ' . $lesson->title)

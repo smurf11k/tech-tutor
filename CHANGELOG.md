@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- Added new email notification preferances
 - Implemented real pdf generation for certificates
 - Custom video player
 - New frontend UI design and layout refinements
@@ -105,6 +106,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Fixed routing issues
 - Fixed automatic certificate issuance
 - Frontend CAPTCHA visibility now follows backend `CAPTCHA_ENABLED` through `/api/app-config`
 - Fixed hardcoded frontend design issues
