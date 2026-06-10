@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Laravel\Scout\Builder as ScoutBuilder;
 
 class CourseController extends Controller
@@ -55,8 +56,9 @@ class CourseController extends Controller
                 }
 
                 $query->query(
-                    function (Builder $query) use ($user) {
+                    function (Builder $query) use ($user, $filters) {
                         $this->applyCatalogVisibility($query, $user);
+                        $this->applyCatalogPostSearchFilters($query, $filters);
 
                         return $query
                             ->with(['instructor', 'tags'])
@@ -74,7 +76,12 @@ class CourseController extends Controller
                     $query->paginate($filters['per_page'] ?? 12)
                 );
             } catch (\Throwable $throwable) {
-                // Fall back to the database search path when Scout is unavailable.
+                Log::warning('Scout catalog search failed. Falling back to database search.', [
+                    'driver' => config('scout.driver'),
+                    'query' => $filters['q'] ?? null,
+                    'exception' => $throwable::class,
+                    'message' => $throwable->getMessage(),
+                ]);
             }
         }
 
@@ -479,9 +486,16 @@ class CourseController extends Controller
                 $query->where($field, $filters[$field]);
             }
         }
+    }
 
+    /**
+     * @param  Builder<Course>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyCatalogPostSearchFilters(Builder $query, array $filters): void
+    {
         if (($filters['price_type'] ?? null) === 'free') {
-            $query->where('price', '=', 0);
+            $query->where('price', 0);
         }
 
         if (($filters['price_type'] ?? null) === 'paid') {

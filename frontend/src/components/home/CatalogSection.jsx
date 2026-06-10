@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,7 +24,11 @@ const defaultFilters = {
   sort: "newest",
 };
 
-export function CatalogSection({ previewOnly = true }) {
+export function CatalogSection({
+  previewOnly = true,
+  filters: controlledFilters,
+  onFiltersChange,
+}) {
   const {
     client,
     token,
@@ -33,7 +37,7 @@ export function CatalogSection({ previewOnly = true }) {
     loading: authLoading,
   } = useAuth();
   const toast = useToast();
-  const [filters, setFilters] = useState(defaultFilters);
+  const [localFilters, setLocalFilters] = useState(defaultFilters);
   const [catalogOptions, setCatalogOptions] = useState({
     categories: [],
     levels: [],
@@ -41,6 +45,40 @@ export function CatalogSection({ previewOnly = true }) {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const filters = useMemo(
+    () => ({
+      ...defaultFilters,
+      ...(controlledFilters || localFilters),
+    }),
+    [controlledFilters, localFilters],
+  );
+
+  const filtersKey = useMemo(
+    () =>
+      [
+        filters.q,
+        filters.category,
+        filters.level,
+        filters.price_type,
+        filters.sort,
+      ].join("|"),
+    [filters],
+  );
+
+  function updateFilters(updater) {
+    const nextFilters = {
+      ...defaultFilters,
+      ...(typeof updater === "function" ? updater(filters) : updater),
+    };
+
+    if (onFiltersChange) {
+      onFiltersChange(nextFilters);
+      return;
+    }
+
+    setLocalFilters(nextFilters);
+  }
 
   useEffect(() => {
     if (authLoading) {
@@ -110,7 +148,7 @@ export function CatalogSection({ previewOnly = true }) {
     return () => {
       cancelled = true;
     };
-  }, [filters, token, client, authLoading, toast]);
+  }, [filtersKey, token, client, authLoading, toast]);
 
   const catalogDescription = isAdmin
     ? "All courses including drafts."
@@ -166,7 +204,10 @@ export function CatalogSection({ previewOnly = true }) {
               id="q"
               value={filters.q}
               onChange={(event) =>
-                setFilters((current) => ({ ...current, q: event.target.value }))
+                updateFilters((current) => ({
+                  ...current,
+                  q: event.target.value,
+                }))
               }
               placeholder="Title or topic"
             />
@@ -177,7 +218,7 @@ export function CatalogSection({ previewOnly = true }) {
               id="category"
               value={filters.category}
               onChange={(event) =>
-                setFilters((current) => ({
+                updateFilters((current) => ({
                   ...current,
                   category: event.target.value,
                 }))
@@ -197,7 +238,7 @@ export function CatalogSection({ previewOnly = true }) {
               id="level"
               value={filters.level}
               onChange={(event) =>
-                setFilters((current) => ({
+                updateFilters((current) => ({
                   ...current,
                   level: event.target.value,
                 }))
@@ -217,7 +258,7 @@ export function CatalogSection({ previewOnly = true }) {
               id="sort"
               value={filters.sort}
               onChange={(event) =>
-                setFilters((current) => ({
+                updateFilters((current) => ({
                   ...current,
                   sort: event.target.value,
                 }))

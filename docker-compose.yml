@@ -10,6 +10,19 @@ services:
     volumes:
       - ./backend/database/data:/var/lib/postgresql/data
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    container_name: techtutor_meilisearch
+    restart: always
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:-masterKey}
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "7700:7700"
+    volumes:
+      - ./backend/storage/meilisearch:/meili_data
+
   minio:
     image: minio/minio:latest
     container_name: techtutor_minio

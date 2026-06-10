@@ -55,7 +55,7 @@ return [
     |
     */
 
-    'after_commit' => false,
+    'after_commit' => env('SCOUT_AFTER_COMMIT', true),
 
     /*
     |--------------------------------------------------------------------------
@@ -154,6 +154,13 @@ return [
                     'published_at',
                     'title',
                     'price',
+                ],
+            ],
+            \App\Models\Lesson::class => [
+                'filterableAttributes' => [
+                    'is_published',
+                    'course_id',
+                    'module_id',
                 ],
             ],
             // 'users' => [

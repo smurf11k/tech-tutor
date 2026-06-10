@@ -16,6 +16,9 @@ use App\Notifications\EnrollmentCreatedNotification;
 use App\Notifications\PublishRequestHandledNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
+use Laravel\Scout\Jobs\MakeSearchable;
+use Laravel\Scout\Jobs\RemoveFromSearch;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -104,6 +107,161 @@ class CourseFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.id', $course->id)
             ->assertJsonPath('data.0.slug', $course->slug);
+    }
+
+    public function test_global_search_routes_students_to_owned_lessons(): void
+    {
+        config(['scout.driver' => 'meilisearch']);
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::withoutSyncingToSearch(function () use ($instructor): Course {
+            return Course::create([
+                'instructor_id' => $instructor->id,
+                'title' => 'Lesson Search Course',
+                'slug' => 'lesson-search-course',
+                'description' => 'Search resolver test',
+                'price' => 0,
+                'is_published' => true,
+                'published_at' => now(),
+            ]);
+        });
+
+        $module = Module::create([
+            'course_id' => $course->id,
+            'title' => 'Module One',
+            'slug' => 'module-one',
+            'position' => 1,
+        ]);
+
+        $lesson = Lesson::withoutSyncingToSearch(function () use ($module): Lesson {
+            return Lesson::create([
+                'module_id' => $module->id,
+                'title' => 'Owned Lesson',
+                'slug' => 'owned-lesson',
+                'type' => 'lesson',
+                'content' => 'This lesson is searchable.',
+                'position' => 1,
+                'is_published' => true,
+            ]);
+        });
+
+        Enrollment::create([
+            'user_id' => $student->id,
+            'course_id' => $course->id,
+            'status' => 'active',
+        ]);
+
+        Sanctum::actingAs($student);
+
+        $this->getJson('/api/search?q=Owned%20Lesson')
+            ->assertOk()
+            ->assertJsonPath('type', 'lesson')
+            ->assertJsonPath('url', "/learning/{$course->slug}?lesson={$lesson->id}");
+    }
+
+    public function test_global_search_returns_not_found_for_inaccessible_lesson_matches(): void
+    {
+        config(['scout.driver' => 'meilisearch']);
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $course = Course::withoutSyncingToSearch(function () use ($instructor): Course {
+            return Course::create([
+                'instructor_id' => $instructor->id,
+                'title' => 'Private Lesson Search Course',
+                'slug' => 'private-lesson-search-course',
+                'description' => 'Search resolver access test',
+                'price' => 0,
+                'is_published' => true,
+                'published_at' => now(),
+            ]);
+        });
+
+        $module = Module::create([
+            'course_id' => $course->id,
+            'title' => 'Module Two',
+            'slug' => 'module-two',
+            'position' => 1,
+        ]);
+
+        Lesson::withoutSyncingToSearch(function () use ($module): Lesson {
+            return Lesson::create([
+                'module_id' => $module->id,
+                'title' => 'Private Lesson',
+                'slug' => 'private-lesson',
+                'type' => 'lesson',
+                'content' => 'This lesson should not be exposed to non-owners.',
+                'position' => 1,
+                'is_published' => true,
+            ]);
+        });
+
+        Sanctum::actingAs($student);
+
+        $this->getJson('/api/search?q=non-owners')
+            ->assertStatus(404)
+            ->assertJsonPath('message', 'Searched thing not found.');
+    }
+
+    public function test_course_lifecycle_queues_search_index_jobs_when_scout_queue_is_enabled(): void
+    {
+        config([
+            'scout.driver' => 'meilisearch',
+            'scout.queue' => true,
+            'scout.after_commit' => true,
+        ]);
+
+        Queue::fake();
+
+        $instructor = User::factory()->create(['role' => 'instructor']);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Queued Search Course',
+            'slug' => 'queued-search-course',
+            'description' => 'Scout queue indexing lifecycle.',
+            'price' => 49,
+            'is_published' => false,
+            'published_at' => null,
+        ]);
+
+        $course->update([
+            'title' => 'Queued Search Course Updated',
+        ]);
+
+        $course->update([
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $course->delete();
+
+        Queue::assertPushed(MakeSearchable::class, 3);
+        Queue::assertPushed(RemoveFromSearch::class, 1);
+    }
+
+    public function test_course_meilisearch_index_settings_include_expected_filterable_attributes(): void
+    {
+        $settings = config('scout.meilisearch.index-settings')[Course::class] ?? [];
+
+        $this->assertSame([
+            'is_published',
+            'category',
+            'level',
+            'language',
+            'instructor_id',
+            'price',
+            'duration_minutes',
+        ], $settings['filterableAttributes'] ?? []);
+
+        $this->assertSame([
+            'published_at',
+            'title',
+            'price',
+        ], $settings['sortableAttributes'] ?? []);
     }
 
     public function test_student_receives_certificate_after_completing_all_course_lessons(): void

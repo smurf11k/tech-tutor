@@ -3,6 +3,7 @@
 use App\Http\Controllers\InstructorPublishRequestController;
 use App\Http\Controllers\ReorderController;
 use App\Http\Controllers\AdminModerationQueueController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\AdminPlatformDashboardController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
@@ -44,6 +45,7 @@ Route::middleware('sanctum.optional')->group(function () {
         'captcha_site_key' => (string) config('services.captcha.site_key'),
     ]));
 
+    Route::get('search', [SearchController::class, 'resolve']);
     Route::get('courses/catalog-options', [CourseController::class, 'catalogOptions']);
     Route::apiResource('courses', CourseController::class)->only(['index', 'show']);
     Route::get('courses/{course}/reviews', [ReviewController::class, 'index']);
