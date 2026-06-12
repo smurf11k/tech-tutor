@@ -32,6 +32,7 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -48,12 +49,44 @@ export default function AdminDashboardPage() {
       }
     }
     load();
-  }, [client]);
+  }, [client, toast]);
 
-  function handleExportPlaceholder() {
-    toast.success(
-      "Export data will generate the report once the endpoint is connected.",
-    );
+  async function handleExport() {
+    if (exporting) {
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      const response = await client.get("/admin/platform-export", {
+        responseType: "blob",
+      });
+      const disposition = response.headers["content-disposition"];
+      const filenameMatch = disposition?.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+      const filename = filenameMatch
+        ? decodeURIComponent(filenameMatch[1])
+        : "platform-data.csv";
+      const blob = new Blob([response.data], {
+        type: "text/csv;charset=utf-8",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(() => window.URL.revokeObjectURL(url), 0);
+      toast.success("Platform data export downloaded.");
+    } catch (err) {
+      const msg = getApiErrorMessage(err);
+      toast.error(msg);
+    } finally {
+      setExporting(false);
+    }
   }
 
   const summary = data?.summary;
@@ -190,9 +223,14 @@ export default function AdminDashboardPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleExportPlaceholder} className="gap-2">
+          <Button
+            onClick={handleExport}
+            disabled={exporting}
+            className="gap-2"
+            aria-busy={exporting}
+          >
             <Download className="size-4" />
-            Export data
+            {exporting ? "Exporting..." : "Export data"}
           </Button>
         </div>
       </div>

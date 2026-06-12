@@ -69,6 +69,7 @@ class AdminPanelFlowTest extends TestCase
 
         $this->getJson('/api/admin/users')->assertForbidden();
         $this->getJson('/api/admin/platform-dashboard')->assertForbidden();
+        $this->get('/api/admin/platform-export')->assertForbidden();
         $this->getJson('/api/admin/moderation-queue')->assertForbidden();
     }
 
@@ -212,6 +213,66 @@ class AdminPanelFlowTest extends TestCase
             ->assertJsonFragment([
                 'type' => 'payment_recorded',
             ]);
+    }
+
+    public function test_admin_can_download_platform_export_csv(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $instructor = User::factory()->create(['role' => 'instructor']);
+        $student = User::factory()->create([
+            'role' => 'student',
+            'name' => 'Student, "One"',
+            'email' => 'student@example.com',
+        ]);
+
+        $course = Course::create([
+            'instructor_id' => $instructor->id,
+            'title' => 'Course "Alpha"',
+            'slug' => 'course-alpha',
+            'description' => 'Exportable course',
+            'price' => 49.99,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $enrolledAt = now()->subDay();
+        $paidAt = now();
+
+        Enrollment::create([
+            'course_id' => $course->id,
+            'user_id' => $student->id,
+            'status' => 'active',
+            'enrolled_at' => $enrolledAt,
+        ]);
+
+        Payment::create([
+            'course_id' => $course->id,
+            'user_id' => $student->id,
+            'provider' => 'stripe',
+            'amount' => 49.99,
+            'currency' => 'USD',
+            'status' => 'paid',
+            'transaction_id' => 'platform_export_paid',
+            'paid_at' => $paidAt,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->get('/api/admin/platform-export')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+
+        $content = $response->streamedContent();
+
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
+        $this->assertStringContainsString('Section,Users', $content);
+        $this->assertStringContainsString('Student, ""One""', $content);
+        $this->assertStringContainsString('Course ""Alpha""', $content);
+        $this->assertStringContainsString('Published', $content);
+        $this->assertStringContainsString('49.99', $content);
+        $this->assertStringContainsString('paid', $content);
+        $this->assertStringContainsString($enrolledAt->format('Y-m-d H:i:s'), $content);
+        $this->assertStringContainsString($paidAt->format('Y-m-d H:i:s'), $content);
     }
 
     public function test_banned_user_cannot_access_protected_routes(): void

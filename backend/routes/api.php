@@ -83,6 +83,7 @@ Route::middleware(['auth:sanctum', EnsureUserIsNotBanned::class])->group(functio
     Route::patch('admin/users/{user}', [AdminUserController::class, 'update']);
     Route::delete('admin/users/{user}', [AdminUserController::class, 'destroy']);
     Route::get('admin/platform-dashboard', [AdminPlatformDashboardController::class, 'show']);
+    Route::get('admin/platform-export', [AdminPlatformDashboardController::class, 'export']);
     Route::get('admin/moderation-queue', [AdminModerationQueueController::class, 'index']);
     Route::patch('admin/moderation-queue/reviews/{review}', [AdminModerationQueueController::class, 'updateReview']);
     Route::patch('admin/moderation-queue/comments/{comment}', [AdminModerationQueueController::class, 'updateComment']);

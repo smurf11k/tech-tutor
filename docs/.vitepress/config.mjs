@@ -21,6 +21,7 @@ export default defineConfig({
           { text: "Backend Overview", link: "/backend-overview" },
           { text: "API", link: "/backend-api" },
           { text: "Testing", link: "/backend-testing" },
+          { text: "Demos", link: "/demo-videos" },
         ],
         sidebar: [
           {
@@ -30,6 +31,7 @@ export default defineConfig({
               { text: "Setup", link: "/backend-setup" },
               { text: "API Reference", link: "/backend-api" },
               { text: "API Testing", link: "/backend-testing" },
+              { text: "Demo Videos", link: "/demo-videos" },
             ],
           },
         ],
@@ -48,6 +50,7 @@ export default defineConfig({
           { text: "Огляд бекенду", link: "/uk/backend-overview" },
           { text: "API", link: "/uk/backend-api" },
           { text: "Тестування", link: "/uk/backend-testing" },
+          { text: "Демо", link: "/uk/demo-videos" },
         ],
         sidebar: [
           {
@@ -57,6 +60,7 @@ export default defineConfig({
               { text: "Налаштування", link: "/uk/backend-setup" },
               { text: "Довідник API", link: "/uk/backend-api" },
               { text: "Тестування API", link: "/uk/backend-testing" },
+              { text: "Демо-відео", link: "/uk/demo-videos" },
             ],
           },
         ],

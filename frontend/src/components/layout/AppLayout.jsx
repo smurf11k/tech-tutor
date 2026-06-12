@@ -170,40 +170,16 @@ export function AppLayout() {
               <>
                 <Link
                   to="/profile"
-                  className="
-                  flex items-center justify-center
-                  rounded-full
-                  transition-all
-                  hover:scale-[1.03]
-                "
+                  className="inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-background p-0 transition-all hover:scale-[1.03]"
                 >
                   {profileImage ? (
                     <img
                       src={profileImage}
                       alt={user?.name || "Profile"}
-                      className="
-                      h-9 w-9
-                      rounded-full
-                      border border-border
-                      object-cover
-                    "
+                      className="size-full rounded-none object-cover"
                     />
                   ) : (
-                    <div
-                      className="
-                      flex h-9 w-9 items-center justify-center
-                      rounded-full
-                      border border-border
-                      bg-muted
-                      text-[12px]
-                      font-semibold
-                      text-muted-foreground
-                      mono-ui
-                      transition-colors
-                      hover:border-border
-                      hover:bg-muted/80
-                    "
-                    >
+                    <div className="flex size-full items-center justify-center bg-muted text-[12px] font-semibold text-muted-foreground mono-ui transition-colors hover:bg-muted/80">
                       {(user?.name || "TT")
                         .split(" ")
                         .map((part) => part[0])
