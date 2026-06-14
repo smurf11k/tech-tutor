@@ -4,11 +4,16 @@ namespace App\Services;
 
 use App\Models\Course;
 use App\Models\User;
+use App\Services\StorageUrlService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 
 class CertificateService
 {
+    public function __construct(private readonly StorageUrlService $storageUrlService)
+    {
+    }
+
     public function generate(Course $course, User $user): string
     {
         $certificate = $this->buildCertificateData($course, $user);
@@ -70,7 +75,7 @@ class CertificateService
         $signatureImageUrl = null;
 
         if ($instructor && $instructor->avatar_path) {
-            $signatureImageUrl = rtrim((string) config('filesystems.disks.s3.url', ''), '/') . '/' . ltrim($instructor->avatar_path, '/');
+            $signatureImageUrl = $this->storageUrlService->publicUrl($instructor->avatar_path);
         }
 
         return [

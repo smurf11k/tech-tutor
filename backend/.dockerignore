@@ -1,0 +1,12 @@
+.env
+.env.production
+.git
+.gitignore
+node_modules
+vendor
+database/data/*
+public/build/*
+storage/*
+bootstrap/cache/*
+Dockerfile
+.dockerignore

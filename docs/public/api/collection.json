@@ -1,0 +1,2291 @@
+{
+    "variable": [
+        {
+            "id": "baseUrl",
+            "key": "baseUrl",
+            "type": "string",
+            "name": "string",
+            "value": "http:\/\/localhost:8000"
+        }
+    ],
+    "info": {
+        "name": "TechTutor API Documentation",
+        "_postman_id": "07212051-14a2-4ca2-a1d2-fba055ee23f1",
+        "description": "",
+        "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
+    },
+    "item": [
+        {
+            "name": "Endpoints",
+            "description": "",
+            "item": [
+                {
+                    "name": "POST api\/contact",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/contact",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/contact"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\",\"email\":\"zbailey@example.net\",\"subject\":\"i\",\"message\":\"y\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/auth\/register",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/register",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/register"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\",\"nickname\":\"n\",\"email\":\"ashly64@example.com\",\"password\":\"architecto\",\"token_name\":\"n\",\"captcha_token\":\"architecto\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/auth\/register\/request-verification-code",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/register\/request-verification-code",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/register\/request-verification-code"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\",\"nickname\":\"n\",\"email\":\"ashly64@example.com\",\"password\":\"architecto\",\"captcha_token\":\"architecto\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/auth\/register\/verify-code",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/register\/verify-code",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/register\/verify-code"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"email\":\"gbailey@example.net\",\"code\":\"miyvdl\",\"name\":\"b\",\"nickname\":\"n\",\"password\":\"architecto\",\"token_name\":\"n\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/auth\/invite\/{token}\/accept",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/invite\/:token\/accept",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/invite\/:token\/accept",
+                            "variable": [
+                                {
+                                    "id": "token",
+                                    "key": "token",
+                                    "value": "architecto",
+                                    "description": ""
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\":\"b\",\"nickname\":\"n\",\"password\":\"architecto\",\"token_name\":\"n\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/auth\/login",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/login",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/login"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"email\":\"gbailey@example.net\",\"password\":\"|]|{+-\",\"token_name\":\"v\",\"captcha_token\":\"architecto\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/auth\/forgot-password",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/forgot-password",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/forgot-password"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"email\":\"gbailey@example.net\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/auth\/reset-password",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/reset-password",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/reset-password"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"token\":\"architecto\",\"email\":\"zbailey@example.net\",\"password\":\"-0pBNvYgxw\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/stripe\/webhook",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/stripe\/webhook",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/stripe\/webhook"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PATCH api\/auth\/me",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/me",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/me"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "multipart\/form-data"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "name",
+                                    "value": "b",
+                                    "type": "text",
+                                    "description": "Must not be greater than 255 characters."
+                                },
+                                {
+                                    "key": "nickname",
+                                    "value": "n",
+                                    "type": "text",
+                                    "description": "Must contain only letters, numbers, dashes and underscores. Must not be greater than 255 characters."
+                                },
+                                {
+                                    "key": "bio",
+                                    "value": "g",
+                                    "type": "text",
+                                    "description": "Must not be greater than 1000 characters."
+                                },
+                                {
+                                    "key": "email_notifications_enabled",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_comment_reply",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_thread",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_quiz_result",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_new_course",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_new_content",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_new_enrollment",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_instructor_quiz_result",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_approval_result",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_course_submitted",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "email_notifications_lesson_submitted",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "remove_avatar",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "avatar",
+                                    "src": [],
+                                    "type": "file"
+                                },
+                                {
+                                    "key": "_method",
+                                    "value": "PATCH",
+                                    "type": "text"
+                                }
+                            ]
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/auth\/me",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/me",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/me"
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/auth\/logout",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/logout",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/logout"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/auth\/email\/resend",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/auth\/email\/resend",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/auth\/email\/resend"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/admin\/users\/invites",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/admin\/users\/invites",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/admin\/users\/invites"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"email\":\"gbailey@example.net\",\"role\":\"instructor\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PATCH api\/admin\/users\/{user_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/admin\/users\/:user_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/admin\/users\/:user_id",
+                            "variable": [
+                                {
+                                    "id": "user_id",
+                                    "key": "user_id",
+                                    "value": 16,
+                                    "description": "The ID of the user."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"role\":\"student\",\"is_banned\":false}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/admin\/users\/{user_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/admin\/users\/:user_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/admin\/users\/:user_id",
+                            "variable": [
+                                {
+                                    "id": "user_id",
+                                    "key": "user_id",
+                                    "value": 16,
+                                    "description": "The ID of the user."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PATCH api\/admin\/moderation-queue\/reviews\/{review_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/admin\/moderation-queue\/reviews\/:review_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/admin\/moderation-queue\/reviews\/:review_id",
+                            "variable": [
+                                {
+                                    "id": "review_id",
+                                    "key": "review_id",
+                                    "value": 16,
+                                    "description": "The ID of the review."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"is_published\":false,\"declined_reason\":\"b\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PATCH api\/admin\/moderation-queue\/publish-requests\/{publishRequest_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/admin\/moderation-queue\/publish-requests\/:publishRequest_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/admin\/moderation-queue\/publish-requests\/:publishRequest_id",
+                            "variable": [
+                                {
+                                    "id": "publishRequest_id",
+                                    "key": "publishRequest_id",
+                                    "value": 16,
+                                    "description": "The ID of the publishRequest."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"action\":\"accept\",\"declined_reason\":\"b\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PATCH api\/admin\/moderation-queue\/lesson-revisions\/{lessonRevision_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/admin\/moderation-queue\/lesson-revisions\/:lessonRevision_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/admin\/moderation-queue\/lesson-revisions\/:lessonRevision_id",
+                            "variable": [
+                                {
+                                    "id": "lessonRevision_id",
+                                    "key": "lessonRevision_id",
+                                    "value": 16,
+                                    "description": "The ID of the lessonRevision."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"action\":\"accept\",\"declined_reason\":\"b\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PATCH api\/admin\/moderation-queue\/quiz-revisions\/{quizRevision_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/admin\/moderation-queue\/quiz-revisions\/:quizRevision_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/admin\/moderation-queue\/quiz-revisions\/:quizRevision_id",
+                            "variable": [
+                                {
+                                    "id": "quizRevision_id",
+                                    "key": "quizRevision_id",
+                                    "value": 16,
+                                    "description": "The ID of the quizRevision."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"action\":\"decline\",\"declined_reason\":\"b\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Issue a new certificate if eligible",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/certificate",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/certificate",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/courses\/{course_slug}\/publish-request",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/publish-request",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/publish-request",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reorder lessons within a module.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/modules\/:module_id\/lessons\/reorder",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/modules\/:module_id\/lessons\/reorder",
+                            "variable": [
+                                {
+                                    "id": "module_id",
+                                    "key": "module_id",
+                                    "value": 16,
+                                    "description": "The ID of the module."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"ids\":[16]}"
+                        },
+                        "description": "PATCH \/modules\/{module}\/lessons\/reorder\n\nBody: { \"ids\": [3, 1, 2] }  \u2014 ordered list of lesson IDs with positions 0, 1, 2...",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reorder quizzes within a course (optionally scoped to a module).",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/quizzes\/reorder",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/quizzes\/reorder",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"ids\":[16],\"module_id\":16}"
+                        },
+                        "description": "PATCH \/courses\/{course}\/quizzes\/reorder\n\nBody: { \"module_id\": 5, \"ids\": [3, 1, 2] }  \u2014 ordered list of quiz IDs with positions 0, 1, 2...\nIf module_id is provided, reorder is scoped to that module.",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reorder any content within a module (lessons and quizzes together).",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/modules\/:module_id\/content\/reorder",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/modules\/:module_id\/content\/reorder",
+                            "variable": [
+                                {
+                                    "id": "module_id",
+                                    "key": "module_id",
+                                    "value": 16,
+                                    "description": "The ID of the module."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"items\":[{\"type\":\"quiz\",\"id\":16}]}"
+                        },
+                        "description": "PATCH \/modules\/{module}\/content\/reorder\n\nBody: { \"items\": [\n  { \"type\": \"lesson\", \"id\": 1 },\n  { \"type\": \"quiz\", \"id\": 5 },\n  { \"type\": \"lesson\", \"id\": 2 }\n]}\n\nPositions are assigned 0, 1, 2... based on order in array.",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reorder modules within a course.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/modules\/reorder",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/modules\/reorder",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"ids\":[16]}"
+                        },
+                        "description": "PATCH \/courses\/{course}\/modules\/reorder\n\nBody: { \"ids\": [3, 1, 2] }  \u2014 ordered list of module IDs with positions 0, 1, 2...",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Store a newly created resource in storage.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"title\":\"b\",\"slug\":\"n\",\"description\":\"Eius et animi quos velit et.\",\"subtitle\":\"v\",\"category\":\"d\",\"level\":\"l\",\"language\":\"j\",\"what_you_will_learn\":[\"n\"],\"price_benefits\":[\"i\"],\"tags\":[\"k\"],\"thumbnail_path\":\"h\",\"duration_minutes\":87,\"price\":39,\"is_published\":true,\"published_at\":\"2026-06-14T17:39:15\",\"request_publish\":true}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update the specified resource in storage.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:slug",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:slug",
+                            "variable": [
+                                {
+                                    "id": "slug",
+                                    "key": "slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"title\":\"b\",\"slug\":\"n\",\"description\":\"Eius et animi quos velit et.\",\"subtitle\":\"v\",\"category\":\"d\",\"level\":\"l\",\"language\":\"j\",\"what_you_will_learn\":[\"n\"],\"price_benefits\":[\"i\"],\"tags\":[\"k\"],\"thumbnail_path\":\"h\",\"duration_minutes\":87,\"price\":39,\"is_published\":true,\"published_at\":\"2026-06-14T17:39:18\",\"request_publish\":true,\"decline_publish\":false,\"publish_request_declined_reason\":\"y\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove the specified resource from storage.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:slug",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:slug",
+                            "variable": [
+                                {
+                                    "id": "slug",
+                                    "key": "slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/courses\/{course_slug}\/enrollments",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/enrollments",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/enrollments",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/courses\/{course_slug}\/enrollments\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/enrollments\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/enrollments\/:id",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the enrollment."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/courses\/{course_slug}\/modules",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/modules",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/modules",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"title\":\"b\",\"slug\":\"n\",\"position\":84}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT api\/courses\/{course_slug}\/modules\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/modules\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/modules\/:id",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the module."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"title\":\"b\",\"slug\":\"n\",\"position\":84}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/courses\/{course_slug}\/modules\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/modules\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/modules\/:id",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the module."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/modules\/{module_id}\/lessons",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/modules\/:module_id\/lessons",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/modules\/:module_id\/lessons",
+                            "variable": [
+                                {
+                                    "id": "module_id",
+                                    "key": "module_id",
+                                    "value": 16,
+                                    "description": "The ID of the module."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "multipart\/form-data"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "title",
+                                    "value": "b",
+                                    "type": "text",
+                                    "description": "Must not be greater than 255 characters."
+                                },
+                                {
+                                    "key": "slug",
+                                    "value": "n",
+                                    "type": "text",
+                                    "description": "Must contain only letters, numbers, dashes and underscores. Must not be greater than 255 characters."
+                                },
+                                {
+                                    "key": "type",
+                                    "value": "lesson",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "content",
+                                    "value": "architecto",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "video_url",
+                                    "value": "http:\/\/bailey.com\/",
+                                    "type": "text",
+                                    "description": "Must not be greater than 2048 characters."
+                                },
+                                {
+                                    "key": "video_name",
+                                    "value": "m",
+                                    "type": "text",
+                                    "description": "Must not be greater than 255 characters."
+                                },
+                                {
+                                    "key": "remove_video",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "estimated_time_minutes",
+                                    "value": "8",
+                                    "type": "text",
+                                    "description": "Must be at least 0."
+                                },
+                                {
+                                    "key": "position",
+                                    "value": "76",
+                                    "type": "text",
+                                    "description": "Must be at least 0."
+                                },
+                                {
+                                    "key": "revision_status",
+                                    "value": "published",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "is_published",
+                                    "value": "",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "video",
+                                    "src": [],
+                                    "type": "file"
+                                }
+                            ]
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT api\/modules\/{module_id}\/lessons\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/modules\/:module_id\/lessons\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/modules\/:module_id\/lessons\/:id",
+                            "variable": [
+                                {
+                                    "id": "module_id",
+                                    "key": "module_id",
+                                    "value": 16,
+                                    "description": "The ID of the module."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the lesson."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "multipart\/form-data"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "title",
+                                    "value": "b",
+                                    "type": "text",
+                                    "description": "Must not be greater than 255 characters."
+                                },
+                                {
+                                    "key": "slug",
+                                    "value": "n",
+                                    "type": "text",
+                                    "description": "Must contain only letters, numbers, dashes and underscores. Must not be greater than 255 characters."
+                                },
+                                {
+                                    "key": "type",
+                                    "value": "lesson",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "content",
+                                    "value": "architecto",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "video_url",
+                                    "value": "http:\/\/bailey.com\/",
+                                    "type": "text",
+                                    "description": "Must not be greater than 2048 characters."
+                                },
+                                {
+                                    "key": "video_name",
+                                    "value": "m",
+                                    "type": "text",
+                                    "description": "Must not be greater than 255 characters."
+                                },
+                                {
+                                    "key": "remove_video",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "estimated_time_minutes",
+                                    "value": "8",
+                                    "type": "text",
+                                    "description": "Must be at least 0."
+                                },
+                                {
+                                    "key": "position",
+                                    "value": "76",
+                                    "type": "text",
+                                    "description": "Must be at least 0."
+                                },
+                                {
+                                    "key": "revision_status",
+                                    "value": "published",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "is_published",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": ""
+                                },
+                                {
+                                    "key": "video",
+                                    "src": [],
+                                    "type": "file"
+                                },
+                                {
+                                    "key": "_method",
+                                    "value": "PUT",
+                                    "type": "text"
+                                }
+                            ]
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/modules\/{module_id}\/lessons\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/modules\/:module_id\/lessons\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/modules\/:module_id\/lessons\/:id",
+                            "variable": [
+                                {
+                                    "id": "module_id",
+                                    "key": "module_id",
+                                    "value": 16,
+                                    "description": "The ID of the module."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the lesson."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PATCH api\/modules\/{module_id}\/lessons\/{lesson_id}\/unpublish",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/modules\/:module_id\/lessons\/:lesson_id\/unpublish",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/modules\/:module_id\/lessons\/:lesson_id\/unpublish",
+                            "variable": [
+                                {
+                                    "id": "module_id",
+                                    "key": "module_id",
+                                    "value": 16,
+                                    "description": "The ID of the module."
+                                },
+                                {
+                                    "id": "lesson_id",
+                                    "key": "lesson_id",
+                                    "value": 16,
+                                    "description": "The ID of the lesson."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/lessons\/{lesson_id}\/comments",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/lessons\/:lesson_id\/comments",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/lessons\/:lesson_id\/comments",
+                            "variable": [
+                                {
+                                    "id": "lesson_id",
+                                    "key": "lesson_id",
+                                    "value": 16,
+                                    "description": "The ID of the lesson."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"body\":\"b\",\"parent_comment_id\":16}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT api\/lessons\/{lesson_id}\/comments\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/lessons\/:lesson_id\/comments\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/lessons\/:lesson_id\/comments\/:id",
+                            "variable": [
+                                {
+                                    "id": "lesson_id",
+                                    "key": "lesson_id",
+                                    "value": 16,
+                                    "description": "The ID of the lesson."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the comment."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"body\":\"b\",\"is_published\":true}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/lessons\/{lesson_id}\/comments\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/lessons\/:lesson_id\/comments\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/lessons\/:lesson_id\/comments\/:id",
+                            "variable": [
+                                {
+                                    "id": "lesson_id",
+                                    "key": "lesson_id",
+                                    "value": 16,
+                                    "description": "The ID of the lesson."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the comment."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/courses\/{course_slug}\/quizzes",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/quizzes",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/quizzes",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"title\":\"b\",\"description\":\"Eius et animi quos velit et.\",\"module_id\":16,\"pass_score\":22,\"estimated_time_minutes\":84,\"time_limit_seconds\":12,\"is_published\":true,\"revision_status\":\"pending_unpublish\",\"position\":77,\"questions\":[{\"type\":\"multiple_choice\",\"prompt\":\"architecto\",\"points\":22,\"position\":67,\"options\":[{\"key\":\"z\",\"text\":\"m\",\"is_correct\":false}]}]}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT api\/courses\/{course_slug}\/quizzes\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/quizzes\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/quizzes\/:id",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the quiz."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"title\":\"b\",\"description\":\"Eius et animi quos velit et.\",\"module_id\":16,\"pass_score\":22,\"estimated_time_minutes\":84,\"time_limit_seconds\":12,\"is_published\":true,\"revision_status\":\"pending_review\",\"position\":77,\"questions\":[{\"type\":\"multiple_choice\",\"prompt\":\"architecto\",\"points\":22,\"position\":67,\"options\":[{\"key\":\"z\",\"text\":\"m\",\"is_correct\":true}]}]}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/courses\/{course_slug}\/quizzes\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/quizzes\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/quizzes\/:id",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the quiz."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PATCH api\/courses\/{course_slug}\/quizzes\/{quiz_id}\/unpublish",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/quizzes\/:quiz_id\/unpublish",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/quizzes\/:quiz_id\/unpublish",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                },
+                                {
+                                    "id": "quiz_id",
+                                    "key": "quiz_id",
+                                    "value": 16,
+                                    "description": "The ID of the quiz."
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/quizzes\/{quiz_id}\/attempts",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/quizzes\/:quiz_id\/attempts",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/quizzes\/:quiz_id\/attempts",
+                            "variable": [
+                                {
+                                    "id": "quiz_id",
+                                    "key": "quiz_id",
+                                    "value": 16,
+                                    "description": "The ID of the quiz."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"answers\":[],\"started_at\":\"2026-06-14T17:41:04\",\"completed_at\":\"2026-06-14T17:41:04\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/courses\/{course_slug}\/reviews",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/reviews",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/reviews",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"rating\":1,\"comment\":\"architecto\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT api\/courses\/{course_slug}\/reviews\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/reviews\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/reviews\/:id",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the review."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"rating\":1,\"comment\":\"architecto\",\"is_published\":true}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/courses\/{course_slug}\/reviews\/{id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/reviews\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/reviews\/:id",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": 16,
+                                    "description": "The ID of the review."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": null,
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/payments\/stripe\/confirm",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/payments\/stripe\/confirm",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/payments\/stripe\/confirm"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"session_id\":\"b\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/courses\/{course_slug}\/payments",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/payments",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/payments",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"provider\":\"b\",\"amount\":39,\"currency\":\"gzm\",\"transaction_id\":\"i\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/courses\/{course_slug}\/payments\/stripe-checkout",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/courses\/:course_slug\/payments\/stripe-checkout",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/courses\/:course_slug\/payments\/stripe-checkout",
+                            "variable": [
+                                {
+                                    "id": "course_slug",
+                                    "key": "course_slug",
+                                    "value": "architecto",
+                                    "description": "The slug of the course."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"success_url\":\"http:\\\/\\\/www.bailey.biz\\\/quos-velit-et-fugiat-sunt-nihil-accusantium-harum.html\",\"cancel_url\":\"https:\\\/\\\/www.runte.com\\\/ab-provident-perspiciatis-quo-omnis-nostrum-aut-adipisci\"}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/lessons\/{lesson_id}\/progress",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/lessons\/:lesson_id\/progress",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/lessons\/:lesson_id\/progress",
+                            "variable": [
+                                {
+                                    "id": "lesson_id",
+                                    "key": "lesson_id",
+                                    "value": 16,
+                                    "description": "The ID of the lesson."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"progress_percent\":1}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT api\/lessons\/{lesson_id}\/progress",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/lessons\/:lesson_id\/progress",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/lessons\/:lesson_id\/progress",
+                            "variable": [
+                                {
+                                    "id": "lesson_id",
+                                    "key": "lesson_id",
+                                    "value": 16,
+                                    "description": "The ID of the lesson."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"progress_percent\":1}"
+                        },
+                        "description": "",
+                        "auth": {
+                            "type": "noauth"
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ],
+    "auth": {
+        "type": "noauth"
+    }
+}

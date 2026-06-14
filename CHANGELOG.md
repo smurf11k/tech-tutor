@@ -6,7 +6,9 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- Added demo videos to docs
+- Added Dockerfiles
+- Added scribe docs
+- Added demo videos and files to docs
 - Added export data button logic
 - Added new email notification preferances
 - Implemented real pdf generation for certificates

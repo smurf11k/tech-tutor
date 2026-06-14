@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Notifications\ResetPasswordNotification;
+use App\Services\StorageUrlService;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailBehavior;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -196,7 +197,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return Attribute::make(
             get: fn() => $this->avatar_path
-                ? rtrim((string) config('filesystems.disks.s3.url', ''), '/') . '/' . ltrim($this->avatar_path, '/')
+                ? app(StorageUrlService::class)->publicUrl($this->avatar_path)
                 : null,
         );
     }

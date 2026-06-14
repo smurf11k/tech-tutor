@@ -17,6 +17,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use App\Services\CourseCertificateIssuer;
 
 class DatabaseSeeder extends Seeder
@@ -75,28 +76,28 @@ class DatabaseSeeder extends Seeder
             return [$tag => $model->id];
         });
 
-        $admin = User::factory()->create([
+        $admin = $this->createUser([
             'name' => 'Olena Admin',
             'email' => 'admin@techtutor.test',
             'password' => $password,
             'role' => 'admin',
         ]);
 
-        $admin2 = User::factory()->create([
+        $admin2 = $this->createUser([
             'name' => 'Petro Administrator',
             'email' => 'admin2@techtutor.test',
             'password' => $password,
             'role' => 'admin',
         ]);
 
-        $admin3 = User::factory()->create([
+        $admin3 = $this->createUser([
             'name' => 'Mariya SuperAdmin',
             'email' => 'admin3@techtutor.test',
             'password' => $password,
             'role' => 'admin',
         ]);
 
-        $backendInstructor = User::factory()->create([
+        $backendInstructor = $this->createUser([
             'name' => 'Maksym Backend',
             'nickname' => 'maksym-backend',
             'bio' => 'Backend engineer who teaches API design, testing, and secure Laravel workflows.',
@@ -105,7 +106,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'instructor',
         ]);
 
-        $frontendInstructor = User::factory()->create([
+        $frontendInstructor = $this->createUser([
             'name' => 'Ira Frontend',
             'nickname' => 'ira-frontend',
             'bio' => 'Frontend developer focused on course dashboards, accessible UI, and design systems.',
@@ -114,7 +115,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'instructor',
         ]);
 
-        $mlInstructor = User::factory()->create([
+        $mlInstructor = $this->createUser([
             'name' => 'Taras ML',
             'nickname' => 'taras-ml',
             'bio' => 'Machine learning mentor who likes practical notebooks, clean datasets, and reproducible pipelines.',
@@ -123,21 +124,21 @@ class DatabaseSeeder extends Seeder
             'role' => 'instructor',
         ]);
 
-        $devopsInstructor = User::factory()->create([
+        $devopsInstructor = $this->createUser([
             'name' => 'Oleh DevOps',
             'email' => 'devops@techtutor.test',
             'password' => $password,
             'role' => 'instructor',
         ]);
 
-        $extraInstructor = User::factory()->create([
+        $extraInstructor = $this->createUser([
             'name' => 'Nadia CourseOps',
             'email' => 'courses@techtutor.test',
             'password' => $password,
             'role' => 'instructor',
         ]);
 
-        $designInstructor = User::factory()->create([
+        $designInstructor = $this->createUser([
             'name' => 'Svitlana Design',
             'email' => 'design@techtutor.test',
             'password' => $password,
@@ -145,7 +146,7 @@ class DatabaseSeeder extends Seeder
             'bio' => 'UX/UI designer specializing in educational interfaces and accessibility.',
         ]);
 
-        $dataScienceInstructor = User::factory()->create([
+        $dataScienceInstructor = $this->createUser([
             'name' => 'Volodymyr DataScience',
             'email' => 'datascience@techtutor.test',
             'password' => $password,
@@ -153,7 +154,7 @@ class DatabaseSeeder extends Seeder
             'bio' => 'Data scientist focusing on analytics, visualization, and statistical modeling.',
         ]);
 
-        $mobileInstructor = User::factory()->create([
+        $mobileInstructor = $this->createUser([
             'name' => 'Kateryna Mobile',
             'email' => 'mobile@techtutor.test',
             'password' => $password,
@@ -161,21 +162,21 @@ class DatabaseSeeder extends Seeder
             'bio' => 'Mobile developer expert in React Native and Flutter for educational apps.',
         ]);
 
-        $student = User::factory()->create([
+        $student = $this->createUser([
             'name' => 'Iryna Student',
             'email' => 'student@techtutor.test',
             'password' => $password,
             'role' => 'student',
         ]);
 
-        $secondStudent = User::factory()->create([
+        $secondStudent = $this->createUser([
             'name' => 'Taras Student',
             'email' => 'student2@techtutor.test',
             'password' => $password,
             'role' => 'student',
         ]);
 
-        $bannedStudent = User::factory()->create([
+        $bannedStudent = $this->createUser([
             'name' => 'Blocked Student',
             'email' => 'banned@techtutor.test',
             'password' => $password,
@@ -184,56 +185,56 @@ class DatabaseSeeder extends Seeder
             'banned_at' => now()->subDay(),
         ]);
 
-        $student3 = User::factory()->create([
+        $student3 = $this->createUser([
             'name' => 'Olga Learner',
             'email' => 'student3@techtutor.test',
             'password' => $password,
             'role' => 'student',
         ]);
 
-        $student4 = User::factory()->create([
+        $student4 = $this->createUser([
             'name' => 'Dmytro StudyBuddy',
             'email' => 'student4@techtutor.test',
             'password' => $password,
             'role' => 'student',
         ]);
 
-        $student5 = User::factory()->create([
+        $student5 = $this->createUser([
             'name' => 'Ivanna KnowledgeSeeker',
             'email' => 'student5@techtutor.test',
             'password' => $password,
             'role' => 'student',
         ]);
 
-        $student6 = User::factory()->create([
+        $student6 = $this->createUser([
             'name' => 'Andrii SkillBuilder',
             'email' => 'student6@techtutor.test',
             'password' => $password,
             'role' => 'student',
         ]);
 
-        $student7 = User::factory()->create([
+        $student7 = $this->createUser([
             'name' => 'Yuliya CourseExplorer',
             'email' => 'student7@techtutor.test',
             'password' => $password,
             'role' => 'student',
         ]);
 
-        $student8 = User::factory()->create([
+        $student8 = $this->createUser([
             'name' => 'Ruslan EducationFan',
             'email' => 'student8@techtutor.test',
             'password' => $password,
             'role' => 'student',
         ]);
 
-        $student9 = User::factory()->create([
+        $student9 = $this->createUser([
             'name' => 'Liliya StudyPartner',
             'email' => 'student9@techtutor.test',
             'password' => $password,
             'role' => 'student',
         ]);
 
-        $student10 = User::factory()->create([
+        $student10 = $this->createUser([
             'name' => 'Mykhailo LifelongLearner',
             'email' => 'student10@techtutor.test',
             'password' => $password,
@@ -4325,5 +4326,39 @@ class DatabaseSeeder extends Seeder
         $this->command?->line('student2@techtutor.test');
         $this->command?->line('banned@techtutor.test');
         $this->command?->info(sprintf('Demo content created on 2026-06-01 10:30:00 by %s, %s, %s, %s, %s, %s, %s, and %s for %s, %s, and admin views.', $backendInstructor->email, $frontendInstructor->email, $mlInstructor->email, $devopsInstructor->email, $designInstructor->email, $dataScienceInstructor->email, $mobileInstructor->email, $extraInstructor->email, $student->email, $secondStudent->email));
+    }
+
+    private function createUser(array $attributes): User
+    {
+        $email = $attributes['email'];
+        $name = $attributes['name'] ?? $email;
+        $baseNickname = $attributes['nickname'] ?? $name;
+
+        return User::firstOrCreate(
+            ['email' => $email],
+            [
+                'name' => $name,
+                'nickname' => Str::slug($baseNickname, '-') ?: 'user',
+                'email_verified_at' => $attributes['email_verified_at'] ?? now(),
+                'password' => $attributes['password'] ?? Hash::make('password'),
+                'role' => $attributes['role'] ?? 'student',
+                'bio' => $attributes['bio'] ?? null,
+                'is_banned' => $attributes['is_banned'] ?? false,
+                'banned_at' => $attributes['banned_at'] ?? null,
+                'email_notifications_enabled' => $attributes['email_notifications_enabled'] ?? true,
+                'email_notifications_comment_reply' => $attributes['email_notifications_comment_reply'] ?? true,
+                'email_notifications_thread' => $attributes['email_notifications_thread'] ?? true,
+                'email_notifications_quiz_result' => $attributes['email_notifications_quiz_result'] ?? true,
+                'email_notifications_new_course' => $attributes['email_notifications_new_course'] ?? false,
+                'email_notifications_new_content' => $attributes['email_notifications_new_content'] ?? true,
+                'email_notifications_new_enrollment' => $attributes['email_notifications_new_enrollment'] ?? true,
+                'email_notifications_instructor_quiz_result' => $attributes['email_notifications_instructor_quiz_result'] ?? true,
+                'email_notifications_approval_result' => $attributes['email_notifications_approval_result'] ?? true,
+                'email_notifications_course_submitted' => $attributes['email_notifications_course_submitted'] ?? true,
+                'email_notifications_lesson_submitted' => $attributes['email_notifications_lesson_submitted'] ?? true,
+                'email_notifications_review_declined' => $attributes['email_notifications_review_declined'] ?? true,
+                'remember_token' => $attributes['remember_token'] ?? Str::random(32),
+            ],
+        );
     }
 }

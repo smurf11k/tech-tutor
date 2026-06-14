@@ -2,14 +2,18 @@ import axios from "axios";
 
 const apiBaseUrl = "/api";
 
-const FALLBACK_BACKEND_ORIGIN = "http://localhost:8000";
+const runtimeConfig =
+  typeof window !== "undefined" ? window.__TECHTUTOR_ENV__ || {} : {};
 
-const configuredBackendOrigin = import.meta.env.VITE_BACKEND_ORIGIN?.trim();
+const configuredBackendOrigin =
+  runtimeConfig.PUBLIC_BACKEND_ORIGIN?.trim() ||
+  import.meta.env.VITE_BACKEND_ORIGIN?.trim();
 
 export const backendOrigin =
-  typeof window !== "undefined"
-    ? configuredBackendOrigin || FALLBACK_BACKEND_ORIGIN
-    : configuredBackendOrigin || FALLBACK_BACKEND_ORIGIN;
+  configuredBackendOrigin ||
+  (typeof window !== "undefined"
+    ? window.location.origin
+    : runtimeConfig.PUBLIC_BACKEND_ORIGIN || "http://localhost:8000");
 
 export const STORAGE_TOKEN_KEY = "techtutor_token";
 export const STORAGE_USER_KEY = "techtutor_user";
@@ -39,6 +43,18 @@ export function postFormData(client, url, formData) {
   return client.post(url, formData);
 }
 
+function resolveSameOriginAssetUrl(url) {
+  if (typeof window === "undefined") {
+    return new URL(url.startsWith("/") ? url : `/${url}`, backendOrigin).toString();
+  }
+
+  if (url.startsWith("/api/storage") || url.startsWith("/storage")) {
+    return new URL(url, window.location.origin).toString();
+  }
+
+  return new URL(url.startsWith("/") ? url : `/${url}`, backendOrigin).toString();
+}
+
 export function resolveBackendAssetUrl(url) {
   if (!url) {
     return "";
@@ -47,6 +63,16 @@ export function resolveBackendAssetUrl(url) {
   if (url.startsWith("http://") || url.startsWith("https://")) {
     try {
       const parsed = new URL(url);
+
+      if (
+        parsed.pathname.startsWith("/api/storage") ||
+        parsed.pathname.startsWith("/storage")
+      ) {
+        return resolveSameOriginAssetUrl(
+          `${parsed.pathname}${parsed.search}${parsed.hash}`,
+        );
+      }
+
       const backendOriginUrl = new URL(backendOrigin);
 
       if (parsed.origin === backendOriginUrl.origin) {
@@ -63,10 +89,9 @@ export function resolveBackendAssetUrl(url) {
     return url;
   }
 
-  return new URL(
+  return resolveSameOriginAssetUrl(
     url.startsWith("/") ? url : `/${url}`,
-    backendOrigin,
-  ).toString();
+  );
 }
 
 export function readStoredSession() {

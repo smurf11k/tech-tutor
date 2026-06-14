@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/common/LoadingState";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useAuth } from "@/contexts/AuthContext";
-import { getApiErrorMessage } from "@/lib/utils";
+import { getApiErrorMessage, resolveBackendAssetUrl } from "@/lib/utils";
 import { extractList, formatMoney } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -147,6 +147,7 @@ export default function ProfilePage() {
 
       const response = await client.post("/auth/me", formData);
       setProfile(response.data);
+      setAvatarFailed(false);
       setDraftName(response.data?.name || "");
       setAvatarFile(null);
       setRemoveAvatar(false);
@@ -234,7 +235,7 @@ export default function ProfilePage() {
   function getAvatarSrc() {
     if (removeAvatar) return null;
     if (avatarFile) return avatarPreview;
-    return currentProfile?.avatar_url || null;
+    return resolveBackendAssetUrl(currentProfile?.avatar_url) || null;
   }
 
   function renderAvatar(size = "small") {

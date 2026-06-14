@@ -1,63 +1,144 @@
 services:
   db:
     image: postgres:16
-    container_name: techtutor_db
-    restart: always
+    restart: unless-stopped
     env_file:
-      - ./backend/.env
-    ports:
-      - "5432:5432"
+      - ./backend/.env.production
     volumes:
-      - ./backend/database/data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   meilisearch:
-    image: getmeili/meilisearch:v1.10
-    container_name: techtutor_meilisearch
-    restart: always
+    image: getmeili/meilisearch:v1.11.3
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.production
     environment:
-      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:-masterKey}
-      MEILI_ENV: development
+      MEILI_ENV: production
       MEILI_NO_ANALYTICS: "true"
-    ports:
-      - "7700:7700"
     volumes:
-      - ./backend/storage/meilisearch:/meili_data
+      - meilisearch_data:/meili_data
 
   minio:
     image: minio/minio:latest
-    container_name: techtutor_minio
-    restart: always
+    restart: unless-stopped
     command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    env_file:
+      - ./backend/.env.production
     volumes:
-      - ./backend/storage/minio:/data
+      - minio_data:/data
 
   minio-init:
     image: minio/mc:latest
     depends_on:
       - minio
     restart: "no"
+    env_file:
+      - ./backend/.env.production
     entrypoint:
       - /bin/sh
       - -c
       - |
-        until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done
-        mc mb --ignore-existing local/techtutor
-        mc anonymous set download local/techtutor
-        cat >/tmp/techtutor-cors.json <<'EOF'
-        [
-          {
-            "AllowedOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"],
-            "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
-            "AllowedHeaders": ["*"],
-            "ExposeHeaders": ["ETag", "Content-Length", "Content-Range", "Accept-Ranges"],
-            "MaxAgeSeconds": 3000
-          }
-        ]
-        EOF
-        mc cors set local/techtutor /tmp/techtutor-cors.json
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do sleep 1; done
+        mc mb --ignore-existing local/$$AWS_BUCKET
+
+  migrate-seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.production
+    environment:
+      DB_HOST: db
+      MEILISEARCH_HOST: http://meilisearch:7700
+      AWS_ENDPOINT: http://minio:9000
+    depends_on:
+      db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    command: ["sh", "/var/www/html/docker/init-database.sh"]
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.production
+    environment:
+      DB_HOST: db
+      MEILISEARCH_HOST: http://meilisearch:7700
+      AWS_ENDPOINT: http://minio:9000
+    depends_on:
+      db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      migrate-seed:
+        condition: service_completed_successfully
+    volumes:
+      - backend_storage:/var/www/html/storage
+      - backend_bootstrap_cache:/var/www/html/bootstrap/cache
+    expose:
+      - "80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/up || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  queue:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.production
+    environment:
+      DB_HOST: db
+      MEILISEARCH_HOST: http://meilisearch:7700
+      AWS_ENDPOINT: http://minio:9000
+    depends_on:
+      db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    volumes:
+      - backend_storage:/var/www/html/storage
+      - backend_bootstrap_cache:/var/www/html/bootstrap/cache
+    command: ["sh", "-c", "php artisan queue:work database --tries=3 --timeout=14400 --sleep=5"]
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.production
+    environment:
+      BACKEND_ORIGIN: ${BACKEND_ORIGIN:-http://backend:80}
+      PUBLIC_BACKEND_ORIGIN: ${PUBLIC_BACKEND_ORIGIN:-https://site-27.phfk.college}
+      STRIPE_CURRENCY: EUR
+      VITE_STRIPE_CURRENCY: EUR
+      VITE_CAPTCHA_SITE_KEY: ${VITE_CAPTCHA_SITE_KEY:-}
+    depends_on:
+      - backend
+    ports:
+      - "${APP_PORT:-20027}:80"
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  meilisearch_data:
+  minio_data:
+  backend_storage:
+  backend_bootstrap_cache:

@@ -24,6 +24,7 @@ use App\Http\Controllers\QuizController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\PaymentStatusController;
+use App\Http\Controllers\StorageController;
 use App\Http\Controllers\UserInviteController;
 use App\Models\Course;
 use App\Http\Middleware\EnsureUserIsNotBanned;
@@ -45,6 +46,7 @@ Route::middleware('sanctum.optional')->group(function () {
         'captcha_site_key' => (string) config('services.captcha.site_key'),
     ]));
 
+    Route::get('storage/{path}', [StorageController::class, 'show'])->where('path', '.*');
     Route::get('search', [SearchController::class, 'resolve']);
     Route::get('courses/catalog-options', [CourseController::class, 'catalogOptions']);
     Route::apiResource('courses', CourseController::class)->only(['index', 'show']);

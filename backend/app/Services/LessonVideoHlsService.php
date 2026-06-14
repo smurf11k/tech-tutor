@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\TranscodeLessonVideoJob;
+use App\Services\StorageUrlService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -10,6 +11,10 @@ use RuntimeException;
 
 class LessonVideoHlsService
 {
+    public function __construct(private readonly StorageUrlService $storageUrlService)
+    {
+    }
+
     /**
      * @return array{manifest_path: string, manifest_url: string}
      */
@@ -53,12 +58,6 @@ class LessonVideoHlsService
 
     private function buildPublicUrl(string $path): string
     {
-        $baseUrl = rtrim((string) config('filesystems.disks.s3.url', ''), '/');
-
-        if ($baseUrl === '') {
-            return '/storage/' . ltrim($path, '/');
-        }
-
-        return $baseUrl . '/' . ltrim($path, '/');
+        return $this->storageUrlService->publicUrl($path);
     }
 }

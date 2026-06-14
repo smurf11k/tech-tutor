@@ -2,7 +2,12 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { backendOrigin } from "@/lib/api";
 
-const stripeCurrency = (import.meta.env.VITE_STRIPE_CURRENCY || "USD").trim();
+const runtimeConfig =
+  typeof window !== "undefined" ? window.__TECHTUTOR_ENV__ || {} : {};
+const stripeCurrency =
+  (runtimeConfig.STRIPE_CURRENCY ||
+    import.meta.env.VITE_STRIPE_CURRENCY ||
+    "USD").trim();
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -22,6 +27,18 @@ export function getCourseRouteKey(course) {
   );
 }
 
+function resolveSameOriginAssetUrl(url) {
+  if (typeof window === "undefined") {
+    return new URL(url.startsWith("/") ? url : `/${url}`, backendOrigin).toString();
+  }
+
+  if (url.startsWith("/api/storage") || url.startsWith("/storage")) {
+    return new URL(url, window.location.origin).toString();
+  }
+
+  return new URL(url.startsWith("/") ? url : `/${url}`, backendOrigin).toString();
+}
+
 export function resolveBackendAssetUrl(url) {
   if (!url) {
     return "";
@@ -30,6 +47,16 @@ export function resolveBackendAssetUrl(url) {
   if (url.startsWith("http://") || url.startsWith("https://")) {
     try {
       const parsed = new URL(url);
+
+      if (
+        parsed.pathname.startsWith("/api/storage") ||
+        parsed.pathname.startsWith("/storage")
+      ) {
+        return resolveSameOriginAssetUrl(
+          `${parsed.pathname}${parsed.search}${parsed.hash}`,
+        );
+      }
+
       const frontendOrigin = new URL(backendOrigin);
 
       if (parsed.origin === frontendOrigin.origin) {
@@ -46,10 +73,9 @@ export function resolveBackendAssetUrl(url) {
     return url;
   }
 
-  return new URL(
+  return resolveSameOriginAssetUrl(
     url.startsWith("/") ? url : `/${url}`,
-    backendOrigin,
-  ).toString();
+  );
 }
 
 export function extractList(payload) {
