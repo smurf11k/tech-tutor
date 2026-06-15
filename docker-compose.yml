@@ -125,15 +125,14 @@ services:
       - ./backend/.env.production
     environment:
       BACKEND_ORIGIN: ${BACKEND_ORIGIN:-http://backend:80}
-      PUBLIC_BACKEND_ORIGIN: ${PUBLIC_BACKEND_ORIGIN:-https://site-27.phfk.college}
+      PUBLIC_BACKEND_ORIGIN: ${PUBLIC_BACKEND_ORIGIN:-https://site-28.phfk.college}
       STRIPE_CURRENCY: EUR
       VITE_STRIPE_CURRENCY: EUR
       VITE_CAPTCHA_SITE_KEY: ${VITE_CAPTCHA_SITE_KEY:-}
     depends_on:
       - backend
     ports:
-      - "${APP_PORT:-20027}:80"
-      - "80:80"
+      - "${APP_PORT:-20028}:80"
     restart: unless-stopped
 
 volumes:
