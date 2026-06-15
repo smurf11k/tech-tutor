@@ -121,8 +121,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    env_file:
-      - ./backend/.env.production
     environment:
       BACKEND_ORIGIN: ${BACKEND_ORIGIN:-http://backend:80}
       PUBLIC_BACKEND_ORIGIN: ${PUBLIC_BACKEND_ORIGIN:-https://site-28.phfk.college}
